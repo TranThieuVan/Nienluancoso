@@ -14,6 +14,9 @@ app.use('/uploads', express.static('uploads'));
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+const bookRoutes = require('./routes/book');
+app.use('/api/books', bookRoutes);
+
 // DB Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {

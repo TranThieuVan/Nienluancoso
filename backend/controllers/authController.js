@@ -3,17 +3,28 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res) => {
-    const { name, email, password } = req.body;
     try {
-        const existing = await User.findOne({ email });
-        if (existing) return res.status(400).json({ msg: 'Email đã tồn tại' });
+        const { name, email, password, role } = req.body;
 
-        const hashed = await bcrypt.hash(password, 10);
-        const user = await User.create({ name, email, password: hashed });
+        const existingUser = await User.findOne({ email });
+        if (existingUser)
+            return res.status(400).json({ msg: 'Email đã tồn tại' });
 
-        res.status(201).json({ msg: 'Đăng ký thành công', user });
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = new User({
+            name,
+            email,
+            password: hashedPassword,
+            role: role || 'user'  // ✅ chỉ cho admin nếu truyền rõ ràng
+        });
+
+        await newUser.save();
+
+        res.status(201).json({ msg: 'Đăng ký thành công', user: newUser });
     } catch (err) {
-        res.status(500).json({ msg: 'Lỗi server' });
+        console.error(err);
+        res.status(500).json({ msg: 'Đăng ký thất bại', err });
     }
 };
 
