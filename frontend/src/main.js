@@ -1,8 +1,8 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import router from './router'
-import './assets/main.css';
-import './assets/main.css'
-import { createPinia } from 'pinia'
-// ...
-createApp(App).use(router).use(createPinia()).mount('#app')
+import router from './router'  // Import router
+import './assets/tailwind.css' // Nếu đang dùng TailwindCSS
+
+const app = createApp(App)
+app.use(router)  // Kích hoạt Vue Router
+app.mount('#app')
