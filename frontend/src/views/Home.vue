@@ -34,21 +34,6 @@
         </div>
       </div>
 
-      <!-- Phần review -->
-      <div class="w-[50%] min-h-[400px] rounded-[10px] shadow-[0_0_5px_#888888] bg-green-500 p-6">
-        <h2 class="text-white text-2xl font-semibold text-center mb-4">What people are saying</h2>
-        <div class="flex flex-wrap justify-between gap-y-4">
-          <div v-for="(review, index) in reviews" :key="index" class="w-[48%] bg-white p-4 rounded shadow flex">
-            <div class="w-1/3 h-full flex-shrink-0 mr-4">
-              <img :src="review.image" alt="avatar" class="h-full w-full object-cover rounded" loading="lazy" />
-            </div>
-            <div class="w-2/3">
-              <p class="text-gray-800 text-base font-medium">{{ review.text }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Section sách mới cập nhật -->
       <section class="py-12 px-6">
         <h2 class="text-2xl font-semibold mb-6 text-center">Sách mới cập nhật</h2>
