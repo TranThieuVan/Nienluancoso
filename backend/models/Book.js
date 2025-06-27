@@ -7,7 +7,7 @@ const bookSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     image: String, // Đường dẫn ảnh bìa
     genre: String,
-    stock: { type: Number, default: 0 }
+    stock: { type: Number, required: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Book', bookSchema);
