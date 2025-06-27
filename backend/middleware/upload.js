@@ -12,19 +12,10 @@ const storage = multer.diskStorage({
     }
 });
 
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Chỉ chấp nhận ảnh jpg/png/jpeg'), false);
-    }
-};
 
 const upload = multer({
     storage,
-    fileFilter, // bật lại lọc ảnh
-    limits: { fileSize: 2 * 1024 * 1024 } // 2MB (bạn ghi nhầm là 20MB trước)
+    limits: { fileSize: 20 * 1024 * 1024 } // 2MB (bạn ghi nhầm là 20MB trước)
 });
 
 module.exports = upload;

@@ -1,22 +1,29 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, gender, phone, address } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser)
             return res.status(400).json({ msg: 'Email đã tồn tại' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-
+        const avatar = req.file
+            ? `uploads/avatars/${req.file.filename}`
+            : 'uploads/avatars/default-user.png';  // <-- đường dẫn mặc định        
         const newUser = new User({
             name,
             email,
             password: hashedPassword,
-            role: role || 'user'  // ✅ chỉ cho admin nếu truyền rõ ràng
+            role: role || 'user',
+            gender,
+            phone,
+            address,
+            avatar
         });
 
         await newUser.save();

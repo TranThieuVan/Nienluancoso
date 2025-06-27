@@ -7,6 +7,13 @@
       <p class="text-center text-gray-600 mb-6">Đăng ký để bắt đầu hành trình của bạn</p>
 
       <form @submit.prevent="register" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="col-span-2">
+  <label class="block text-gray-700 font-medium">Ảnh đại diện</label>
+  <input type="file" accept="image/*"
+    @change="handleAvatarChange"
+    class="w-full p-3 border border-[#8B4513] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#8B4513]" />
+</div>
+
         <!-- Cột bên trái -->
         <div class="space-y-4">
           <div>
@@ -17,7 +24,7 @@
 
                     <div>
             <label class="block text-gray-700 font-medium">Họ và Tên</label>
-            <input v-model="form.fullName" type="text" required
+            <input v-model="form.name" type="text" required
               class="w-full p-3 border border-[#8B4513] rounded focus:outline-none focus:ring-2 focus:ring-[#8B4513]">
           </div>
 
@@ -51,7 +58,7 @@
                   required
                   type="radio"
                   name="gender"
-                  value="Nam"
+                  value="male"
                   class="peer z-10 h-full w-full cursor-pointer opacity-0"
                 />
                 <div
@@ -89,7 +96,7 @@
                   required
                   type="radio"
                   name="gender"
-                  value="Nữ"
+                  value="female"
                   class="peer z-10 h-full w-full cursor-pointer opacity-0"
                 />
                 <div
@@ -147,41 +154,67 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, computed } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
-import backgroundImage from '../assets/image/register1.jpg'
-const form = ref({
-    fullName: "",
-    email: "",
-    gender: "",
-    address: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-    backgroundImage
-});
+import backgroundImage from '../assets/image/register1.jpg';
 
 const router = useRouter();
 
-// Kiểm tra mật khẩu có khớp không
+const form = ref({
+  name: "",
+  email: "",
+  gender: "",
+  address: "",
+  phone: "",
+  password: "",
+  confirmPassword: "",
+  backgroundImage
+});
+
+const avatarFile = ref(null); // avatar được chọn từ input
+
+// ✅ Xử lý khi người dùng chọn ảnh
+const handleAvatarChange = (event) => {
+  avatarFile.value = event.target.files[0];
+};
+
+// ⚠️ Kiểm tra mật khẩu có khớp không
 const passwordMismatch = computed(() => {
-    return form.value.password !== form.value.confirmPassword;
+  return form.value.password !== form.value.confirmPassword;
 });
 
 const register = async () => {
-    if (passwordMismatch.value) {
-        alert("Mật khẩu không khớp, vui lòng nhập lại!");
-        return;
+  if (passwordMismatch.value) {
+    alert("Mật khẩu không khớp, vui lòng nhập lại!");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("name", form.value.name); // backend dùng 'name'
+    formData.append("email", form.value.email);
+    formData.append("password", form.value.password);
+    formData.append("gender", form.value.gender);
+    formData.append("address", form.value.address);
+    formData.append("phone", form.value.phone);
+    if (avatarFile.value) {
+      formData.append("avatar", avatarFile.value);
     }
 
-    try {
-        await axios.post("http://localhost:5000/api/auth/register", form.value);
-        alert("Đăng ký thành công!");
-        router.push("/login");
-    } catch (error) {
-        alert("Lỗi: " + error.response.data.message);
-    }
+    await axios.post("http://localhost:5000/api/auth/register", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    alert("Đăng ký thành công!");
+    router.push("/login");
+  } catch (error) {
+    console.error(error);
+    alert("Lỗi: " + (error.response?.data?.msg || "Đăng ký thất bại"));
+  }
 };
 </script>

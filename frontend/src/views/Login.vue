@@ -54,21 +54,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import axios from 'axios'
+import { useRouter } from 'vue-router'
 
 const email = ref('')
 const password = ref('')
 const errorMessage = ref('')
+const router = useRouter()
 
-// Dummy login handler (kết nối backend sau)
-function handleLogin() {
+async function handleLogin() {
   if (!email.value || !password.value) {
     errorMessage.value = 'Vui lòng nhập đầy đủ thông tin.'
-  } else {
-    errorMessage.value = ''
-    console.log('Login with:', email.value, password.value)
-    // Gửi yêu cầu đăng nhập ở đây
+    return
+  }
+
+  try {
+    const res = await axios.post('http://localhost:5000/api/auth/login', {
+      email: email.value,
+      password: password.value
+    })
+
+    const { token, user } = res.data
+
+    // Lưu vào localStorage
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(user))
+
+    // Điều hướng theo quyền
+    if (user.role === 'admin') {
+      router.push('/admin')  // 👈 đường dẫn tuỳ bạn cấu hình
+    } else {
+      router.push('/')  // trang người dùng
+    }
+  } catch (err) {
+    errorMessage.value = err.response?.data?.msg || 'Đăng nhập thất bại'
   }
 }
-
 </script>
