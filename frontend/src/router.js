@@ -6,6 +6,8 @@ import AdminLogin from "./views/admin/AdminLogin.vue";
 import AdminBookList from '@/views/admin/AdminBookList.vue'
 import AddBook from '@/views/admin/AddBook.vue'
 import EditBook from '@/views/admin/EditBook.vue'
+import Cart from '@/views/Cart.vue'
+import BookDetail from '@/views/BookDetail.vue';
 const routes = [
 
     { path: "/", component: Home },
@@ -33,6 +35,12 @@ const routes = [
         props: true
     },
     { path: "/books", name: "BookList", component: () => import('./views/BookList.vue') },
+    {
+        path: '/cart',
+        name: 'Cart',
+        component: Cart,
+    },
+    { path: '/books/:id', name: 'BookDetail', component: BookDetail },
 ];
 
 const router = createRouter({

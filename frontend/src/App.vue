@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import { computed } from "vue";
+import { computed, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Navbar from "./components/Navbar.vue";
 
@@ -19,18 +19,19 @@ export default {
     const isAdminRoute = computed(() => route.path.startsWith("/admin"));
     const isAdminLoggedIn = computed(() => localStorage.getItem("adminToken"));
 
-    // Nếu đang ở trang admin mà chưa đăng nhập, chuyển hướng về admin login
-    if (isAdminRoute.value && !isAdminLoggedIn.value) {
-      router.push("/admin");
-    }
+    // ✅ Dùng watchEffect để redirect sau khi route sẵn sàng
+    watchEffect(() => {
+      if (isAdminRoute.value && !isAdminLoggedIn.value && route.path !== '/admin/login') {
+        router.push("/admin/login");
+      }
+    });
 
-    // Ẩn Navbar ở các trang đăng nhập và đăng ký user, cũng như admin
     const showNavbar = computed(() => {
       const hideRoutes = ["/login", "/register"];
       return !isAdminRoute.value && !hideRoutes.includes(route.path);
     });
 
-    return { isAdminRoute, isAdminLoggedIn, showNavbar };
+    return { showNavbar };
   },
 };
 </script>

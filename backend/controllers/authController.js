@@ -14,7 +14,13 @@ exports.register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const avatar = req.file
             ? `uploads/avatars/${req.file.filename}`
-            : 'uploads/avatars/default-user.png';  // <-- đường dẫn mặc định        
+            : 'uploads/avatars/default-user.png';
+
+        // Nếu req.file tồn tại nhưng size = 0 hoặc không hợp lệ thì không dùng
+        if (req.file && req.file.size === 0) {
+            fs.unlinkSync(req.file.path); // xoá file rác nếu cần
+            avatar = 'uploads/avatars/default-user.png';
+        }
         const newUser = new User({
             name,
             email,

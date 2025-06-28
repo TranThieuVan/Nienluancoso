@@ -16,6 +16,16 @@ app.use('/api/auth', authRoutes);
 const bookRoutes = require('./routes/book');
 app.use('/api/books', bookRoutes);
 
+const cartRoutes = require('./routes/cart');
+app.use('/api/cart', cartRoutes);
+
+const commentRoutes = require('./routes/comment');
+app.use('/api/comments', commentRoutes);
+
+const ratingRoutes = require('./routes/rating');
+app.use('/api/rating', ratingRoutes);
+
+
 // Cho phép truy cập ảnh tĩnh trong thư mục /public
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

@@ -82,8 +82,16 @@
         <RouterLink to="/favorites" class="text-gray-700 hover:text-blue-600 text-lg">
           <font-awesome-icon :icon="['far', 'heart']" />
         </RouterLink>
-        <RouterLink to="/cart" class="text-gray-700 hover:text-blue-600 text-lg">
+
+        <!-- Giỏ hàng với số lượng -->
+        <RouterLink to="/cart" class="relative text-gray-700 hover:text-blue-600 text-xl">
           <font-awesome-icon :icon="['fas', 'bag-shopping']" />
+          <span
+            v-if="cartCount > 0"
+            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+          >
+            {{ cartCount }}
+          </span>
         </RouterLink>
       </div>
 
@@ -151,6 +159,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { cartCount, setCartCount } from '@/composables/cartStore'
+import axios from 'axios'
 
 const router = useRouter()
 
@@ -200,4 +210,30 @@ const logout = () => {
   dropdownOpen.value = false
   router.push('/')
 }
+
+// Load số lượng giỏ hàng khi mount Navbar
+const loadCartCount = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    setCartCount(0)
+    return
+  }
+  try {
+    const { data } = await axios.get('http://localhost:5000/api/cart', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (data && data.items) {
+      const total = data.items.reduce((sum, item) => sum + item.quantity, 0)
+      setCartCount(total)
+    } else {
+      setCartCount(0)
+    }
+  } catch (error) {
+    setCartCount(0)
+  }
+}
+
+onMounted(() => {
+  loadCartCount()
+})
 </script>
