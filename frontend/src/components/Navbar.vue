@@ -1,8 +1,47 @@
 <template>
   <!-- Top bar -->
-  <div class="hidden md:flex bg-gray-100 justify-end  px-5 py-2 gap-3 text-sm">
-    <RouterLink class="hover:underline font-medium" to="/register">Join Us</RouterLink>
-    <RouterLink class="hover:underline font-medium border-l mr-10 border-gray-400 pl-3" to="/login">Sign In</RouterLink>
+  <div class="hidden md:flex bg-gray-100 justify-end px-5 py-2 gap-3 text-sm relative">
+    <template v-if="user">
+      <!-- Avatar Dropdown -->
+      <div class="relative" @click="toggleDropdown">
+        <img
+          :src="avatarUrl"
+          alt="User Avatar"
+          class="w-8 h-8 rounded-full mr-10 object-cover cursor-pointer border-2 border-gray-300"
+        />
+
+        <!-- Dropdown menu -->
+        <div
+          v-if="dropdownOpen"
+          class="absolute right-0 mt-2 mr-10 w-48 bg-white rounded-md shadow-lg border z-[999]"
+        >
+          <div class="px-4 py-2 text-sm text-gray-700 font-semibold truncate">
+            {{ user.name }}
+          </div>
+          <hr class="my-1" />
+          <RouterLink
+            to="/profile"
+            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            @click="closeDropdown"
+          >
+            Hồ sơ cá nhân
+          </RouterLink>
+          <button
+            @click="logout"
+            class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </template>
+    <template v-else>
+      <RouterLink class="hover:underline font-medium" to="/register">Join Us</RouterLink>
+      <RouterLink
+        class="hover:underline font-medium border-l mr-10 border-gray-400 pl-3"
+        to="/login"
+      >Sign In</RouterLink>
+    </template>
   </div>
 
   <!-- Navbar -->
@@ -14,7 +53,9 @@
       </RouterLink>
 
       <!-- Center navigation links -->
-      <div class="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 gap-6 text-base font-medium text-gray-700">
+      <div
+        class="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 gap-6 text-base font-medium text-gray-700"
+      >
         <RouterLink to="/" class="hover:text-blue-600">Trang chủ</RouterLink>
         <RouterLink to="/books" class="hover:text-blue-600">Sách</RouterLink>
         <RouterLink to="/contact" class="hover:text-blue-600">Liên hệ</RouterLink>
@@ -45,7 +86,6 @@
           <font-awesome-icon :icon="['fas', 'bag-shopping']" />
         </RouterLink>
       </div>
-
 
       <!-- Mobile menu toggle -->
       <button class="md:hidden text-black text-xl ml-4" @click="toggleMenu">
@@ -93,11 +133,14 @@
             Giỏ hàng
           </RouterLink>
         </li>
-        <li>
+        <li v-if="!user">
           <RouterLink to="/login" class="flex items-center text-black hover:underline" @click="toggleMenu">
             <font-awesome-icon :icon="['far', 'user']" class="mr-2" />
             Đăng nhập
           </RouterLink>
+        </li>
+        <li v-else>
+          <button @click="logout" class="text-left text-black hover:underline">Đăng xuất</button>
         </li>
       </ul>
     </div>
@@ -105,12 +148,56 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, RouterLink } from 'vue-router'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
+const router = useRouter()
+
+// Menu Toggle
 const menuOpen = ref(false)
-function toggleMenu() {
+const toggleMenu = () => {
   menuOpen.value = !menuOpen.value
+}
+
+// Lấy user từ localStorage
+const user = ref(null)
+onMounted(() => {
+  const stored = localStorage.getItem('user')
+  if (stored) user.value = JSON.parse(stored)
+})
+
+// Avatar
+const avatarUrl = computed(() => {
+  if (!user.value) return ''
+  return user.value.avatar
+    ? `http://localhost:5000/${user.value.avatar}`
+    : 'http://localhost:5000/uploads/avatars/default-user.png'
+})
+
+// Dropdown
+const dropdownOpen = ref(false)
+const toggleDropdown = () => (dropdownOpen.value = !dropdownOpen.value)
+const closeDropdown = () => (dropdownOpen.value = false)
+const handleClickOutside = (event) => {
+  const dropdown = document.querySelector('.relative')
+  if (dropdown && !dropdown.contains(event.target)) {
+    dropdownOpen.value = false
+  }
+}
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// Logout
+const logout = () => {
+  localStorage.removeItem('user')
+  localStorage.removeItem('token')
+  user.value = null
+  dropdownOpen.value = false
+  router.push('/')
 }
 </script>
