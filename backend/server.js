@@ -25,6 +25,9 @@ app.use('/api/comments', commentRoutes);
 const ratingRoutes = require('./routes/rating');
 app.use('/api/rating', ratingRoutes);
 
+const favoriteRoutes = require('./routes/favorite');
+app.use('/api/favorites', favoriteRoutes);
+
 
 // Cho phép truy cập ảnh tĩnh trong thư mục /public
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

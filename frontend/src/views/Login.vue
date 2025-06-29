@@ -2,13 +2,13 @@
   <div class="flex min-h-screen">
     <!-- Slider background -->
     <div class="w-4/5 overflow-hidden relative">
-      <img src="@/assets/image/dare1.jpg" alt="">
+      <img src="@/assets/image/iron1.jpg">
     </div>
-
+        
     <!-- Login form -->
     <div class="w-1/5 flex items-center justify-center bg-white">
       <div class="max-w-lg w-full p-8 rounded">
-        <img src="@/assets/image/iron1.jpg" alt="Logo" class="mx-auto mb-4 w-40" />
+        <img src="@/assets/image/logo.png" alt="Logo" class="mx-auto mb-20 mb-4 w-60" />
         <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">Đăng Nhập</h2>
 
         <p v-if="errorMessage" class="text-red-600 text-center mb-4">

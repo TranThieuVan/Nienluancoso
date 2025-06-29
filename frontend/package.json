@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@heroicons/vue": "^1.0.6",
+    "autosize": "^6.0.1",
     "axios": "^1.8.4",
     "sweetalert2": "^11.17.2",
     "vue": "^3.4.0",

@@ -48,8 +48,8 @@
   <nav class="bg-white sticky top-0 shadow py-3 z-50">
     <div class="container mx-auto flex items-center px-4 md:px-8 relative">
       <!-- Logo -->
-      <RouterLink to="/" class="flex items-center flex-shrink-0">
-        <img src="@/assets/image/iron1.jpg" alt="Logo" class="h-8" />
+      <RouterLink to="/" class="flex items-center  flex-shrink-0">
+        <img src="@/assets/image/logo.png" alt="Logo" class="h-10 w-auto" />
       </RouterLink>
 
       <!-- Center navigation links -->

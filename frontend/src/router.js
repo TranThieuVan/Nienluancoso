@@ -8,6 +8,8 @@ import AddBook from '@/views/admin/AddBook.vue'
 import EditBook from '@/views/admin/EditBook.vue'
 import Cart from '@/views/Cart.vue'
 import BookDetail from '@/views/BookDetail.vue';
+import Favorites from '@/views/Favorites.vue'
+
 const routes = [
 
     { path: "/", component: Home },
@@ -41,6 +43,12 @@ const routes = [
         component: Cart,
     },
     { path: '/books/:id', name: 'BookDetail', component: BookDetail },
+    {
+        path: '/favorites',
+        name: 'Favorites',
+        component: Favorites,
+        // meta: { requiresAuth: true } // nếu bạn có middleware kiểm tra đăng nhập
+    }
 ];
 
 const router = createRouter({

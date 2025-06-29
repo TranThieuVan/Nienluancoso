@@ -43,7 +43,6 @@
             />
             <h2 class="text-lg font-bold mt-2">{{ book.title }}</h2>
             <p class="text-gray-600">Tác giả: {{ book.author }}</p>
-            <p class="text-gray-500 text-sm">Mô tả: {{ book.description }}</p>
             <span
               class="text-xs bg-blue-200 text-blue-700 px-2 py-1 rounded mt-2 inline-block"
             >

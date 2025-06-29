@@ -69,7 +69,7 @@
       <!-- Cột phải: Tổng tiền + Thanh toán -->
 <div
   class="w-2/5 bg-white rounded-2xl shadow-[0_0_12px_rgba(0,0,0,0.08)] p-6 flex flex-col gap-6 mr-20"
-  style="position: sticky; top: 20px;"
+  style="position: sticky; top: 80px;"
 >
   <!-- Chi tiết từng sách -->
   <div class="space-y-2">

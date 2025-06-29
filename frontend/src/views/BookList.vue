@@ -12,54 +12,65 @@
     <!-- Danh sách sách dạng ngang -->
     <div ref="scrollContainer" class="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth">
       <div
-  v-for="book in books"
-  :key="book._id"
-  @click="goToDetail(book._id)"
-  class="min-w-[160px] w-40 md:w-[16.6667%] sm:w-[33.3333%] bg-white shadow-md rounded-2xl flex flex-col hover:shadow-lg transition-shadow min-h-[300px]"
->
-  <img
-    :src="book.image"
-    alt="Book Cover"
-    class="w-full h-48 object-cover rounded-t-2xl"
-  />
+        v-for="book in books"
+        :key="book._id"
+        class="min-w-[160px] w-40 md:w-[16.6667%] sm:w-[33.3333%] bg-white shadow-md rounded-2xl flex flex-col hover:shadow-lg transition-shadow min-h-[300px]"
+      >
+        <!-- Ảnh sách -->
+        <img
+          :src="book.image"
+          alt="Book Cover"
+          class="w-full h-48 object-cover rounded-t-2xl cursor-pointer"
+          @click="goToDetail(book._id)"
+        />
 
-  <div class="flex-1 p-3 flex flex-col justify-between h-full">
-    <h2 class="font-bold text-sm text-left line-clamp-2 leading-tight flex items-center">
-      {{ book.title }}
-    </h2>
-    <p class="text-xs text-gray-600 text-left mt-1">{{ book.author }}</p>
+        <!-- Nội dung -->
+        <div class="flex-1 p-3 flex flex-col justify-between h-full">
+          <div>
+            <h2 class="font-bold text-sm text-left line-clamp-2 leading-tight">
+              {{ book.title }}
+            </h2>
+            <p class="text-xs text-gray-600 text-left mt-1">{{ book.author }}</p>
+          </div>
 
-    <div class="flex justify-between items-center mt-3">
-      <p class="text-green-600 text-sm font-semibold">
-        {{ book.price.toLocaleString() }}₫
-      </p>
+          <div class="flex justify-between items-center mt-3">
+            <p class="text-green-600 text-sm font-semibold">
+              {{ book.price.toLocaleString() }}₫
+            </p>
 
-      <div class="flex items-center gap-2">
-        <button @click="toggleFavorite(book)" class="text-black hover:text-pink-600">
-          <font-awesome-icon :icon="['far', 'heart']" />
-        </button>
-        <button @click="addToCart(book)" class="text-black hover:text-green-600">
-          <font-awesome-icon :icon="['fas', 'bag-shopping']" />
-        </button>
+            <div class="flex items-center gap-2">
+              <!-- ❤️ -->
+              <button @click="toggleFavorite(book)">
+                <font-awesome-icon
+                  :icon="[isFavorite(book._id) ? 'fas' : 'far', 'heart']"
+                  :class="isFavorite(book._id) ? 'text-red-500' : 'text-gray-500'"
+                />
+              </button>
+              <!-- 🛒 -->
+              <button @click="addToCart(book)" class="text-black hover:text-green-600">
+                <font-awesome-icon :icon="['fas', 'bag-shopping']" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
-
     </div>
   </div>
 </template>
 
-
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { incrementCartCount } from '@/composables/cartStore'
-import { useRouter } from 'vue-router' // <== THÊM DÒNG NÀY
+import { useFavorites } from '@/composables/useFavorites'
+import { useCart } from '@/composables/useCart'
 
 const books = ref([])
 const scrollContainer = ref(null)
+const router = useRouter()
+
+const { favorites, isFavorite, toggleFavorite, fetchFavorites } = useFavorites()
+const { addToCart } = useCart()
 
 const fetchBooks = async () => {
   try {
@@ -70,59 +81,36 @@ const fetchBooks = async () => {
   }
 }
 
+const goToDetail = (id) => {
+  router.push(`/books/${id}`)
+}
+
 const scrollLeft = () => {
   scrollContainer.value.scrollLeft -= 900
 }
-
 const scrollRight = () => {
   scrollContainer.value.scrollLeft += 900
 }
 
-const toggleFavorite = (book) => {
-  alert(`Đã ❤️ sách: ${book.title}`)
-}
-
-const addToCart = async (book) => {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    alert('Vui lòng đăng nhập để thêm vào giỏ hàng!')
-    return
-  }
-
-  try {
-    await axios.post(
-      'http://localhost:5000/api/cart/add',
-      { bookId: book._id, quantity: 1 },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    incrementCartCount(1) // tăng số lượng trên navbar
-  } catch (err) {
-    console.error('Lỗi khi thêm vào giỏ hàng:', err)
-    alert('Không thể thêm vào giỏ hàng.')
-  }
-}
-
-const router = useRouter();
-const goToDetail = (id) => {
-  router.push(`/books/${id}`);
-};
-
-
-onMounted(fetchBooks)
+onMounted(async () => {
+  await fetchBooks()
+  await fetchFavorites()
+})
 </script>
 
 <style scoped>
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 img {
   transition: transform 0.3s ease;
 }
-.scrollbar-hide {
-  padding-bottom: 4px; /* giúp không bị cắt sát */
+img:hover {
+  transform: scale(1.03);
 }
 </style>
