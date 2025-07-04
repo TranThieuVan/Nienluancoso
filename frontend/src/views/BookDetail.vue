@@ -4,27 +4,20 @@
       <!-- 📘 PHẦN TRÁI (60%) -->
       <div class="md:w-3/5 space-y-6">
         <div class="rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.15)] bg-white overflow-hidden">
-  <!-- Ảnh sách tràn viền -->
-  <img :src="book.image" alt="Book Cover" class="w-full h-full object-cover rounded-b-xl" />
+          <img :src="book.image" alt="Book Cover" class="w-full h-full object-cover rounded-b-xl" />
+          <div class="p-4">
+            <div>
+              <h2 class="text-xl font-semibold mb-2">Chi tiết sản phẩm</h2>
+              <p><strong>Thể loại:</strong> {{ book.genre }}</p>
+              <p><strong>Tác giả:</strong> {{ book.author }}</p>
+            </div>
+            <div class="mt-4">
+              <h2 class="text-xl font-semibold mb-2">Mô tả</h2>
+              <p class="text-sm text-gray-700 whitespace-pre-line">{{ book.description }}</p>
+            </div>
+          </div>
+        </div>
 
-  <!-- Phần nội dung bên dưới có padding -->
-  <div class="p-4">
-    <!-- Chi tiết sản phẩm -->
-    <div>
-      <h2 class="text-xl font-semibold mb-2">Chi tiết sản phẩm</h2>
-      <p><strong>Thể loại:</strong> {{ book.genre }}</p>
-      <p><strong>Tác giả:</strong> {{ book.author }}</p>
-    </div>
-
-    <!-- Mô tả -->
-    <div class="mt-4">
-      <h2 class="text-xl font-semibold mb-2">Mô tả</h2>
-      <p class="text-sm text-gray-700 whitespace-pre-line">{{ book.description }}</p>
-    </div>
-  </div>
-</div>
-
-        <!-- Đánh giá -->
         <div class="p-4 rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.15)] bg-white flex justify-between">
           <h2 class="text-xl font-semibold mb-2">Đánh giá sách</h2>
           <div class="flex gap-1 text-yellow-500 text-xl">
@@ -34,26 +27,17 @@
           </div>
         </div>
 
-        <!-- Trung bình đánh giá -->
         <div class="text-gray-700">
           ⭐ <strong>{{ averageRating }}/5</strong> ({{ totalRatings }} lượt đánh giá)
         </div>
 
-        <!-- Bình luận -->
         <div>
           <h2 class="text-xl font-semibold mb-2 mt-6">Bình luận</h2>
-
-          <!-- Gửi bình luận -->
           <div v-if="isLoggedIn" class="mb-4 flex items-center gap-3">
-            <!-- Avatar -->
             <img :src="getAvatarUrl(user.avatar)" class="w-10 h-10 rounded-full object-cover" alt="Avatar" @error="onImageError" />
-
-            <!-- Textarea -->
             <div class="flex-1 flex items-center border rounded-md px-2">
               <textarea ref="ta" v-model="msg" class="flex-1 resize-none overflow-hidden leading-relaxed focus:outline-none p-2" rows="1" placeholder="Nhập nội dung..." @input="onInput"></textarea>
             </div>
-
-            <!-- Icon gửi -->
             <button @click="submitComment" class="text-[#8B4513] hover:text-[#6B3510] text-2xl" title="Gửi">
               <font-awesome-icon :icon="['fas', 'paper-plane']" />
             </button>
@@ -61,31 +45,15 @@
           <div v-else class="text-gray-500 italic mb-4">
             Vui lòng đăng nhập để bình luận.
           </div>
-
-          <!-- Danh sách bình luận -->
           <div v-if="comments.length === 0" class="text-gray-500">Chưa có bình luận nào.</div>
           <div v-else class="space-y-4">
-            <div
-              v-for="cmt in comments"
-              :key="cmt._id"
-              class="flex items-start gap-3 border-b pb-3 relative"
-            >
-              <img
-                :src="getAvatarUrl(cmt.userId.avatar)"
-                class="w-10 h-10 rounded-full object-cover"
-                @error="onImageError"
-              />
+            <div v-for="cmt in comments" :key="cmt._id" class="flex items-start gap-3 border-b pb-3 relative">
+              <img :src="getAvatarUrl(cmt.userId.avatar)" class="w-10 h-10 rounded-full object-cover" @error="onImageError" />
               <div>
                 <p class="font-semibold">{{ cmt.userId.name }}</p>
                 <p class="text-sm text-gray-700">{{ cmt.content }}</p>
               </div>
-              <button
-                v-if="isLoggedIn && (cmt.userId._id === userId || isAdmin)"
-                @click="deleteComment(cmt._id)"
-                class="absolute top-0 right-0 text-red-500 hover:underline text-sm"
-              >
-                ✖
-              </button>
+              <button v-if="isLoggedIn && (cmt.userId._id === userId || isAdmin)" @click="deleteComment(cmt._id)" class="absolute top-0 right-0 text-red-500 hover:underline text-sm">✖</button>
             </div>
           </div>
         </div>
@@ -95,41 +63,38 @@
       <div class="md:w-2/5 space-y-4 border p-6 rounded-xl shadow-md h-fit" style="position: sticky; right: 20px; top: 80px;">
         <h1 class="text-2xl font-bold">{{ book.title }}</h1>
         <p class="text-gray-600 text-sm">{{ book.author }}</p>
+        <hr>
         <div class="text-yellow-500 text-lg">
           ⭐ {{ averageRating }}/5 ({{ totalRatings }} đánh giá)
         </div>
-        <p class="text-green-600 text-2xl font-bold">
-          {{ formatPrice(book.price) }}₫
-        </p>
-
-        <div class="flex flex-col gap-3 mt-4">
-          <button 
-            @click="addToCart(book)"
-            class="bg-[#8B4513] hover:bg-[#6B3510] text-white py-2 rounded-xl"
-          >
-            🛒 Thêm vào giỏ hàng
-          </button>
-          <button class="bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl">
-            💳 Thanh toán
-          </button>
+        <p class="text-#333 text-2xl font-bold">{{ formatPrice(book.price) }}₫</p>
+        <div class="mt-2 flex items-center gap-2 text-red-500 cursor-pointer" @click="toggleFavoriteHandler">
+          <font-awesome-icon :icon="[isFavorite(book?._id) ? 'fas' : 'far', 'heart']" class="text-xl" />
+        </div>
+        <div class="flex gap-1 mt-4">
+          <button @click="addToCart(book)" class="bg-black hover:bg-[#333] text-white py-2 w-52">Thêm vào giỏ hàng</button>
+          <button class="bg-black hover:bg-[#333] text-white py-2 w-48" @click="handleBuyNow">Thanh toán</button>
         </div>
       </div>
     </div>
-
     <div v-else class="text-center text-gray-500">Đang tải sách...</div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import autosize from 'autosize';
 import { useCart } from '@/composables/useCart';
-const { addToCart } = useCart();
+import { useFavorites } from '@/composables/useFavorites';
 
+const { addToCart } = useCart();
+const { isFavorite, toggleFavorite, fetchFavorites } = useFavorites();
+const toggleFavoriteHandler = () => toggleFavorite(book.value);
 
 const route = useRoute();
+const router = useRouter();
 const book = ref(null);
 const rating = ref(0);
 const averageRating = ref(0);
@@ -146,10 +111,31 @@ const isLoggedIn = !!token;
 const userId = localStorage.getItem('userId');
 const isAdmin = localStorage.getItem('role') === 'admin';
 
-// Khi component mount
-onMounted(async () => {
-  const { id } = route.params;
+const handleBuyNow = async () => {
+  try {
+    const res = await axios.get('/api/cart', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const items = res.data.items || [];
 
+    const exists = items.find((item) => item.book._id === book.value._id);
+    if (!exists) {
+      await addToCart(book.value);
+    }
+
+    // lưu item cần tick vào localStorage
+    localStorage.setItem('preselectItem', book.value._id);
+
+    // chuyển sang giỏ hàng thay vì checkout
+    router.push('/cart');
+  } catch (error) {
+    console.error('Lỗi khi mua ngay:', error);
+  }
+};
+
+onMounted(async () => {
+  await fetchFavorites();
+  const { id } = route.params;
   const storedUser = localStorage.getItem('user');
   if (storedUser) {
     user.value = JSON.parse(storedUser);
@@ -172,28 +158,23 @@ onMounted(async () => {
     rating.value = myRatingRes.data.value || 0;
   }
 
-  // Gắn autosize cho textarea
   await nextTick();
   if (ta.value) autosize(ta.value);
 });
 
-// Theo dõi msg và resize lại textarea khi nội dung thay đổi
 watch(msg, () => {
   if (ta.value) autosize.update(ta.value);
 });
 
-// Gửi đánh giá
 const setRating = async (value) => {
   if (!isLoggedIn) return alert('Vui lòng đăng nhập để đánh giá!');
   rating.value = value;
-
   try {
     await axios.post(
       '/api/rating',
       { bookId: book.value._id, value },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     const res = await axios.get(`/api/rating/${book.value._id}/rating`);
     averageRating.value = res.data.average;
     totalRatings.value = res.data.total;
@@ -203,10 +184,8 @@ const setRating = async (value) => {
   }
 };
 
-// Gửi bình luận
 const submitComment = async () => {
   if (!msg.value.trim()) return;
-
   try {
     await axios.post(
       '/api/comments',
@@ -214,23 +193,17 @@ const submitComment = async () => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     msg.value = '';
-
     const res = await axios.get(`/api/comments/${book.value._id}/comments`);
     comments.value = res.data;
-
-    if (ta.value) {
-      autosize.update(ta.value);
-    }
+    if (ta.value) autosize.update(ta.value);
   } catch (err) {
     console.error(err);
     alert('Lỗi khi gửi bình luận');
   }
 };
 
-// Xoá bình luận
 const deleteComment = async (id) => {
   if (!confirm('Xác nhận xoá bình luận?')) return;
-
   try {
     await axios.delete(`/api/comments/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -242,7 +215,6 @@ const deleteComment = async (id) => {
   }
 };
 
-// Avatar helper
 const getAvatarUrl = (avatar) => {
   if (!avatar || avatar.includes('default-user.png')) {
     return 'http://localhost:5000/uploads/avatars/default-user.png';

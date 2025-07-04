@@ -28,10 +28,16 @@ app.use('/api/rating', ratingRoutes);
 const favoriteRoutes = require('./routes/favorite');
 app.use('/api/favorites', favoriteRoutes);
 
+const addressRoutes = require('./routes/address');
+app.use('/api/addresses', addressRoutes);
+
+const orderRoutes = require('./routes/order')
+app.use('/api/orders', orderRoutes)
 
 // Cho phép truy cập ảnh tĩnh trong thư mục /public
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/users', require('./routes/user'));
 
 // DB Connection
 mongoose.connect(process.env.MONGO_URI)

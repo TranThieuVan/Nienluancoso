@@ -12,8 +12,10 @@ import { faHeart as faHeartRegular, faUser as faUserRegular } from '@fortawesome
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons'
 import { faStar as fasStar } from '@fortawesome/free-solid-svg-icons'
 import { faStar as farStar } from '@fortawesome/free-regular-svg-icons'
+import { faEnvelope, faLock } from '@fortawesome/free-solid-svg-icons'
 
-library.add(faHeart, faBagShopping, faHouse, faArrowRight, faBars, faUser, faMagnifyingGlass, faXmark, faHeartRegular, faUserRegular, fasStar, farStar, faPaperPlane)
+library.add(faHeart, faBagShopping, faHouse, faArrowRight, faBars,
+    faMagnifyingGlass, faXmark, faHeartRegular, faUserRegular, fasStar, farStar, faPaperPlane, faEnvelope, faLock)
 
 const app = createApp(App)
 app.component('font-awesome-icon', FontAwesomeIcon)

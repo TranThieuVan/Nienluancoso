@@ -7,11 +7,20 @@ const Book = require('../models/Book');
 exports.getCart = async (req, res) => {
     try {
         const cart = await Cart.findOne({ userId: req.user.id }).populate('items.bookId');
-        res.json(cart || { userId: req.user.id, items: [] });
+
+        const items = cart?.items.map(item => ({
+            book: item.bookId, // rename bookId -> book
+            quantity: item.quantity
+        })) || [];
+
+        const total = items.reduce((sum, item) => sum + item.book.price * item.quantity, 0);
+
+        res.json({ items, total });
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi server' });
     }
 };
+
 
 // 2. Thêm hoặc tăng số lượng sách trong giỏ
 exports.addToCart = async (req, res) => {

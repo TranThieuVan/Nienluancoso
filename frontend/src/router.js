@@ -48,6 +48,18 @@ const routes = [
         name: 'Favorites',
         component: Favorites,
         // meta: { requiresAuth: true } // nếu bạn có middleware kiểm tra đăng nhập
+    },
+    {
+        path: '/profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/checkout',
+        name: 'Checkout',
+        component: () => import('@/views/Checkout.vue'),
+        meta: { requiresAuth: true } // nếu cần đăng nhập mới cho checkout
     }
 ];
 

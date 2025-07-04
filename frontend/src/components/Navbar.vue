@@ -180,9 +180,12 @@ onMounted(() => {
 // Avatar
 const avatarUrl = computed(() => {
   if (!user.value) return ''
-  return user.value.avatar
-    ? `http://localhost:5000/${user.value.avatar}`
-    : 'http://localhost:5000/uploads/avatars/default-user.png'
+  const baseUrl = user.value.avatar
+    ? `/${user.value.avatar}`
+    : '/uploads/avatars/default-user.png'
+
+  const timestamp = Date.now() // force refresh
+  return `${baseUrl}?t=${timestamp}`
 })
 
 // Dropdown

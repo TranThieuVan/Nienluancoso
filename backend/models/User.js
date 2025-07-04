@@ -4,8 +4,6 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     gender: { type: String, enum: ['male', 'female', 'other'], default: 'other' },
     email: { type: String, required: true, unique: true },
-    phone: { type: String },
-    address: { type: String },
     avatar: { type: String, default: '' }, // đường dẫn ảnh đại diện
     password: { type: String, required: true },
     role: { type: String, default: 'user' },

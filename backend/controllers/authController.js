@@ -50,8 +50,8 @@ exports.login = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(401).json({ msg: 'Mật khẩu sai' });
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+        const token = jwt.sign({ id: user._id, role: user.role, avatar: user.avatar }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token, user: { id: user._id, name: user.name, role: user.role, avatar: user.avatar } });
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi server' });
     }
