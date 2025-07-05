@@ -1,51 +1,55 @@
 const Order = require('../models/Order')
 const Cart = require('../models/Cart')
-
+const Book = require('../models/Book')
 // Tạo đơn hàng mới từ giỏ hàng
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.user.id
+        const { items, shippingAddress } = req.body
 
-        // Lấy giỏ hàng của user
-        const cart = await Cart.findOne({ user: userId }).populate('items.book')
-        if (!cart || cart.items.length === 0) {
-            return res.status(400).json({ msg: 'Giỏ hàng trống' })
-        }
-
-        // Tính tổng tiền
-        const totalPrice = cart.items.reduce((sum, item) => {
-            return sum + item.book.price * item.quantity
-        }, 0)
-
-        // Nhận địa chỉ từ client gửi lên
-        const {
-            fullName,
-            phone,
-            street,
-            district,
-            city
-        } = req.body.shippingAddress || {}
-
+        // Validate địa chỉ
+        const { fullName, phone, street, district, city } = shippingAddress || {}
         if (!fullName || !phone || !street || !district || !city) {
             return res.status(400).json({ msg: 'Thiếu thông tin giao hàng' })
         }
 
+        // Validate items
+        if (!items || items.length === 0) {
+            return res.status(400).json({ msg: 'Không có sản phẩm nào' })
+        }
+
+        // Lấy thông tin sách từ DB để tính tổng tiền và tránh gian lận
+        const bookIds = items.map(i => i.book)
+        const books = await Book.find({ _id: { $in: bookIds } })
+
+        if (books.length !== items.length) {
+            return res.status(400).json({ msg: 'Một số sách không tồn tại' })
+        }
+
+        // Gộp lại items với thông tin sách
+        const mergedItems = items.map(item => {
+            const book = books.find(b => String(b._id) === String(item.book))
+            return {
+                book: book._id,
+                quantity: item.quantity
+            }
+        })
+
+        const totalPrice = mergedItems.reduce((sum, item) => {
+            const book = books.find(b => String(b._id) === String(item.book))
+            return sum + book.price * item.quantity
+        }, 0)
+
         // Tạo đơn hàng
         const order = new Order({
             user: userId,
-            items: cart.items.map(item => ({
-                book: item.book.id,
-                quantity: item.quantity
-            })),
+            items: mergedItems,
+            shippingAddress,
             totalPrice,
-            shippingAddress: { fullName, phone, street, district, city },
             status: 'pending'
         })
 
         await order.save()
-
-        // Xóa giỏ hàng
-        await Cart.findOneAndDelete({ user: userId })
 
         res.status(201).json({ msg: 'Đặt hàng thành công', order })
     } catch (err) {

@@ -9,7 +9,7 @@ import EditBook from '@/views/admin/EditBook.vue'
 import Cart from '@/views/Cart.vue'
 import BookDetail from '@/views/BookDetail.vue';
 import Favorites from '@/views/Favorites.vue'
-
+import Orders from '@/views/Orders.vue'
 const routes = [
 
     { path: "/", component: Home },
@@ -60,6 +60,17 @@ const routes = [
         name: 'Checkout',
         component: () => import('@/views/Checkout.vue'),
         meta: { requiresAuth: true } // nếu cần đăng nhập mới cho checkout
+    },
+    {
+        path: '/orders',
+        name: 'Orders',
+        component: Orders,
+        meta: { requiresAuth: true } // nếu bạn có middleware check đăng nhập
+    },
+    {
+        path: '/search',
+        name: 'SearchResults',
+        component: () => import('@/views/SearchResults.vue') // file kết quả tìm kiếm
     }
 ];
 

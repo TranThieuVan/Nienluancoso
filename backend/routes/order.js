@@ -7,7 +7,7 @@ const auth = require('../middleware/authMiddleware')
 router.post('/', auth.verifyToken, orderController.createOrder)
 
 // Lấy đơn hàng của người dùng hiện tại
-router.get('/me', auth.verifyToken, orderController.getMyOrders)
+router.get('/', auth.verifyToken, orderController.getMyOrders)
 
 // Lấy chi tiết đơn hàng theo ID
 router.get('/:id', auth.verifyToken, orderController.getOrderById)

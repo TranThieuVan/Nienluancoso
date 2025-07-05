@@ -26,6 +26,16 @@
           >
             Hồ sơ cá nhân
           </RouterLink>
+
+          
+          <RouterLink
+            to="/orders"
+            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            @click="closeDropdown"
+          >
+            Lịch sử mua hàng
+          </RouterLink>
+
           <button
             @click="logout"
             class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
@@ -64,19 +74,10 @@
       <!-- Right section: Search + Icons -->
       <div class="hidden md:flex items-center ml-auto mr-8 gap-4">
         <!-- Search -->
-        <div class="relative w-56">
-          <input
-            type="text"
-            placeholder="Tìm sách..."
-            class="w-full border rounded pl-10 pr-10 py-2 shadow-sm focus:outline-none"
-          />
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-            <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
-          </span>
-          <button class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800">
-            <font-awesome-icon :icon="['fas', 'arrow-right']" />
-          </button>
-        </div>
+    <!-- Input Search ở giữa -->
+    <div class="flex-1 flex justify-center">
+      <InputSearch />
+    </div>
 
         <!-- Icons -->
         <RouterLink to="/favorites" class="text-gray-700 hover:text-blue-600 text-lg">
@@ -161,7 +162,7 @@ import { useRouter, RouterLink } from 'vue-router'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import { cartCount, setCartCount } from '@/composables/cartStore'
 import axios from 'axios'
-
+import InputSearch from '@/components/InputSearch.vue'
 const router = useRouter()
 
 // Menu Toggle
