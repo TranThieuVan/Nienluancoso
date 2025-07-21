@@ -12,4 +12,6 @@ router.post('/', authMiddleware.verifyToken, commentController.createComment);
 // Xoá bình luận (chỉ chủ sở hữu hoặc admin)
 router.delete('/:id', authMiddleware.verifyToken, commentController.deleteComment);
 
+router.put('/:id', authMiddleware.verifyToken, commentController.editComment);
+
 module.exports = router;

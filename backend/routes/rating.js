@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const ratingController = require('../controllers/ratingController');
 const auth = require('../middleware/authMiddleware');
-
+router.get('/top-rated', ratingController.getTopRatedBooks);
 router.post('/', auth.verifyToken, ratingController.rateBook);
 router.get('/:bookId/rating', ratingController.getBookRating);
 // Lấy rating hiện tại của người dùng cho 1 sách

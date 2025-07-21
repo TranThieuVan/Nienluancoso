@@ -5,14 +5,14 @@ const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 
 // Công khai
+router.get('/genres', bookController.getAllGenres);
+router.get('/top-selling', bookController.getTopSellingBooks)// ✅ Đưa lên trước
 router.get('/', bookController.getAllBooks);
 router.get('/:id', bookController.getBookById);
 
 // Admin – có upload ảnh
-// ✅ Đặt upload.single('image') TRƯỚC verifyToken/verifyAdmin
 router.post('/', upload.single('image'), bookController.createBook);
 router.put('/:id', upload.single('image'), bookController.updateBook);
-
 router.delete('/:id', bookController.deleteBook);
 
 module.exports = router;

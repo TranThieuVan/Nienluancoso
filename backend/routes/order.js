@@ -12,4 +12,7 @@ router.get('/', auth.verifyToken, orderController.getMyOrders)
 // Lấy chi tiết đơn hàng theo ID
 router.get('/:id', auth.verifyToken, orderController.getOrderById)
 
+// Hủy đơn hàng
+router.put('/cancel/:id', auth.verifyToken, orderController.cancelOrder)
+
 module.exports = router

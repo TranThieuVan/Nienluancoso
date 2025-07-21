@@ -1,10 +1,5 @@
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
-    <div class="w-full max-w-2xl">
-      <button @click="goBack" class="text-blue-500 flex items-center mb-4 text-lg font-semibold px-4 py-2 rounded hover:bg-blue-100">
-        ⬅ Quay lại
-      </button>
-    </div>
 
     <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl border border-gray-300 mt-4">
       <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Chỉnh Sửa Sách</h1>
@@ -29,7 +24,7 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-gray-700 font-medium">Giá (VNĐ)</label>
-              <input v-model.number="book.price" type="number" step="5000" min="0" required class="input" />
+              <input v-model.number="book.price" type="number"  min="0" required class="input" />
             </div>
 
             <div>
@@ -73,6 +68,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
+
 
 const route = useRoute();
 const router = useRouter();

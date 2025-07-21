@@ -51,3 +51,57 @@ exports.getMyRating = async (req, res) => {
     }
 };
 
+// controllers/ratingController.js
+
+exports.getTopRatedBooks = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+
+        const topRated = await Rating.aggregate([
+            {
+                $group: {
+                    _id: "$bookId",
+                    avgRating: { $avg: "$value" },
+                    totalRatings: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { avgRating: -1, totalRatings: -1 }
+            },
+            {
+                $limit: limit
+            },
+            {
+                $lookup: {
+                    from: "books", // tên collection trong MongoDB, không phải tên model
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "book"
+                }
+            },
+            {
+                $unwind: "$book"
+            },
+            {
+                $project: {
+                    _id: "$book._id",
+                    title: "$book.title",
+                    author: "$book.author",
+                    price: "$book.price",
+                    image: "$book.image",
+                    genre: "$book.genre",
+                    stock: "$book.stock",
+                    avgRating: { $round: ["$avgRating", 1] },
+                    totalRatings: 1
+                }
+            }
+        ]);
+
+        res.json(topRated);
+    } catch (err) {
+        console.error("Lỗi khi lấy top rated books:", err);
+        res.status(500).json({ message: "Lỗi khi lấy sách được đánh giá cao" });
+    }
+};
+
+

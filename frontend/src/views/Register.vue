@@ -1,110 +1,132 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center relative bg-cover bg-center"
-       :style="{ backgroundImage: 'url(' + backgroundImage + ')' }">
-    <div class="bg-white bg-opacity-50 p-8 rounded-lg shadow-lg w-full max-w-4xl border-2 border-[#8B4513] z-10">
-      <h2 class="text-3xl font-bold text-center text-[#8B4513] mb-2">Chào mừng bạn!</h2>
-      <p class="text-center text-gray-600 mb-6">Đăng ký để bắt đầu hành trình của bạn</p>
+  <div class="flex flex-col md:flex-row min-h-screen">
+    <!-- Slider background (ẩn trên mobile) -->
+    <div class="hidden md:block md:w-3/5 xl:w-4/5 overflow-hidden relative">
+      <img src="@/assets/image/iron1.jpg" class="h-screen w-screen object-cover" />
+    </div>
 
-      <form @submit.prevent="register" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Cột bên trái -->
-        <div class="space-y-4">
-          <div>
-            <label class="block text-gray-700 font-medium">Email</label>
-            <input v-model="form.email" type="email" required
-              class="w-full p-3 border border-[#8B4513] rounded focus:outline-none focus:ring-2 focus:ring-[#8B4513]">
+    <!-- Register form -->
+    <div class="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white">
+      <div class="max-w-lg w-full p-6 sm:p-8 rounded">
+        <img src="@/assets/image/logo.png" alt="Logo" class="mx-auto mb-10 w-48 sm:w-60" />
+        <h2 class="text-2xl sm:text-3xl font-bold text-center mb-6 text-gray-800">Đăng Ký</h2>
+
+        <p v-if="errorMessage" class="text-red-600 text-center mb-4">
+          {{ errorMessage }}
+        </p>
+
+        <form @submit.prevent="register">
+          <div class="mb-4">
+            <label class="block font-medium text-base sm:text-lg">Tên người dùng</label>
+            <input
+              v-model="form.name"
+              type="text"
+              required
+              class="w-full p-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
           </div>
 
-          <div>
-            <label class="block text-gray-700 font-medium">Mật Khẩu</label>
-            <input v-model="form.password" type="password" required
-              class="w-full p-3 border border-[#8B4513] rounded focus:outline-none focus:ring-2 focus:ring-[#8B4513]">
+          <div class="mb-4">
+            <label class="block font-medium text-base sm:text-lg">Email</label>
+            <input
+              v-model="form.email"
+              type="email"
+              required
+              class="w-full p-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
           </div>
 
-          <div>
-            <label class="block text-gray-700 font-medium">Nhập Lại Mật Khẩu</label>
-            <input v-model="form.confirmPassword" type="password" required
-              class="w-full p-3 border border-[#8B4513] rounded focus:outline-none focus:ring-2 focus:ring-[#8B4513]">
-            <p v-if="passwordMismatch" class="text-red-500 text-sm mt-1">⚠️ Mật khẩu không khớp</p>
-          </div>
-        </div>
-
-        <!-- Cột bên phải -->
-        <div class="space-y-4">
-          <div class="mb-10">
-            <label class="block text-gray-700 font-medium">Họ và Tên</label>
-            <input v-model="form.name" type="text" required
-              class="w-full p-3 border border-[#8B4513] rounded focus:outline-none focus:ring-2 focus:ring-[#8B4513]">
-          </div>
-          <div class="flex flex-col items-start gap-4 overflow-hidden rounded-md p-6 shadow-sm shadow-[#00000050]">
-            <span class="text-center font-mono text-base font-black uppercase text-neutral-600">
-              Hãy chọn giới tính của bạn
-            </span>
-
-            <div class="flex items-center gap-4">
-              <!-- Nam -->
-              <div class="relative flex h-[50px] w-[50px] items-center justify-center">
-                <input v-model="form.gender" required type="radio" name="gender" value="male"
-                  class="peer z-10 h-full w-full cursor-pointer opacity-0" />
-                <div class="absolute h-full w-full rounded-full bg-blue-100 p-4 shadow-sm shadow-[#00000050] ring-blue-400 duration-300 peer-checked:scale-110 peer-checked:ring-2"></div>
-              </div>
-
-              <!-- Nữ -->
-              <div class="relative flex h-[50px] w-[50px] items-center justify-center">
-                <input v-model="form.gender" required type="radio" name="gender" value="female"
-                  class="peer z-10 h-full w-full cursor-pointer opacity-0" />
-                <div class="absolute h-full w-full rounded-full bg-pink-100 p-2 shadow-sm shadow-[#00000050] ring-pink-400 duration-300 peer-checked:scale-110 peer-checked:ring-2"></div>
-              </div>
-            </div>
+          <div class="mb-4">
+            <label class="block font-medium text-base sm:text-lg">Mật khẩu</label>
+            <input
+              v-model="form.password"
+              type="password"
+              required
+              class="w-full p-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <p v-if="passwordTooShort" class="text-red-500 text-sm mt-1">
+              ⚠️ Mật khẩu phải có ít nhất 6 ký tự
+            </p>
           </div>
 
-        </div>
+          <div class="mb-5">
+            <label class="block font-medium text-base sm:text-lg">Nhập lại mật khẩu</label>
+            <input
+              v-model="form.confirmPassword"
+              type="password"
+              required
+              class="w-full p-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <p
+              v-if="form.password && form.confirmPassword && passwordMismatch"
+              class="text-red-500 text-sm mt-1"
+            >
+              ⚠️ Mật khẩu không khớp
+            </p>
+          </div>
 
-        <button type="submit"
-          class="col-span-2 w-full bg-[#8B4513] text-white font-bold py-3 rounded hover:bg-[#A0522D] transition duration-300 mb-4"
-          :disabled="passwordMismatch">
-          Đăng Ký
-        </button>
-      </form>
+          <button
+            type="submit"
+            class="w-full p-2 rounded hover-flip-btn text-lg font-semibold"
+            :disabled="passwordMismatch || passwordTooShort"
+          >
+            Đăng Ký
+          </button>
+        </form>
 
-      <p class="text-center text-gray-600 mt-4">
-        Đã có tài khoản?
-        <router-link to="/login" class="text-[#8B4513] hover:underline">Đăng nhập ngay</router-link>
-      </p>
+        <p class="text-center mt-5 text-base sm:text-lg">
+          Đã có tài khoản?
+          <router-link to="/login" class="text-blue-600 font-semibold hover:underline">
+            Đăng nhập
+          </router-link>
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import axios from "axios";
-import { useRouter } from "vue-router";
-import backgroundImage from '../assets/image/register1.jpg';
+import { ref, computed } from 'vue'
+import axios from 'axios'
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
+const router = useRouter()
+const errorMessage = ref('')
 
 const form = ref({
-  name: "",
-  email: "",
-  gender: "",
-  password: "",
-  confirmPassword: "",
-});
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
 
-const passwordMismatch = computed(() => form.value.password !== form.value.confirmPassword);
+const passwordMismatch = computed(() =>
+  form.value.password &&
+  form.value.confirmPassword &&
+  form.value.password !== form.value.confirmPassword
+)
+
+const passwordTooShort = computed(() =>
+  form.value.password.length > 0 && form.value.password.length < 6
+)
 
 const register = async () => {
   if (passwordMismatch.value) {
-    alert("Mật khẩu không khớp, vui lòng nhập lại!");
-    return;
+    errorMessage.value = '⚠️ Mật khẩu không khớp'
+    return
+  }
+
+  if (form.value.password.length < 6) {
+    errorMessage.value = '⚠️ Mật khẩu phải có ít nhất 6 ký tự'
+    return
   }
 
   try {
-    const res = await axios.post("http://localhost:5000/api/auth/register", form.value);
-    alert("Đăng ký thành công!");
-    router.push("/login");
+    await axios.post('http://localhost:5000/api/auth/register', form.value)
+    alert('Đăng ký thành công!')
+    router.push('/login')
   } catch (error) {
-    console.error(error);
-    alert("Lỗi: " + (error.response?.data?.msg || "Đăng ký thất bại"));
+    errorMessage.value = error.response?.data?.msg || 'Đăng ký thất bại'
   }
-};
+}
 </script>

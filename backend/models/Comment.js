@@ -17,6 +17,8 @@ const commentSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    isHidden: { type: Boolean, default: false },
+    hiddenReason: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Comment', commentSchema);

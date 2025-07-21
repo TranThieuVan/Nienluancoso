@@ -16,7 +16,7 @@
     <!-- RIGHT SIDE CONTENT -->
     <div class="w-full md:w-2/3 bg-white rounded-xl shadow p-6">
       <!-- TAB: THÔNG TIN CỦA TÔI -->
-      <div v-if="tab === 'info'" class="space-y-6">
+      <div v-if="tab === 'info'" class="space-y-6 min-h-[500px]">
         <h2 class="text-2xl font-bold text-gray-800">Cập nhật thông tin</h2>
 
         <div class="flex items-center gap-4">
@@ -29,7 +29,7 @@
           <input v-model="form.name" class="input-style" type="text" />
         </div>
 
-        <button @click="updateProfile" class="btn-primary">Lưu thay đổi</button>
+        <button @click="updateProfile" class="hover-flip-btn px-4 py-2 rounded">Lưu thay đổi</button>
       </div>
 
       <!-- TAB: EMAIL VÀ MẬT KHẨU -->
@@ -54,7 +54,7 @@
               @focus="newEmail = ''"
             />
 
-          <button @click="updateEmail" class="btn-primary" :disabled="loadingEmail">
+          <button @click="updateEmail" class="hover-flip-btn px-4 py-2 rounded" :disabled="loadingEmail">
             <span v-if="loadingEmail"> Đang lưu... </span>
             <span v-else> Lưu </span>
           </button>
@@ -86,13 +86,13 @@
             />
           </div>
 
-          <button @click="changePassword" class="btn-primary">Lưu</button>
+          <button @click="changePassword" class="hover-flip-btn px-4 py-2 rounded">Lưu</button>
           <p v-if="message" :class="messageClass">{{ message }}</p>
         </div>
       </div>
 
       <!-- TAB: ĐỊA CHỈ GIAO HÀNG -->
-      <div v-else-if="tab === 'address'" class="space-y-6">
+      <div v-else-if="tab === 'address'" class="space-y-6 min-h-[500px]">
         <h2 class="text-2xl font-bold text-gray-800">Địa chỉ giao hàng</h2>
 
         <div class="grid grid-cols-2 gap-4">
@@ -100,7 +100,10 @@
             <label class="block font-medium mb-1">Họ và tên người nhận</label>
             <input v-model="addressForm.fullName" placeholder="Nhập họ và tên" class="input-style" />
           </div>
-          <div></div>
+            <div>
+    <label class="block font-medium mb-1">Số điện thoại</label>
+    <input v-model="addressForm.phone" placeholder="Nhập số điện thoại" class="input-style" />
+  </div>
         </div>
 
         <div>
@@ -120,12 +123,7 @@
         </div>
 
         <div>
-          <label class="block font-medium mb-1">Số điện thoại</label>
-          <input v-model="addressForm.phone" placeholder="Nhập số điện thoại" class="input-style" />
-        </div>
-
-        <div>
-          <button @click="saveAddress" class="btn-primary">Lưu địa chỉ</button>
+          <button @click="saveAddress" class="hover-flip-btn px-4 py-2 rounded">Lưu địa chỉ</button>
         </div>
       </div>
     </div>
@@ -308,7 +306,7 @@ const saveAddress = async () => {
 .input-style {
   @apply mt-1 block w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500;
 }
-.btn-primary {
+.hover-flip-btn px-4 py-2 rounded {
   @apply bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition;
 }
 </style>

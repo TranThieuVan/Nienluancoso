@@ -1,0 +1,71 @@
+html,
+body {
+    scroll-behavior: smooth;
+}
+
+.hover-flip-btn {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    color: white;
+    background-color: black;
+    border: 2px solid transparent;
+    transition: color 0.5s ease, border-color 0.5s ease;
+    z-index: 1;
+}
+
+.hover-flip-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    transition: left 0.5s ease;
+    z-index: -1;
+}
+
+.hover-flip-btn:hover::before {
+    left: 0;
+}
+
+.hover-flip-btn:hover {
+    color: black;
+    border-color: black;
+}
+
+.bigger {
+    transition: transform 0.3s ease;
+}
+
+.bigger:hover {
+    transform: scale(1.2);
+}
+
+
+/* Slide từ dưới lên */
+.chat-slide-enter-active,
+.chat-slide-leave-active {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.chat-slide-enter-from {
+    transform: translateY(100%);
+    opacity: 0;
+}
+
+.chat-slide-enter-to {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.chat-slide-leave-from {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.chat-slide-leave-to {
+    transform: translateY(100%);
+    opacity: 0;
+}

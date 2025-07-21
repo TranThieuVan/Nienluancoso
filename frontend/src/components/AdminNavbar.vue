@@ -1,103 +1,105 @@
 <template>
-  <nav class="bg-black h-[12vh] p-4 text-white flex items-center justify-between">
-    <!-- Left: Admin Panel -->
-    <div class="flex-none text-[2rem] font-bold">
-      Library
-    </div>
+  <aside
+    class="fixed top-0 left-0 w-64 h-screen bg-white text-black 
+           flex flex-col justify-between shadow-md transition duration-200 z-50"
+  >
+    <div>
+      <div class="text-xl font-bold px-6 py-4 border-b border-gray-300">
+        <router-link to="/admin" class="flex items-center gap-2">
+          <font-awesome-icon :icon="['fas', 'book']" />
+          <span>QUẢN LÝ</span>
+        </router-link>
+      </div>
 
-    <!-- Center: 3 liên kết quản lý -->
-    <div class="flex-grow flex justify-center space-x-6">
-      <router-link to="/admin/users" class="text-2xl hover:text-gray-300 transition">
-        Quản lý người dùng
-      </router-link>
-      <router-link to="/admin/books" class="text-2xl hover:text-gray-300 transition">
-        Quản lý sách
-      </router-link>
-      <router-link to="/admin/approve-borrow" class="text-2xl hover:text-gray-300 transition">
-        Danh sách đơn mượn sách
-      </router-link>
-    </div>
-
-    <!-- Right: Admin Info -->
-    <div class="relative">
-      <button @click="toggleDropdown" class="flex items-center space-x-3 text-2xl hover:text-gray-300 transition">
-        <span class="font-semibold">{{ adminName }}</span>
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-          alt="Admin Icon"
-          class="w-10 h-10 rounded-full border border-white"
-        />
-      </button>
-
-      <!-- Dropdown menu -->
-      <transition name="fade">
-        <ul
-          v-if="isDropdownOpen"
-          ref="dropdownMenu"
-          class="absolute right-0 mt-3 w-48 bg-white text-black shadow-lg rounded-lg border border-gray-200 z-10"
+      <nav class="flex flex-col gap-2 mt-4 px-4 text-base">
+        <router-link
+          to="/admin/books"
+          :class="[
+            'flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200',
+            route.path === '/admin/books' ? 'bg-green-200' : ''
+          ]"
         >
-          <li>
-            <button
-              @click="logout"
-              class="block w-full text-left px-4 py-3 hover:bg-red-100 font-semibold transition"
-            >
-              Đăng xuất
-            </button>
-          </li>
-        </ul>
-      </transition>
+          <font-awesome-icon :icon="['fas', 'book']" />
+          Sách
+        </router-link>
+
+        <router-link
+          to="/admin/orders"
+          :class="[
+            'flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200',
+            route.path === '/admin/orders' ? 'bg-green-200' : ''
+          ]"
+        >
+          <font-awesome-icon :icon="['fas', 'box-open']" />
+          Đơn hàng
+        </router-link>
+
+        <!-- ✅ Mục mới: Doanh thu -->
+        <router-link
+          to="/admin/revenue"
+          :class="[
+            'flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200',
+            route.path === '/admin/revenue' ? 'bg-green-200' : ''
+          ]"
+        >
+          <font-awesome-icon :icon="['fas', 'chart-line']" />
+          Doanh thu
+        </router-link>
+
+        <router-link
+          to="/admin/users"
+          :class="[
+            'flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200',
+            route.path === '/admin/users' ? 'bg-green-200' : ''
+          ]"
+        >
+          <font-awesome-icon :icon="['fas', 'user']" />
+          Người dùng
+        </router-link>
+
+                <router-link
+          to="/admin/comments"
+          :class="[
+            'flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200',
+            route.path === '/admin/comments' ? 'bg-green-200' : ''
+          ]"
+        >
+          <font-awesome-icon :icon="['fas', 'comments']" />
+          Bình luận
+        </router-link>
+
+        <router-link
+  to="/admin/messages"
+  :class="[
+    'flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200',
+    route.path === '/admin/messages' ? 'bg-green-200' : ''
+  ]"
+>
+  <font-awesome-icon :icon="['fas', 'envelope']" />
+  Tin nhắn
+</router-link>
+      </nav>
     </div>
-  </nav>
+
+    <div class="px-4 py-4 border-t border-gray-300">
+      <p class="text-sm mb-2">Xin chào, <strong>Admin</strong></p>
+      <button
+        @click="logout"
+        class="w-full bg-red-600 hover:bg-red-700 py-2 rounded text-sm flex items-center justify-center gap-2"
+      >
+        <font-awesome-icon :icon="['fas', 'right-from-bracket']" />
+        Đăng xuất
+      </button>
+    </div>
+  </aside>
 </template>
 
-<script>
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+<script setup>
+import { useRoute } from 'vue-router'
+const route = useRoute()
 
-export default {
-  setup() {
-    const router = useRouter();
-    const adminName = ref("Admin");
-    const isDropdownOpen = ref(false);
-
-    onMounted(() => {
-      const admin = JSON.parse(localStorage.getItem("admin"));
-      if (admin && admin.fullName) {
-        adminName.value = admin.fullName;
-      }
-      document.addEventListener("click", handleClickOutside);
-    });
-
-    onBeforeUnmount(() => {
-      document.removeEventListener("click", handleClickOutside);
-    });
-
-    const toggleDropdown = (event) => {
-      event.stopPropagation();
-      isDropdownOpen.value = !isDropdownOpen.value;
-    };
-
-    const handleClickOutside = (event) => {
-      if (!event.target.closest(".relative")) {
-        isDropdownOpen.value = false;
-      }
-    };
-
-    const logout = () => {
-      localStorage.removeItem("admin");
-      router.push("/admin/login");
-    };
-
-    return { adminName, isDropdownOpen, toggleDropdown, logout };
-  },
-};
+const logout = () => {
+  localStorage.removeItem('adminToken')
+  window.location.href = '/login'
+}
 </script>
-
-<style>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.2s;
-}
-.fade-enter, .fade-leave-to {
-  opacity: 0;
-}
-</style>

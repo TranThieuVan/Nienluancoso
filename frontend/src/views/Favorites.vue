@@ -45,7 +45,7 @@
           <!-- Nút thêm vào giỏ -->
           <button
             @click="addToCart(book)"
-            class="mt-4 border border-gray-300 text-base px-5 py-2 rounded-2xl hover:border-gray-500 transition"
+            class="mt-4  px-5 py-2 hover-flip-btn"
           >
             Thêm vào giỏ
           </button>

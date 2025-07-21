@@ -29,13 +29,24 @@ const orderSchema = new mongoose.Schema({
         phone: { type: String, required: true },
         street: { type: String, required: true },
         district: { type: String, required: true },
-        city: { type: String, required: true }
+        city: { type: String, required: true },
     },
     status: {
         type: String,
-        enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled'],
+        enum: ['pending', 'shipping', 'delivered', 'cancelled'],
         default: 'pending'
-    }
+    },
+    statusHistory: [
+        {
+            status: { type: String, enum: ['pending', 'shipping', 'delivered', 'cancelled'] },
+            date: { type: Date, default: Date.now }
+        }
+    ],
+    shippingFee: { type: Number, default: 40000 },
+    cancelReason: { type: String, default: null },
+    deliveredAt: { type: Date }
+
+
 }, {
     timestamps: true
 })
