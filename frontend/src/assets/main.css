@@ -40,7 +40,16 @@ body {
 }
 
 .bigger:hover {
-    transform: scale(1.2);
+    transform: scale(1.35);
+}
+
+
+.bigger-small {
+    transition: transform 0.3s ease;
+}
+
+.bigger-small:hover {
+    transform: scale(1.05);
 }
 
 

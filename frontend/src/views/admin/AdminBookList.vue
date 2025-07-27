@@ -148,6 +148,11 @@ const deleteBook = async id => {
     showCancelButton: true,
     confirmButtonText: 'Xóa',
     cancelButtonText: 'Hủy',
+   customClass: {
+  confirmButton: 'bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 mr-2 rounded',
+  cancelButton: 'bg-gray-300 hover:bg-gray-400 text-black font-semibold py-2 px-4 rounded'
+},
+    buttonsStyling: false
   })
 
   if (result.isConfirmed) {
@@ -163,6 +168,8 @@ const deleteBook = async id => {
     }
   }
 }
+
+
 
 const onSearch = () => {
   // đã có v-model nên không cần gì thêm

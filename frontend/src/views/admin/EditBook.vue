@@ -68,7 +68,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
-
+import Swal from "sweetalert2";
 
 const route = useRoute();
 const router = useRouter();
@@ -98,8 +98,21 @@ const handleFileChange = (e) => {
 const confirmEditBook = async () => {
   if (!book.value) return;
 
-  const confirmed = confirm("Bạn có chắc muốn thay đổi không?");
-  if (!confirmed) return;
+  const result = await Swal.fire({
+    title: 'Xác nhận chỉnh sửa',
+    text: 'Bạn có chắc muốn lưu thay đổi?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Lưu',
+    cancelButtonText: 'Hủy',
+    customClass: {
+      confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 mr-2 rounded',
+      cancelButton: 'bg-gray-300 hover:bg-gray-400 text-black font-semibold py-2 px-4 rounded',
+    },
+    buttonsStyling: false,
+  });
+
+  if (!result.isConfirmed) return;
 
   try {
     const formData = new FormData();
@@ -121,13 +134,33 @@ const confirmEditBook = async () => {
       },
     });
 
-    alert("📚 Cập nhật sách thành công!");
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đã cập nhật!',
+      text: 'Thông tin sách đã được lưu thành công.',
+      confirmButtonText: 'OK',
+      customClass: {
+        confirmButton: 'bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded',
+      },
+      buttonsStyling: false,
+    });
+
     router.push("/admin/books");
   } catch (error) {
     console.error("❌ Lỗi khi cập nhật sách:", error);
-    alert("❌ Cập nhật sách thất bại!");
+    await Swal.fire({
+      icon: 'error',
+      title: 'Lỗi!',
+      text: 'Cập nhật sách thất bại. Vui lòng thử lại.',
+      confirmButtonText: 'Đóng',
+      customClass: {
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded',
+      },
+      buttonsStyling: false,
+    });
   }
 };
+
 
 const goBack = () => {
   router.back();

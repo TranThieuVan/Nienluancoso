@@ -64,7 +64,7 @@
               <button @click="toggleFavorite(book)">
                 <font-awesome-icon
                   :icon="[isFavorite(book._id) ? 'fas' : 'far', 'heart']"
-                  :class="isFavorite(book._id) ? 'text-red-500' : 'text-gray-500'" class="bigger"
+                  :class="isFavorite(book._id) ? 'text-red-500' : 'text-gray-500'" class="hover:text-red-600 bigger"
                 />
               </button>
               <button @click="addToCart(book)" class="text-black hover:text-green-600 bigger">

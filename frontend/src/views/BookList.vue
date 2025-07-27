@@ -40,44 +40,44 @@
 
         <h2 class="text-xl font-bold mb-4 mt-6">{{ computedTitle }}</h2>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-      <div
-        v-for="book in paginatedBooks"
-        :key="book._id"
-        class="bg-white rounded-2xl shadow p-3 flex flex-col hover:shadow-lg transition-shadow min-h-[300px]"
-      >
-        <img
-          :src="book.image"
-          alt="Book Cover"
-          class="w-full h-48 object-cover rounded-t-2xl cursor-pointer"
-          @click="goToDetail(book._id)"
-        />
-        <div class="flex-1 flex flex-col justify-between h-full">
-          <div>
-            <h2 class="font-bold text-sm text-left line-clamp-2 leading-tight mt-2">
-              {{ book.title }}
-            </h2>
-            <p class="text-xs text-gray-600 text-left mt-1">{{ book.author }}</p>
-          </div>
-          <div class="flex justify-between items-center mt-3">
-            <p class="text-green-600 text-sm font-semibold">
-              {{ book.price.toLocaleString() }}₫
-            </p>
-            <div class="flex items-center gap-2">
-              <button @click="toggleFavorite(book)">
-                <font-awesome-icon
-                  :icon="[isFavorite(book._id) ? 'fas' : 'far', 'heart']"
-                  :class="isFavorite(book._id) ? 'text-red-500' : 'text-gray-500'"
-                />
-              </button>
-              <button @click="addToCart(book)" class="text-black hover:text-green-600">
-                <font-awesome-icon :icon="['fas', 'bag-shopping']" />
-              </button>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div
+            v-for="book in paginatedBooks"
+            :key="book._id"
+            class="bg-white rounded-2xl shadow p-3 flex flex-col hover:shadow-lg transition-shadow min-h-[300px]"
+          >
+            <img
+              :src="book.image"
+              alt="Book Cover"
+              class="w-full h-48 object-cover cursor-pointer"
+              @click="goToDetail(book._id)"
+            />
+            <div class="flex-1 flex flex-col justify-between h-full">
+              <div>
+                <h2 class="font-bold text-sm text-left line-clamp-2 leading-tight mt-2">
+                  {{ book.title }}
+                </h2>
+                <p class="text-xs text-gray-600 text-left mt-1">{{ book.author }}</p>
+              </div>
+              <div class="flex justify-between items-center mt-3">
+                <p class="text-green-600 text-sm font-semibold">
+                  {{ book.price.toLocaleString() }}₫
+                </p>
+                <div class="flex items-center gap-2">
+                  <button @click="toggleFavorite(book)">
+                    <font-awesome-icon
+                      :icon="[isFavorite(book._id) ? 'fas' : 'far', 'heart']"
+                      :class="isFavorite(book._id) ? 'text-red-500' : 'text-gray-500'"
+                    />
+                  </button>
+                  <button @click="addToCart(book)" class="text-black hover:text-green-600">
+                    <font-awesome-icon :icon="['fas', 'bag-shopping']" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
         <!-- Pagination -->
         <Pagination
