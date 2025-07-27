@@ -3,7 +3,7 @@
     <div class=" mx-auto flex gap-6">
       <!-- Bộ lọc bên trái -->
       <div class=" basic-1/4 bg-white p-4 rounded-xl shadow">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Tìm theo tên sách</label>
+        <label class="block text-l font-medium text-gray-700 mb-1">Tìm theo tên sách</label>
         <input
           v-model="searchTitle"
           type="text"
@@ -12,15 +12,15 @@
         />
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Thể loại</label>
+          <label class="block text-l font-medium text-gray-700 mb-2">Thể loại</label>
           <div class="space-y-2">
             <div v-for="genre in genres" :key="genre" class="flex items-center gap-2">
               <input type="radio" :value="genre" v-model="selectedGenre" class="accent-red-500" />
-              <span class="text-sm">{{ genre }}</span>
+              <span class="text-l">{{ genre }}</span>
             </div>
             <div class="flex items-center gap-2">
               <input type="radio" value="" v-model="selectedGenre" class="accent-red-500" />
-              <span class="text-sm">Tất cả</span>
+              <span class="text-l">Tất cả</span>
             </div>
           </div>
         </div>

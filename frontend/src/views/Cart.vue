@@ -96,7 +96,7 @@
           <!-- Xoá -->
           <button
             @click="removeItem(item.book._id)"
-            class="text-gray-500 hover:text-black text-xl"
+            class="text-gray-500 hover:text-black text-xl bigger"
           >
             <i class="fas fa-trash-alt"></i>
           </button>

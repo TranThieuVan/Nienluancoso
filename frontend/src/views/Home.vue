@@ -6,12 +6,12 @@
         <h2 class="text-2xl font-bold text-gray-800 mb-4">
           Bạn đã mua được gì chưa?
         </h2>
-<button
-  @click="goToFilteredBooks('highest-rated')"
-  class="hover-flip-btn px-4 py-2 border border-gray-800 w-max rounded"
->
-  Xem ngay
-</button>
+      <button
+        @click="goToFilteredBooks('highest-rated')"
+        class="hover-flip-btn px-4 py-2 border border-gray-800 w-max rounded"
+      >
+        Xem ngay
+      </button>
       </div>
 
       <!-- Cột phải -->

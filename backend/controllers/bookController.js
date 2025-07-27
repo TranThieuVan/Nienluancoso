@@ -180,3 +180,17 @@ exports.getTopSellingBooks = async (req, res) => {
 };
 
 
+exports.getLowStockBooks = async (req, res) => {
+    try {
+        const books = await Book.find({ stock: { $lte: 5 } })
+            .select('title stock image')
+            .sort({ stock: 1 }) // sách gần hết ở đầu
+            .limit(10);
+
+        res.json(books);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+

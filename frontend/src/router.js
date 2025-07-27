@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// 📦 Layouts
+//Layouts
 import UserLayout from '@/layouts/UserLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 
-// 📦 Pages người dùng
+//Pages người dùng
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
 import Register from '@/views/Register.vue'
@@ -16,7 +16,7 @@ import Profile from '@/views/Profile.vue'
 import Checkout from '@/views/Checkout.vue'
 import SearchResults from '@/views/SearchResults.vue'
 import BookList from './views/BookList.vue'
-// 📦 Pages admin
+//Pages admin
 import AdminDashboard from '@/views/admin/AdminDashboard.vue'
 import AdminBookList from '@/views/admin/AdminBookList.vue'
 import AddBook from '@/views/admin/AddBook.vue'
@@ -26,7 +26,7 @@ import AdminOrders from '@/views/admin/AdminOrders.vue'
 import AdminCommentList from '@/views/admin/AdminCommentList.vue';
 
 const routes = [
-    // ✅ Đăng nhập / đăng ký: dùng layout riêng
+    //Đăng nhập / đăng ký: dùng layout riêng
     {
         path: '/login',
         component: () => import('@/layouts/AuthLayout.vue'),
@@ -38,7 +38,7 @@ const routes = [
         children: [{ path: '', name: 'Register', component: Register }]
     },
 
-    // 🧑‍💻 Các trang người dùng (dùng UserLayout)
+    //Các trang người dùng (dùng UserLayout)
     {
         path: '/',
         component: UserLayout,
@@ -75,7 +75,7 @@ const routes = [
         ]
     },
 
-    // 🛠️ Khu vực admin (dùng AdminLayout)
+    //Khu vực admin (dùng AdminLayout)
     {
         path: '/admin',
         component: AdminLayout,
@@ -98,7 +98,7 @@ const routes = [
                 meta: { requiresAuth: true, requiresAdmin: true }
             },
             {
-                path: 'revenue', // ✅ CHỈ sửa dòng này
+                path: 'revenue',
                 name: 'AdminRevenue',
                 component: () => import('@/views/admin/AdminRevenue.vue'),
                 meta: { requiresAdmin: true }
@@ -120,7 +120,7 @@ const router = createRouter({
     routes
 })
 
-// 🛡️ Middleware xác thực token cho admin
+//Middleware xác thực token cho admin
 router.beforeEach((to, from, next) => {
     const isAdminRoute = to.path.startsWith('/admin')
     const adminToken = localStorage.getItem('adminToken')
