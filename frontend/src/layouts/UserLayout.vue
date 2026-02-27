@@ -4,7 +4,7 @@
     <Navbar />
     <router-view />
 
-    <!-- ✅ Hộp chat người dùng -->
+    <!--hộp chat người dùng -->
 <ChatIcon @toggle="showChat = !showChat" />
     
     <Transition name="chat-slide">
@@ -33,10 +33,10 @@ onMounted(() => {
 })
 const showChat = ref(false)
 
-// ✅ Reactive user
+//Reactive user
 const user = computed(() => auth.user)
 
-// 🔁 Theo dõi khi user được cập nhật sau login
+//heo dõi khi user được cập nhật sau login
 watchEffect(() => {
   if (!user.value || !user.value.id) {
     showChat.value = false // reset khi logout

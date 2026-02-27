@@ -1,7 +1,7 @@
 <template>
   <div class="p-6 max-w-6xl mx-auto mt-10">
     <div v-if="book" class="flex flex-col md:flex-row gap-6">
-      <!-- 📘 PHẦN TRÁI -->
+      <!--PHẦN TRÁI -->
       <div class="md:w-3/5 space-y-6">
         <!-- Chi tiết sách -->
         <div class="shadow-[0_0_10px_rgba(0,0,0,0.15)] bg-white overflow-hidden">
@@ -73,42 +73,42 @@
                 </div>
               </div>
 
-              <!-- Menu 3 chấm -->
-<div v-if="isLoggedIn && isCommentOwner(cmt.userId)" class="relative">
+                            <!-- Menu 3 chấm -->
+              <div v-if="isLoggedIn && isCommentOwner(cmt.userId)" class="relative">
 
-    <button
-    @click="toggleMenu(cmt._id)"
-    class="text-gray-500 hover:text-gray-800 px-2 text-xl transition-colors duration-200"
-  >
-    <font-awesome-icon icon="ellipsis-v" />
-  </button>
+                  <button
+                  @click="toggleMenu(cmt._id)"
+                  class="text-gray-500 hover:text-gray-800 px-2 text-xl transition-colors duration-200"
+                >
+                  <font-awesome-icon icon="ellipsis-v" />
+                </button>
 
-  <div
-    v-if="menuOpenId === cmt._id"
-    class="absolute left-10 bottom-0 bg-white border rounded-xl shadow-lg z-10 min-w-[120px] overflow-hidden"
-  >
-    <button
-      @click="startEdit(cmt)"
-      class="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm text-gray-700"
-    >
-      <font-awesome-icon icon="pen" />
-      Sửa
-    </button>
-    <button
-      @click="deleteComment(cmt._id)"
-      class="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm text-red-600"
-    >
-      <font-awesome-icon icon="trash" />
-      Xoá
-    </button>
-  </div>
-</div>
+                <div
+                  v-if="menuOpenId === cmt._id"
+                  class="absolute left-10 bottom-0 bg-white border rounded-xl shadow-lg z-10 min-w-[120px] overflow-hidden"
+                >
+                  <button
+                    @click="startEdit(cmt)"
+                    class="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm text-gray-700"
+                  >
+                    <font-awesome-icon icon="pen" />
+                    Sửa
+                  </button>
+                  <button
+                    @click="deleteComment(cmt._id)"
+                    class="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm text-red-600"
+                  >
+                    <font-awesome-icon icon="trash" />
+                    Xoá
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 🛒 PHẦN PHẢI -->
+      <!--PHẦN PHẢI -->
       <div class="md:w-2/5 space-y-4 border p-6 shadow-md h-fit sticky top-[80px]">
         <h1 class="text-2xl font-bold">{{ book.title }}</h1>
         <p class="text-gray-600 text-sm">{{ book.author }}</p>

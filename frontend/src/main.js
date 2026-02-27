@@ -32,9 +32,9 @@ library.add(
 )
 
 const app = createApp(App)
-const pinia = createPinia() // ✅ Tạo Pinia store
+const pinia = createPinia() //Tạo Pinia store
 
 app.component('font-awesome-icon', FontAwesomeIcon)
 app.use(router)
-app.use(pinia)              // ✅ Dùng Pinia trước khi mount
-app.mount('#app')           // ✅ Mount cuối cùng
+app.use(pinia)              //Dùng Pinia trước khi mount
+app.mount('#app')           //Mount cuối cùng

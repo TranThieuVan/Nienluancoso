@@ -1,6 +1,6 @@
 const Book = require('../models/Book');
 const Order = require('../models/Order')
-const Rating = require('../models/Rating'); // Import nếu chưa có
+const Rating = require('../models/Rating');
 exports.createBook = async (req, res) => {
     try {
         const cleanBody = {};
@@ -76,8 +76,8 @@ exports.updateBook = async (req, res) => {
             cleanBody.image = `/uploads/${req.file.filename}`;
         }
 
-        console.log('🛠 Clean Body for Update:', cleanBody);
-        console.log('📷 Uploaded File:', req.file);
+        console.log('Clean Body for Update:', cleanBody);
+        console.log('Uploaded File:', req.file);
 
         const updatedBook = await Book.findByIdAndUpdate(req.params.id, cleanBody, { new: true });
 
@@ -142,7 +142,7 @@ exports.getTopSellingBooks = async (req, res) => {
             { $unwind: "$items" },
             {
                 $group: {
-                    _id: "$items.book",  // ✅ Sửa tại đây
+                    _id: "$items.book",
                     totalSold: { $sum: "$items.quantity" }
                 }
             },
