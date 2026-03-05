@@ -5,20 +5,22 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useFavorites } from '../composables/useFavorites';
 import { useCart } from '../composables/useCart';
 
-const BookSlider = ({ books: initialBooks = [], genre, title = 'Danh Sách Sách' }) => {
+
+const EMPTY_ARRAY = [];
+const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = 'Danh Sách Sách' }) => {
     const navigate = useNavigate();
     const scrollContainer = useRef(null);
     const [books, setBooks] = useState([]);
 
     // Khởi tạo các Custom Hook
-    const { isFavorite, toggleFavorite, fetchFavorites } = useFavorites();
+    const { isFavorite, toggleFavorite, } = useFavorites();
     const { addToCart } = useCart();
 
     // Xử lý nạp dữ liệu sách
     useEffect(() => {
         const loadBooks = async () => {
             // Nếu không có sách truyền vào qua props thì tự fetch
-            if (!initialBooks || initialBooks.length === 0) {
+            if (!initialBooks) {
                 try {
                     const res = await axios.get('/api/books');
                     if (genre) {
@@ -33,11 +35,10 @@ const BookSlider = ({ books: initialBooks = [], genre, title = 'Danh Sách Sách
                 setBooks(initialBooks);
             }
 
-            await fetchFavorites();
         };
 
         loadBooks();
-    }, [initialBooks, genre, fetchFavorites]);
+    }, [initialBooks, genre]);
 
     // Điều kiện hiển thị thanh điều hướng (scroll + xem tất cả)
     const shouldShowSlider = books.length > 6;

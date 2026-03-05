@@ -1,16 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
-// Vẫn nhận userId từ UserLayout truyền xuống
 const ChatBox = ({ userId, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [conversationId, setConversationId] = useState(null);
-
   const [isTyping, setIsTyping] = useState(false);
   const messageContainerRef = useRef(null);
 
-  // ✅ Đã sửa: Không cần đợi userId, dùng token để lấy conversation luôn
+  // Lấy currentUserId MỘT LẦN DUY NHẤT để tối ưu hiệu năng
+  const currentUserId = useMemo(() => {
+    if (userId) return String(userId);
+    try {
+      const storedUserStr = localStorage.getItem('user');
+      if (storedUserStr) {
+        const storedUser = JSON.parse(storedUserStr);
+        return String(storedUser._id || storedUser.id);
+      }
+    } catch (error) {
+      console.error('Lỗi parse thông tin user từ localStorage:', error);
+    }
+    return null;
+  }, [userId]);
+
   const fetchConversation = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -20,7 +33,6 @@ const ChatBox = ({ userId, onClose }) => {
       setConversationId(res.data._id);
     } catch (err) {
       console.error('Lỗi fetch conversation:', err);
-      // Báo lỗi nếu trong DB chưa có tài khoản admin
       if (err.response?.status === 404) {
         alert('Hệ thống chưa có tài khoản Admin nào để nhận tin nhắn!');
       }
@@ -47,19 +59,16 @@ const ChatBox = ({ userId, onClose }) => {
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
 
-    // ✅ Báo lỗi nếu phòng chat chưa được khởi tạo thành công
     if (!conversationId) {
-      alert("Đang kết nối với hệ thống chat hoặc thiếu quyền Admin, vui lòng thử lại sau giây lát.");
+      alert("Đang kết nối với hệ thống chat, vui lòng thử lại sau giây lát.");
       return;
     }
 
     const textToSend = newMessage;
     setNewMessage('');
 
-    // ✅ Đảm bảo luôn có ID người dùng (dùng prop hoặc lấy từ localStorage)
-    const currentUserId = userId || JSON.parse(localStorage.getItem('user'))?._id;
     const tempUserId = Date.now().toString();
-    const tempUserMsg = { _id: tempUserId, text: textToSend, sender: { _id: currentUserId } };
+    const tempUserMsg = { _id: tempUserId, text: textToSend, sender: currentUserId };
 
     setMessages((prev) => [...prev, tempUserMsg]);
     setIsTyping(true);
@@ -73,10 +82,10 @@ const ChatBox = ({ userId, onClose }) => {
 
       setMessages((prev) => {
         const filtered = prev.filter(msg => msg._id !== tempUserId);
-        const updatedMessages = [...filtered, { ...res.data.userMessage, sender: { _id: currentUserId } }];
+        const updatedMessages = [...filtered, res.data.userMessage];
 
         if (res.data.aiMessage) {
-          updatedMessages.push({ ...res.data.aiMessage, sender: { _id: res.data.aiMessage.sender } });
+          updatedMessages.push(res.data.aiMessage);
         }
         return updatedMessages;
       });
@@ -91,12 +100,11 @@ const ChatBox = ({ userId, onClose }) => {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault(); // Ngăn việc form submit mặc định nếu có
+      e.preventDefault();
       sendMessage();
     }
   };
 
-  // ✅ Chỉ cần mount là chạy, không phụ thuộc vào props userId nữa
   useEffect(() => {
     fetchConversation();
   }, []);
@@ -112,7 +120,10 @@ const ChatBox = ({ userId, onClose }) => {
   }, [messages, isTyping]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[350px] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
+    // NÂNG CẤP HIỆU ỨNG: origin-bottom-right giúp cửa sổ phóng ra từ vị trí của ChatIcon
+    // bottom-20 giúp ChatBox nổi lên trên, không đè lấp mất cái icon Chat tròn tròn
+    <div className="fixed bottom-20 right-4 z-50 w-[350px] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 fade-in duration-300 origin-bottom-right">
+
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 flex justify-between items-center shadow-md">
         <div className="flex items-center gap-2">
@@ -125,15 +136,31 @@ const ChatBox = ({ userId, onClose }) => {
       {/* Nội dung tin nhắn */}
       <div ref={messageContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         {messages.map((msg) => {
-          // Fix lỗi so sánh ID
-          const currentUserId = userId || JSON.parse(localStorage.getItem('user'))?._id;
-          const isMine = msg.sender?._id === currentUserId;
+          const senderId = typeof msg.sender === 'object' && msg.sender !== null
+            ? String(msg.sender._id || msg.sender.id)
+            : String(msg.sender);
+
+          const isMine = senderId === currentUserId;
 
           return (
             <div key={msg._id} className={`w-full flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm ${isMine ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
-                }`}>
-                {msg.text}
+              <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm ${isMine
+                ? 'bg-blue-600 text-white rounded-tr-sm'
+                : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
+                }`}
+              >
+                {/* TÍCH HỢP MARKDOWN GIÚP AI XUỐNG DÒNG VÀ IN ĐẬM */}
+                <ReactMarkdown
+                  components={{
+                    p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                    ul: ({ node, ...props }) => <ul className="list-disc ml-5 mb-2 space-y-1" {...props} />,
+                    ol: ({ node, ...props }) => <ol className="list-decimal ml-5 mb-2 space-y-1" {...props} />,
+                    li: ({ node, ...props }) => <li className="" {...props} />,
+                    strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900" {...props} />
+                  }}
+                >
+                  {msg.text}
+                </ReactMarkdown>
               </div>
             </div>
           );

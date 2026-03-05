@@ -7,25 +7,49 @@ import bannerImg from '../assets/image/banner.png';
 
 const Home = () => {
   const [topBooks, setTopBooks] = useState([]);
+  const [allBooks, setAllBooks] = useState([]); // State chứa toàn bộ sách
+  const [isLoading, setIsLoading] = useState(true); // Trạng thái loading
   const navigate = useNavigate();
 
   const goToFilteredBooks = (filterType) => {
-    // Chuyển hướng sang trang danh sách sách kèm query
     navigate(`/books?filter=${filterType}`);
   };
 
-  const fetchTopSellingBooks = async () => {
-    try {
-      const res = await axios.get('/api/books/top-selling');
-      setTopBooks(res.data);
-    } catch (err) {
-      console.error('Lỗi khi lấy sách bán chạy:', err);
-    }
+  useEffect(() => {
+    const fetchHomeData = async () => {
+      try {
+        setIsLoading(true);
+        // Dùng Promise.all để gọi 2 API cùng một lúc, tiết kiệm tối đa thời gian chờ
+        const [topRes, allRes] = await Promise.all([
+          axios.get('/api/books/top-selling'),
+          axios.get('/api/books')
+        ]);
+
+        setTopBooks(topRes.data);
+        setAllBooks(allRes.data);
+      } catch (err) {
+        console.error('Lỗi khi lấy dữ liệu trang chủ:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHomeData();
+  }, []);
+
+  // Hàm helper để lọc sách theo thể loại, giúp code ở dưới gọn gàng hơn
+  const getBooksByGenre = (genre) => {
+    return allBooks.filter(book => book.genre === genre);
   };
 
-  useEffect(() => {
-    fetchTopSellingBooks();
-  }, []);
+  // Hiển thị màn hình chờ trong lúc gọi API (tránh việc Slider bị render khi chưa có data)
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[50vh]">
+        <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -55,12 +79,25 @@ const Home = () => {
         <TopSellingBooks books={topBooks} />
       </div>
 
-      <div className="p-6"><BookSlider genre="Comics" title="Bạn yêu thích truyện tranh (Comics)" /></div>
-      <div className="p-6"><BookSlider genre="Viễn Tưởng" title="Sách Viễn Tưởng hay không tưởng" /></div>
-      <div className="p-6"><BookSlider genre="Tiểu thuyết" title="Tuyển tập các tiểu thuyết lôi cuốn" /></div>
-      <div className="p-6"><BookSlider genre="Lãng mạn" title="Bạn thích một chút lãng mạn?" /></div>
-      <div className="p-6"><BookSlider genre="Khoa học" title="Nội dung khoa học cho bạn" /></div>
-      <div className="p-6"><BookSlider genre="Tài chính" title="Bạn muốn có nền tảng cho việc kinh doanh?" /></div>
+      {/* Truyền mảng sách đã lọc vào từng Component */}
+      <div className="p-6">
+        <BookSlider books={getBooksByGenre("Comics")} genre="Comics" title="Bạn yêu thích truyện tranh (Comics)" />
+      </div>
+      <div className="p-6">
+        <BookSlider books={getBooksByGenre("Viễn Tưởng")} genre="Viễn Tưởng" title="Sách Viễn Tưởng hay không tưởng" />
+      </div>
+      <div className="p-6">
+        <BookSlider books={getBooksByGenre("Tiểu thuyết")} genre="Tiểu thuyết" title="Tuyển tập các tiểu thuyết lôi cuốn" />
+      </div>
+      <div className="p-6">
+        <BookSlider books={getBooksByGenre("Lãng mạn")} genre="Lãng mạn" title="Bạn thích một chút lãng mạn?" />
+      </div>
+      <div className="p-6">
+        <BookSlider books={getBooksByGenre("Khoa học")} genre="Khoa học" title="Nội dung khoa học cho bạn" />
+      </div>
+      <div className="p-6">
+        <BookSlider books={getBooksByGenre("Tài chính")} genre="Tài chính" title="Bạn muốn có nền tảng cho việc kinh doanh?" />
+      </div>
     </>
   );
 };

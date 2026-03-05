@@ -29,10 +29,15 @@ library.add(
     faMapMarkerAlt, faPhoneAlt, faMoneyBillWave, faQrcode // ✅ THÊM DÒNG NÀY ĐỂ KÍCH HOẠT ICON
 )
 
+import { FavoritesProvider } from './composables/useFavorites'
+
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>
-            <App />
+            <FavoritesProvider>
+                <App />
+            </FavoritesProvider>
+
         </BrowserRouter>
     </React.StrictMode>
 )

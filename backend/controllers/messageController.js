@@ -6,12 +6,36 @@ const OpenAI = require("openai");
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
+    baseURL: "https://openrouter.ai/api/v1", // Giữ nguyên cấu hình OpenRouter của bạn
 });
+
+/* ============================= */
+/* 🛠 ĐỊNH NGHĨA TOOL CHO AI     */
+/* ============================= */
+const tools = [
+    {
+        type: "function",
+        function: {
+            name: "search_books",
+            description: "Tìm kiếm sách trong cơ sở dữ liệu của nhà sách dựa trên từ khóa. Trả về thông tin sách bao gồm tên, tác giả, giá và số lượng tồn kho.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description: "Từ khóa tìm kiếm (có thể là tên sách, tên tác giả, hoặc thể loại). Ví dụ: 'Mắt biếc', 'Nguyễn Nhật Ánh', 'kinh dị'."
+                    }
+                },
+                required: ["query"]
+            }
+        }
+    }
+];
 
 /* ============================= */
 /* TEXT NORMALIZE                */
 /* ============================= */
+// Giữ lại hàm normalize chuẩn của bạn để xóa dấu tiếng Việt và ký tự đặc biệt
 const normalize = (str) => {
     return str
         .toLowerCase()
@@ -20,6 +44,51 @@ const normalize = (str) => {
         .replace(/[^a-z0-9\s]/g, "")
         .trim();
 };
+
+/* ============================= */
+/* 🛠 HÀM TÌM KIẾM SÁCH NÂNG CẤP */
+/* ============================= */
+const executeSearchBooks = async (query) => {
+    try {
+        // 1. Làm sạch từ khóa (vd: "Abs Bat  #1" -> "abs bat 1")
+        const cleanQuery = normalize(query);
+
+        // 2. Tách thành mảng các từ khóa (vd: ["abs", "bat", "1"])
+        const keywords = cleanQuery.split(/\s+/).filter(k => k.length > 0);
+
+        if (keywords.length === 0) {
+            return JSON.stringify({ message: "Từ khóa tìm kiếm trống." });
+        }
+
+        // 3. Tạo điều kiện tìm kiếm: Phải chứa TẤT CẢ các từ khóa
+        const titleConditions = keywords.map(kw => ({ title: { $regex: kw, $options: 'i' } }));
+        const authorConditions = keywords.map(kw => ({ author: { $regex: kw, $options: 'i' } }));
+
+        // 4. Tìm trong MongoDB: Chứa tất cả từ khóa trong Tên HOẶC Tác giả
+        const books = await Book.find({
+            $or: [
+                { $and: titleConditions },
+                { $and: authorConditions }
+            ]
+        }).limit(5).lean();
+
+        if (books.length === 0) {
+            return JSON.stringify({ message: `Không tìm thấy cuốn sách nào khớp với từ khóa '${query}'.` });
+        }
+
+        return JSON.stringify(books.map(b => ({
+            title: b.title,
+            author: b.author,
+            price: b.price,
+            stock: b.stock,
+            genre: b.genre
+        })));
+    } catch (error) {
+        console.error("Lỗi khi tìm sách trong DB:", error);
+        return JSON.stringify({ message: "Lỗi hệ thống khi tìm sách." });
+    }
+};
+
 
 /* ============================= */
 /* START CONVERSATION            */
@@ -52,7 +121,7 @@ exports.startConversation = async (req, res) => {
 
 
 /* ============================= */
-/* SEND MESSAGE                  */
+/* SEND MESSAGE (TÍCH HỢP AI)    */
 /* ============================= */
 exports.sendMessage = async (req, res) => {
     try {
@@ -62,6 +131,7 @@ exports.sendMessage = async (req, res) => {
         const admin = await User.findOne({ role: 'admin' });
         if (!admin) return res.status(404).json({ message: "Không có admin" });
 
+        // 1. Lưu tin nhắn của user
         const userMessage = await Message.create({
             conversationId,
             sender,
@@ -75,130 +145,84 @@ exports.sendMessage = async (req, res) => {
 
         let aiMessage = null;
 
+        // Nếu người gửi không phải admin -> Gọi AI phản hồi
         if (sender !== admin._id.toString()) {
 
-            /* ============================= */
-            /* 1️⃣ SEARCH BOOK SMART         */
-            /* ============================= */
+            // Lấy lịch sử chat (6 tin gần nhất để có ngữ cảnh)
+            const history = await Message.find({ conversationId })
+                .sort({ createdAt: -1 })
+                .limit(6)
+                .lean();
 
-            const normalizedInput = normalize(text);
-            const words = normalizedInput.split(" ").filter(w => w.length > 1);
+            history.reverse();
 
-            const books = await Book.find();
-            let matchedBook = null;
+            const messages = history.map(msg => ({
+                role: msg.sender.toString() === admin._id.toString() ? "assistant" : "user",
+                content: msg.text
+            }));
 
-            for (const book of books) {
-                const normalizedTitle = normalize(book.title);
+            // Thêm System Prompt
+            messages.unshift({
+                role: "system",
+                content: `Bạn là trợ lý AI bán hàng siêu nhiệt tình của nhà sách online.
+Quy tắc:
+- Luôn xưng "mình", gọi khách là "bạn". Trả lời ngắn gọn, thân thiện.
+- Khi liệt kê nhiều cuốn sách, BẮT BUỘC PHẢI XUỐNG DÒNG và dùng gạch đầu dòng (-) hoặc đánh số (1., 2.) cho từng cuốn.
+- Dùng **chữ in đậm** cho tên sách để khách dễ nhìn.
+- Nếu khách hỏi về sách, giá, tác giả, thể loại -> HÃY SỬ DỤNG CÔNG CỤ (TOOL) 'search_books' để kiểm tra kho.
+- Nếu kho hết hàng (stock = 0), hãy báo khéo léo và xin lỗi.
+- Thông tin cửa hàng: Phí ship 40.000đ, thanh toán COD hoặc VietQR, sách 100% bản quyền.
+- TUYỆT ĐỐI KHÔNG BỊA RA TÊN SÁCH HOẶC GIÁ TIỀN nếu không có trong cơ sở dữ liệu.`
+            });
 
-                let matchCount = 0;
+            try {
+                // 2. Lần gọi AI thứ nhất: Hỏi xem AI có cần dùng Tool tìm sách không
+                const response = await openai.chat.completions.create({
+                    model: "openai/gpt-4o-mini", // Model này hỗ trợ Tool Calling tốt
+                    messages: messages,
+                    tools: tools,
+                    tool_choice: "auto",
+                    temperature: 0.6,
+                });
 
-                for (const w of words) {
-                    if (normalizedTitle.includes(w)) {
-                        matchCount++;
+                let aiResponseMsg = response.choices[0].message;
+
+                // 3. Nếu AI quyết định gọi hàm (Tool Calling)
+                if (aiResponseMsg.tool_calls && aiResponseMsg.tool_calls.length > 0) {
+
+                    // Đưa yêu cầu gọi tool vào lịch sử tin nhắn
+                    messages.push(aiResponseMsg);
+
+                    // Xử lý từng yêu cầu gọi hàm của AI
+                    for (const toolCall of aiResponseMsg.tool_calls) {
+                        if (toolCall.function.name === "search_books") {
+                            const args = JSON.parse(toolCall.function.arguments);
+                            const dbResult = await executeSearchBooks(args.query);
+
+                            // Phản hồi kết quả từ Database lại cho AI
+                            messages.push({
+                                tool_call_id: toolCall.id,
+                                role: "tool",
+                                name: "search_books",
+                                content: dbResult,
+                            });
+                        }
                     }
-                }
 
-                if (matchCount >= Math.min(2, words.length)) {
-                    matchedBook = book;
-                    break;
-                }
-            }
-
-            /* ============================= */
-            /* 2️⃣ IF FOUND → TRẢ LỜI DB     */
-            /* ============================= */
-
-            if (matchedBook) {
-
-                const hasPrice = normalizedInput.includes("gia") || normalizedInput.includes("bao nhieu");
-                const hasStock = normalizedInput.includes("con") || normalizedInput.includes("hang");
-                const hasAuthor = normalizedInput.includes("tac gia");
-                const hasGenre = normalizedInput.includes("the loai");
-
-                let reply = `Mình có "${matchedBook.title}". `;
-
-                if (hasPrice) {
-                    reply += `Giá ${matchedBook.price.toLocaleString()}đ. `;
-                }
-
-                if (hasStock) {
-                    reply += `Hiện còn ${matchedBook.stock} cuốn trong kho. `;
-                }
-
-                if (hasAuthor) {
-                    reply += `Tác giả: ${matchedBook.author || "đang cập nhật"}. `;
-                }
-
-                if (hasGenre) {
-                    reply += `Thể loại: ${matchedBook.genre || "đang cập nhật"}. `;
-                }
-
-                if (!hasPrice && !hasStock && !hasAuthor && !hasGenre) {
-                    reply += `Giá ${matchedBook.price.toLocaleString()}đ, còn ${matchedBook.stock} cuốn. `;
-                    if (matchedBook.author) reply += `Tác giả: ${matchedBook.author}. `;
-                    if (matchedBook.genre) reply += `Thể loại: ${matchedBook.genre}. `;
-                }
-
-                aiMessage = await Message.create({
-                    conversationId,
-                    sender: admin._id,
-                    text: reply.trim()
-                });
-
-                await Conversation.findByIdAndUpdate(conversationId, {
-                    lastMessage: reply,
-                    updatedAt: Date.now()
-                });
-
-            } else {
-
-                /* ============================= */
-                /* 3️⃣ NOT FOUND → CALL AI       */
-                /* ============================= */
-
-                const history = await Message.find({ conversationId })
-                    .sort({ createdAt: -1 })
-                    .limit(6)
-                    .lean();
-
-                history.reverse();
-
-                const formattedMessages = history.map(msg => ({
-                    role: msg.sender.toString() === admin._id.toString()
-                        ? "assistant"
-                        : "user",
-                    content: msg.text
-                }));
-
-                try {
-                    const response = await openai.chat.completions.create({
+                    // Lần gọi AI thứ hai: AI đọc kết quả DB và sinh ra câu trả lời
+                    const secondResponse = await openai.chat.completions.create({
                         model: "openai/gpt-4o-mini",
-                        messages: [
-                            {
-                                role: "system",
-                                content: `
-Bạn là trợ lý AI của nhà sách online.
-
-QUY TẮC:
-- Xưng "mình", gọi khách là "bạn".
-- Trả lời tối đa 2 câu.
-- Nếu khách chỉ chào → chào lại.
-- Không bịa thông tin.
-- Không dùng từ "Quý khách".
-
-Thông tin cửa hàng:
-- Phí ship 40.000đ
-- Thanh toán COD hoặc VietQR
-- Sách 100% bản quyền
-`
-                            },
-                            ...formattedMessages
-                        ],
+                        messages: messages,
                         temperature: 0.6,
                     });
 
-                    const aiText = response.choices[0].message.content;
+                    aiResponseMsg = secondResponse.choices[0].message;
+                }
 
+                // 4. Lưu câu trả lời cuối cùng của AI vào DB
+                const aiText = aiResponseMsg.content;
+
+                if (aiText) {
                     aiMessage = await Message.create({
                         conversationId,
                         sender: admin._id,
@@ -209,10 +233,10 @@ Thông tin cửa hàng:
                         lastMessage: aiText,
                         updatedAt: Date.now()
                     });
-
-                } catch (aiError) {
-                    console.error("AI ERROR:", aiError);
                 }
+
+            } catch (aiError) {
+                console.error("Lỗi khi xử lý AI:", aiError);
             }
         }
 
@@ -229,7 +253,7 @@ Thông tin cửa hàng:
 
 
 /* ============================= */
-/* CÁC FUNCTION KHÁC GIỮ NGUYÊN */
+/* CÁC FUNCTION GET/UPDATE KHÁC  */
 /* ============================= */
 
 exports.getMessages = async (req, res) => {
