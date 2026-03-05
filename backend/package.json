@@ -10,6 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google/genai": "^1.43.0",
+    "@paypal/checkout-server-sdk": "^1.0.3",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -17,7 +19,8 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
-    "multer": "^2.0.1"
+    "multer": "^2.0.1",
+    "openai": "^6.25.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

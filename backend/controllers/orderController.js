@@ -109,30 +109,37 @@ exports.getOrderById = async (req, res) => {
 }
 
 
+// controllers/orderController.js
 exports.cancelOrder = async (req, res) => {
     try {
-        const { id } = req.params
-        const { reason } = req.body
-        const userId = req.user.id
+        const { id } = req.params;
+        const { reason } = req.body;
+        const userId = req.user.id;
 
-        const order = await Order.findById(id)
-        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
+        const order = await Order.findById(id);
+        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
 
-        // Kiểm tra quyền user
         if (order.user.toString() !== userId)
-            return res.status(403).json({ message: 'Không có quyền hủy đơn hàng này' })
+            return res.status(403).json({ message: 'Không có quyền hủy đơn' });
 
-        // Chỉ cho hủy đơn pending
         if (order.status !== 'pending')
-            return res.status(400).json({ message: 'Chỉ có thể hủy đơn khi đang chờ xử lý' })
+            return res.status(400).json({ message: 'Chỉ có thể hủy đơn khi đang chờ xử lý' });
 
-        order.status = 'cancelled'
-        order.cancelReason = reason
-        await order.save()
+        // Cập nhật trạng thái
+        order.status = 'cancelled';
+        order.cancelReason = reason;
+        order.cancelledAt = new Date(); // Thêm thời gian hủy
 
-        res.json({ message: 'Đã hủy đơn hàng thành công' })
+        // ✅ Cập nhật lịch sử trạng thái để Frontend hiển thị đúng
+        order.statusHistory.push({
+            status: 'cancelled',
+            date: new Date()
+        });
+
+        await order.save();
+        res.json({ message: 'Đã hủy đơn hàng thành công', order });
     } catch (error) {
-        console.error(error)
-        res.status(500).json({ message: 'Lỗi server khi hủy đơn hàng' })
+        console.error("Lỗi chi tiết:", error); // In lỗi ra terminal để debug
+        res.status(500).json({ message: 'Lỗi server khi hủy đơn hàng' });
     }
-}
+};

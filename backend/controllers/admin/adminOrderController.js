@@ -35,32 +35,48 @@ const Book = require('../../models/Book'); // Thêm nếu chưa có
 
 exports.updateOrderStatus = async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, reason } = req.body; // ✅ Thêm 'reason' để nhận lý do từ Admin
         const order = await Order.findById(req.params.id);
 
         if (!order) return res.status(404).json({ msg: 'Không tìm thấy đơn hàng' });
 
-        // Không cho cập nhật nếu đã bị hủy
         if (order.status === 'cancelled') {
-            return res.status(400).json({ msg: 'Đơn hàng đã bị hủy, không thể cập nhật trạng thái.' });
+            return res.status(400).json({ msg: 'Đơn hàng đã bị hủy, không thể cập nhật thêm.' });
         }
 
-        // Nếu trạng thái thay đổi
-        if (order.status !== status) {
-            const isNewlyDelivered = order.status !== 'delivered' && status === 'delivered';
+        const oldStatus = order.status;
+
+        if (oldStatus !== status) {
+            const isNewlyDelivered = oldStatus !== 'delivered' && status === 'delivered';
+            const isRefundStock = oldStatus === 'delivered' && status === 'cancelled';
 
             order.status = status;
             order.statusHistory.push({ status, date: new Date() });
 
-            // Nếu chuyển sang "delivered" lần đầu → trừ stock và cộng sold
+            // ✅ LƯU LÝ DO HỦY CỦA ADMIN
+            if (status === 'cancelled') {
+                order.cancelReason = reason || 'Quản trị viên hủy đơn';
+                order.cancelledAt = new Date();
+            }
+
             if (isNewlyDelivered) {
                 order.deliveredAt = new Date();
-
                 for (const item of order.items) {
                     const book = await Book.findById(item.book);
                     if (book) {
                         book.stock = Math.max(0, book.stock - item.quantity);
                         book.sold += item.quantity;
+                        await book.save();
+                    }
+                }
+            }
+
+            if (isRefundStock) {
+                for (const item of order.items) {
+                    const book = await Book.findById(item.book);
+                    if (book) {
+                        book.stock += item.quantity;
+                        book.sold = Math.max(0, book.sold - item.quantity);
                         await book.save();
                     }
                 }

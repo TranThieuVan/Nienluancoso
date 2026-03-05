@@ -1,10 +1,11 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+dotenv.config();
+
 const cors = require('cors');
 const path = require('path');
 const messageRoutes = require('./routes/messages');
-dotenv.config();
 const app = express();
 
 app.use(cors());
