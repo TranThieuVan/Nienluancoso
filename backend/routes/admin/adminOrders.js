@@ -7,7 +7,10 @@ const { verifyToken, verifyAdmin } = require('../../middleware/authMiddleware')
 router.use(verifyToken, verifyAdmin)
 
 router.get('/', adminOrderController.getAllOrders)
+router.put('/:id/refund', adminOrderController.confirmRefund);
+
 router.put('/:id/status', adminOrderController.updateOrderStatus)
+router.delete('/delete-all', adminOrderController.deleteAllOrders);
 router.delete('/:id', adminOrderController.deleteOrder)
 // Thêm ở dưới cùng sau các route khác
 router.get('/:id', adminOrderController.getOrderById)

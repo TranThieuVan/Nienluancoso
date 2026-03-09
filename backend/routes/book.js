@@ -8,6 +8,8 @@ const upload = require('../middleware/upload');
 router.get('/genres', bookController.getAllGenres);
 router.get('/top-selling', bookController.getTopSellingBooks)// ✅ Đưa lên trước
 router.get('/low-stock', bookController.getLowStockBooks);
+// router.get('/sync-ai', bookController.syncAIVectors);
+router.get('/:id/recommend', bookController.getRecommendations);
 router.get('/', bookController.getAllBooks);
 router.get('/:id', bookController.getBookById);
 // Admin – có upload ảnh

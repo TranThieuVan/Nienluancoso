@@ -180,7 +180,7 @@ const Profile = () => {
               <label className="font-medium block mb-1">Tên người dùng</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded p-2 outline-none" type="text" />
             </div>
-            <button onClick={updateProfile} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Lưu thay đổi</button>
+            <button onClick={updateProfile} className="hover-flip-btn px-10 py-2 ">Lưu thay đổi</button>
           </div>
         )}
 
@@ -195,7 +195,7 @@ const Profile = () => {
               <label className="block text-sm font-medium text-gray-700">Email mới</label>
               <div className="flex gap-2">
                 <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" className="flex-1 border border-gray-300 rounded p-2" />
-                <button className="bg-blue-600 text-white px-4 py-2 rounded font-bold">Cập nhật</button>
+                <button className="hover-flip-btn px-10 py-2 ">Cập nhật</button>
               </div>
             </div>
 
@@ -206,7 +206,7 @@ const Profile = () => {
               {/* ✅ Trường nhập lại mật khẩu mới */}
               <input value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} type="password" placeholder="Nhập lại mật khẩu mới" className={`w-full border p-2 rounded outline-none focus:ring-2 ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`} />
 
-              <button onClick={changePassword} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Đổi mật khẩu</button>
+              <button onClick={changePassword} className="hover-flip-btn px-10 py-2 ">Đổi mật khẩu</button>
               {message && <p className={`mt-2 ${messageClass}`}>{message}</p>}
             </div>
           </div>
@@ -217,7 +217,7 @@ const Profile = () => {
             <div className="flex justify-between items-center border-b pb-4">
               <h2 className="text-2xl font-bold text-gray-800">Địa chỉ giao hàng</h2>
               {!showAddressForm && (
-                <button onClick={() => setShowAddressForm(true)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">+ Thêm địa chỉ mới</button>
+                <button onClick={() => setShowAddressForm(true)} className="hover-flip-btn px-10 py-2 ">Thêm địa chỉ mới</button>
               )}
             </div>
 
@@ -232,7 +232,7 @@ const Profile = () => {
                   <input placeholder="Số nhà, tên đường" value={addressForm.street} onChange={e => setAddressForm({ ...addressForm, street: e.target.value })} className="border p-2 rounded" />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={saveAddress} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">Lưu</button>
+                  <button onClick={saveAddress} className="hover-flip-btn px-10 py-2 ">Lưu</button>
                   <button onClick={resetAddressForm} className="bg-gray-400 text-white px-6 py-2 rounded font-bold">Hủy</button>
                 </div>
               </div>
@@ -247,7 +247,7 @@ const Profile = () => {
                         <p className="text-sm text-gray-500 mt-1">{addr.street}, {addr.ward}, {addr.district}, {addr.city}</p>
                       </div>
                       <div className="flex gap-3">
-                        <button onClick={() => editAddress(addr)} className="text-blue-600 text-sm font-bold">Sửa</button>
+                        <button onClick={() => editAddress(addr)} className="hover-flip-btn px-10 py-2 ">Sửa</button>
                         {!addr.isDefault && <button className="text-red-600 text-sm font-bold">Xóa</button>}
                       </div>
                     </div>

@@ -19,7 +19,7 @@ import Profile from '@/views/Profile';
 import Checkout from '@/views/Checkout';
 import SearchResults from '@/views/SearchResults';
 import BookList from '@/views/BookList';
-
+import VnpayReturn from './views/VnPayReturn';
 import AdminDashboard from '@/views/admin/AdminDashBoard';
 import AdminBookList from '@/views/admin/AdminBookList';
 import AddBook from '@/views/admin/AddBook';
@@ -81,6 +81,7 @@ const AppRoutes = () => {
                     <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                     <Route path="checkout" element={<PrivateRoute><Checkout /></PrivateRoute>} />
                     <Route path="orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
+                    <Route path="/vnpay-return" element={<VnpayReturn />} />
                 </Route>
 
                 {/* Admin */}

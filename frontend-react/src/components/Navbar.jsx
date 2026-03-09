@@ -58,7 +58,7 @@ const Navbar = () => {
 
     // Đăng xuất
     const handleLogout = () => {
-        logout(); // Hàm logout từ zustand store (sẽ tự xóa token/user localStorage)
+        logout(); // Hàm logout từ zustand store
         closeDropdown();
         navigate('/');
     };
@@ -102,7 +102,7 @@ const Navbar = () => {
         loadCartCount();
         fetchGenres();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token]); // Chạy lại loadCartCount nếu token thay đổi (đăng nhập/đăng xuất)
+    }, [token]);
 
     return (
         <>
@@ -157,48 +157,52 @@ const Navbar = () => {
                         <img src={logo} alt="Logo" className="h-10 w-auto bigger-small" />
                     </Link>
 
-                    {/* Center links (desktop) */}
-                    <div className="hidden md:flex gap-6 text-base font-medium text-gray-700 relative">
-                        <Link to="/" className="hover:text-blue-600">Trang chủ</Link>
+                    {/* Center links (desktop) - ✅ ĐÃ TĂNG CỠ CHỮ THÀNH text-lg VÀ THÊM items-center */}
+                    <div className="hidden md:flex items-center gap-6 text-lg font-medium text-gray-700 relative">
+                        <Link to="/" className="hover:text-blue-600 transition-colors">Trang chủ</Link>
 
-                        {/* Thể loại Dropdown */}
+                        {/* Thể loại Dropdown - ✅ ĐÃ SỬA LỖI HOVER */}
                         <div
-                            className="relative"
+                            className="relative py-2" // Thêm py-2 để mở rộng vùng nhận diện chuột
                             onMouseEnter={() => setShowGenres(true)}
                             onMouseLeave={() => setShowGenres(false)}
                         >
-                            <span className="cursor-pointer hover:text-blue-600">Thể loại</span>
-                            {/* Thay thế <transition> của Vue bằng conditional rendering đơn giản */}
+                            <span className="cursor-pointer hover:text-blue-600 transition-colors">Thể loại</span>
+
                             {showGenres && (
-                                <div className="absolute left-0 top-full mt-2 w-48 bg-white shadow-lg border rounded z-50 transition-opacity duration-300">
-                                    <ul className="p-2 space-y-1">
-                                        {genres.map(genre => (
-                                            <li
-                                                key={genre}
-                                                className="cursor-pointer hover:text-blue-600 px-2 py-1"
-                                                onClick={() => goToGenre(genre)}
-                                            >
-                                                {genre}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                // ✅ THAY ĐỔI QUAN TRỌNG: Đổi mt-2 thành pt-2 ở thẻ bọc ngoài cùng
+                                <div className="absolute left-0 top-full pt-2 w-48 z-50 transition-opacity duration-300">
+                                    {/* Đẩy background trắng và box-shadow vào thẻ div con bên trong */}
+                                    <div className="bg-white shadow-lg border rounded overflow-hidden">
+                                        <ul className="py-2 space-y-1">
+                                            {genres.map(genre => (
+                                                <li
+                                                    key={genre}
+                                                    className="cursor-pointer hover:bg-blue-50 hover:text-blue-600 px-4 py-2 text-base transition-colors"
+                                                    onClick={() => goToGenre(genre)}
+                                                >
+                                                    {genre}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
                             )}
                         </div>
 
-                        <Link to="/books" className="hover:text-blue-600">Sách</Link>
+                        <Link to="/books" className="hover:text-blue-600 transition-colors">Sách</Link>
                     </div>
 
                     {/* Search & icons (desktop) */}
                     <div className="hidden md:flex items-center gap-4">
                         <InputSearch />
-                        <Link to="/favorites" className="text-gray-700 hover:text-red-600 text-lg bigger">
+                        <Link to="/favorites" className="text-gray-700 hover:text-red-600 text-xl bigger transition-colors">
                             <FontAwesomeIcon icon={['far', 'heart']} />
                         </Link>
-                        <Link to="/cart" className="relative text-gray-700 hover:text-green-600 text-xl bigger">
+                        <Link to="/cart" className="relative text-gray-700 hover:text-green-600 text-2xl bigger transition-colors">
                             <FontAwesomeIcon icon={['fas', 'bag-shopping']} />
                             {cartCount > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                                     {cartCount}
                                 </span>
                             )}
@@ -206,7 +210,7 @@ const Navbar = () => {
                     </div>
 
                     {/* Mobile menu toggle button */}
-                    <button className="md:hidden text-black text-xl ml-4" onClick={toggleMenu}>
+                    <button className="md:hidden text-black text-2xl ml-4" onClick={toggleMenu}>
                         <FontAwesomeIcon icon={['fas', 'bars']} />
                     </button>
                 </div>

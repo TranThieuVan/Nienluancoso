@@ -3,8 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Pagination from '../components/Pagination';
-import { useFavoritesStore } from '../stores/useFavoritesStore';
-import { useCartStore } from '../stores/useCartStore';
+import { useFavorites } from '../composables/useFavorites';
+import { useCart } from '../composables/useCart';
 
 const ViewAllBooks = () => {
   const [searchParams] = useSearchParams();
@@ -17,8 +17,8 @@ const ViewAllBooks = () => {
   const booksPerPage = 21;
 
   // Lấy hàm từ Store (Zustand thay cho Composables của Vue)
-  const { isFavorite, toggleFavorite, fetchFavorites } = useFavoritesStore();
-  const { addToCart } = useCartStore();
+  const { isFavorite, toggleFavorite, fetchFavorites } = useFavorites();
+  const { addToCart } = useCart();
 
   useEffect(() => {
     fetchFavorites();

@@ -1,6 +1,47 @@
 const Book = require('../models/Book');
 const Order = require('../models/Order')
 const Rating = require('../models/Rating');
+
+const OpenAI = require("openai");
+
+// Khởi tạo OpenAI (Nếu model embedding bị lỗi với OpenRouter, bạn hãy dùng base URL gốc của OpenAI nhé)
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: "https://openrouter.ai/api/v1",
+});
+
+// ✅ HÀM TRỢ GIÚP 1: Dịch sách thành Vector
+const generateEmbedding = async (bookData) => {
+    try {
+        // Gộp chuỗi thông minh để AI hiểu nội dung
+        const textToEmbed = `Tên sách: ${bookData.title}. Tác giả: ${bookData.author || 'Chưa rõ'}. Thể loại: ${bookData.genre || 'Chưa rõ'}. Mô tả: ${bookData.description || 'Không có'}`;
+
+        const response = await openai.embeddings.create({
+            model: "text-embedding-3-small", // Model chuyên tạo vector
+            input: textToEmbed,
+        });
+
+        return response.data[0].embedding; // Trả về mảng 1536 số
+    } catch (error) {
+        console.error("⚠️ Lỗi tạo vector embedding:", error);
+        return null; // Nếu lỗi thì trả về null, không làm sập chức năng thêm sách
+    }
+};
+
+// ✅ HÀM TRỢ GIÚP 2: Toán học thuần JS đo độ giống nhau giữa 2 mảng số
+function cosineSimilarity(vecA, vecB) {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+    }
+    if (normA === 0 || normB === 0) return 0;
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 exports.createBook = async (req, res) => {
     try {
         const cleanBody = {};
@@ -23,6 +64,11 @@ exports.createBook = async (req, res) => {
             image: req.file ? `/uploads/${req.file.filename}` : undefined
         };
 
+        const embedding = await generateEmbedding(bookData);
+        if (embedding) {
+            bookData.embedding = embedding;
+        }
+
         const newBook = await Book.create(bookData);
         res.status(201).json(newBook);
     } catch (err) {
@@ -35,6 +81,9 @@ exports.getAllBooks = async (req, res) => {
         const filter = {};
         if (req.query.genre) {
             filter.genre = req.query.genre;
+        }
+        if (req.query.search) {
+            filter.title = { $regex: req.query.search, $options: 'i' };
         }
 
         const books = await Book.find(filter).sort({ createdAt: -1 });
@@ -78,6 +127,15 @@ exports.updateBook = async (req, res) => {
 
         console.log('Clean Body for Update:', cleanBody);
         console.log('Uploaded File:', req.file);
+
+        // ✅ THÊM ĐOẠN NÀY: Tạo lại vector vì nội dung sách có thể đã bị sửa
+        const existingBook = await Book.findById(req.params.id);
+        const mergedData = { ...existingBook.toObject(), ...cleanBody }; // Trộn data cũ và mới để AI đọc
+
+        const embedding = await generateEmbedding(mergedData);
+        if (embedding) {
+            cleanBody.embedding = embedding;
+        }
 
         const updatedBook = await Book.findByIdAndUpdate(req.params.id, cleanBody, { new: true });
 
@@ -194,3 +252,97 @@ exports.getLowStockBooks = async (req, res) => {
     }
 };
 
+// ✅ API CHÍNH: LẤY SÁCH ĐỀ XUẤT (CÓ PHÂN TRANG NHƯ SHOPEE)
+exports.getRecommendations = async (req, res) => {
+    try {
+        // 1. Lấy thông số phân trang từ Frontend (Mặc định: Trang 1, mỗi lần 5 cuốn)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+
+        const currentBook = await Book.findById(req.params.id).select('+embedding');
+
+        if (!currentBook || !currentBook.embedding || currentBook.embedding.length === 0) {
+            return res.json({ books: [], hasMore: false });
+        }
+
+        const allBooks = await Book.find({ _id: { $ne: currentBook._id } }).select('+embedding');
+
+        const scoredBooks = allBooks.map(book => {
+            if (!book.embedding || book.embedding.length === 0) return { book, score: 0 };
+            const score = cosineSimilarity(currentBook.embedding, book.embedding);
+            return { book, score };
+        });
+
+        // 2. Chỉ lấy sách > 40% độ giống nhau và xếp từ cao xuống thấp
+        const relevantBooks = scoredBooks
+            .filter(item => item.score > 0.4)
+            .sort((a, b) => b.score - a.score);
+
+        // 3. THUẬT TOÁN CẮT LÁT (Shopee Style)
+        const startIndex = (page - 1) * limit; // Vd: page 1 -> index 0, page 2 -> index 5
+        const endIndex = page * limit;         // Vd: page 1 -> index 5, page 2 -> index 10
+
+        const paginatedBooks = relevantBooks.slice(startIndex, endIndex).map(item => {
+            const bookObj = item.book.toObject();
+            delete bookObj.embedding;
+            return bookObj;
+        });
+
+        // Kiểm tra xem còn sách để load tiếp cho lần sau không?
+        const hasMore = endIndex < relevantBooks.length;
+
+        // Trả về cả mảng sách VÀ trạng thái hasMore
+        res.json({
+            books: paginatedBooks,
+            hasMore: hasMore
+        });
+
+    } catch (err) {
+        console.error("❌ Lỗi getRecommendations:", err);
+        res.status(500).json({ error: 'Lỗi server khi tìm sách đề xuất' });
+    }
+};
+// ✅ API ĐỒNG BỘ AI: Tự động tạo Vector cho TẤT CẢ sách cũ chưa có
+
+// exports.syncAIVectors = async (req, res) => {
+//     try {
+//         const booksWithoutAI = await Book.find({
+//             $or: [
+//                 { embedding: { $exists: false } },
+//                 { embedding: { $size: 0 } }
+//             ]
+//         });
+
+//         if (booksWithoutAI.length === 0) {
+//             return res.json({ message: "🎉 Tuyệt vời! Toàn bộ kho sách của bạn đã được tích hợp AI." });
+//         }
+
+//         res.write("Đang bat dau dong bo... Vui long doi...\n"); 
+
+//         let successCount = 0;
+//         for (let book of booksWithoutAI) {
+//             const bookData = {
+//                 title: book.title,
+//                 author: book.author,
+//                 genre: book.genre,
+//                 description: book.description
+//             };
+
+//             const embedding = await generateEmbedding(bookData);
+            
+//             if (embedding) {
+//                 book.embedding = embedding;
+//                 await book.save();
+//                 successCount++;
+//                 console.log(`✅ Đã nạp AI cho sách: ${book.title}`);
+//             }
+            
+//             await new Promise(resolve => setTimeout(resolve, 1000)); 
+//         }
+
+//         res.end(`\nHoan tat! Da cap nhat AI cho ${successCount}/${booksWithoutAI.length} cuon sach.`);
+//     } catch (err) {
+//         console.error("❌ Lỗi đồng bộ AI:", err);
+//         res.end("\nLoi he thong khi dong bo.");
+//     }
+// };

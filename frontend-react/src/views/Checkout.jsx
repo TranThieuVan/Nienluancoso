@@ -17,22 +17,21 @@ const Checkout = () => {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
 
-  // ✅ State cho địa chỉ mới (thêm trường ward)
+  // State cho địa chỉ mới
   const [newAddress, setNewAddress] = useState({ fullName: '', phone: '', street: '', ward: '', district: '', city: '' });
 
-  // ✅ State cho dữ liệu API tỉnh thành
+  // State cho dữ liệu API tỉnh thành
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
 
-  // State Thanh toán & QR
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  // State Thanh toán & QR (Mặc định chọn vnpay hoặc cod tùy bạn)
+  const [paymentMethod, setPaymentMethod] = useState('vnpay');
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
 
   const formatPrice = (n) => (n || 0).toLocaleString('vi-VN') + '₫';
 
-  // ✅ Cập nhật định dạng hiển thị địa chỉ 4 cấp
   const formatAddress = (addr) => {
     if (!addr.street) return "";
     return `${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`;
@@ -64,7 +63,7 @@ const Checkout = () => {
           setForm({ ...defaultAddress });
         }
 
-        // ✅ Tải danh sách tỉnh thành ban đầu
+        // Tải danh sách tỉnh thành ban đầu
         const resProvinces = await axios.get('https://provinces.open-api.vn/api/p/');
         setProvinces(resProvinces.data);
 
@@ -75,7 +74,6 @@ const Checkout = () => {
     loadData();
   }, [navigate, token]);
 
-  // ✅ Logic xử lý Dropdown địa chỉ giống Profile
   const handleProvinceChange = async (e) => {
     const provinceCode = e.target.value;
     const provinceName = provinces.find(p => p.code == provinceCode)?.name;
@@ -97,7 +95,7 @@ const Checkout = () => {
     }
   };
 
-  // Hàm tạo mã QR tự động điền tiền & nội dung
+  // Hàm tạo mã QR VietQR (Thủ công)
   const generateQR = (orderId) => {
     const BANK_ID = "vietcombank";
     const ACCOUNT_NO = "1026325913";
@@ -136,12 +134,14 @@ const Checkout = () => {
     }
   };
 
+  // ✅ HÀM SUBMIT ĐÃ ĐƯỢC NÂNG CẤP VNPAY
   const submitOrder = async () => {
     if (!form.fullName || !form.phone || !form.street) {
       return Swal.fire('Thiếu thông tin', 'Vui lòng chọn hoặc thêm địa chỉ giao hàng.', 'warning');
     }
 
     try {
+      // 1. Lưu đơn hàng vào Database trước (Trạng thái mặc định là 'pending' / Chờ thanh toán)
       const res = await axios.post('/api/orders', {
         shippingAddress: form,
         items: cart.map(item => ({ book: item.book._id, quantity: item.quantity })),
@@ -150,16 +150,35 @@ const Checkout = () => {
         totalAmount
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      const orderId = res.data._id;
+      const orderId = res.data.order._id;
+      // 2. Xử lý logic chuyển hướng tùy theo phương thức
+      if (paymentMethod === 'vnpay') {
+        // Gọi API Backend lấy link VNPAY
+        const vnpRes = await axios.post('/api/vnpay/create_payment_url', {
+          amount: totalAmount,
+          language: 'vn',
+          bankCode: '',
+          orderId: orderId // ✅ THÊM DÒNG NÀY ĐỂ GỬI MÃ ĐƠN HÀNG SANG VNPAY
+        });
 
-      if (paymentMethod === 'transfer') {
+        // Xóa giỏ hàng tạm thời trên local trước khi bay sang VNPAY
+        localStorage.removeItem('checkoutItems');
+
+        if (vnpRes.data && vnpRes.data.paymentUrl) {
+          window.location.href = vnpRes.data.paymentUrl; // Bế khách sang VNPAY
+        }
+      }
+      else if (paymentMethod === 'transfer') {
         generateQR(orderId);
-      } else {
+      }
+      else {
+        // Thanh toán COD
         await Swal.fire('Thành công', 'Đơn hàng đã được đặt!', 'success');
         localStorage.removeItem('checkoutItems');
         navigate('/orders');
       }
     } catch (err) {
+      console.error(err);
       Swal.fire('Lỗi đặt hàng', 'Không thể đặt hàng. Vui lòng thử lại sau.', 'error');
     }
   };
@@ -217,6 +236,15 @@ const Checkout = () => {
         <div className="bg-white shadow p-6 space-y-4 rounded">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">Phương thức thanh toán</h2>
           <div className="space-y-3">
+
+            {/* ✅ NÚT THANH TOÁN VNPAY MỚI */}
+            <label className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-all ${paymentMethod === 'vnpay' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <input type="radio" checked={paymentMethod === 'vnpay'} onChange={() => setPaymentMethod('vnpay')} className="w-4 h-4" />
+              <div className="flex-1 text-sm font-semibold text-gray-800">Thanh toán qua VNPAY (Thẻ ATM, Visa...)</div>
+              {/* Thêm một icon ảnh VNPAY cho xịn */}
+              <img src="https://vnpay.vn/wp-content/uploads/2020/07/Logo-VNPAYQR-update.png" alt="VNPAY" className="h-4 object-contain" />
+            </label>
+
             <label className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-all ${paymentMethod === 'cod' ? 'border-yellow-600 bg-yellow-50' : 'border-gray-200 hover:bg-gray-50'}`}>
               <input type="radio" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="w-4 h-4" />
               <div className="flex-1 text-sm font-semibold text-gray-800">Thanh toán khi nhận hàng (COD)</div>
@@ -225,20 +253,21 @@ const Checkout = () => {
 
             <label className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-all ${paymentMethod === 'transfer' ? 'border-yellow-600 bg-yellow-50' : 'border-gray-200 hover:bg-gray-50'}`}>
               <input type="radio" checked={paymentMethod === 'transfer'} onChange={() => setPaymentMethod('transfer')} className="w-4 h-4" />
-              <div className="flex-1 text-sm font-semibold text-gray-800">Chuyển khoản VietQR (Tự động điền)</div>
+              <div className="flex-1 text-sm font-semibold text-gray-800">Chuyển khoản VietQR (Thủ công)</div>
               <FontAwesomeIcon icon={['fas', 'qrcode']} className="text-blue-600" />
             </label>
+
           </div>
         </div>
 
         <div className="text-right pt-4">
-          <button onClick={submitOrder} className="py-2 px-6 font-semibold hover-flip-btn transition rounded uppercase tracking-wide w-full">
+          <button onClick={submitOrder} className="py-3 px-6 font-bold hover-flip-btn transition rounded uppercase tracking-wide w-full text-lg shadow-lg">
             {paymentMethod === 'cod' ? 'XÁC NHẬN ĐẶT HÀNG' : 'TIẾN HÀNH THANH TOÁN'}
           </button>
         </div>
       </div>
 
-      {/* MODAL QR THANH TOÁN */}
+      {/* MODAL QR THANH TOÁN (VIETQR CŨ CỦA BẠN) */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100] p-4">
           <div className="bg-white p-6 rounded-lg shadow-2xl max-w-sm w-full text-center space-y-4 relative">
@@ -257,13 +286,12 @@ const Checkout = () => {
         </div>
       )}
 
-      {/* ✅ MODAL CHỌN ĐỊA CHỈ - ĐÃ CẬP NHẬT DROPDOWN GIỐNG PROFILE */}
+      {/* ✅ MODAL CHỌN ĐỊA CHỈ */}
       {showAddressModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 p-4">
           <div className="bg-white w-full max-w-xl rounded-lg p-6 shadow-xl space-y-4 relative overflow-y-auto max-h-[90vh]">
             <h3 className="text-lg font-bold text-gray-800 mb-2 border-b pb-2">Chọn địa chỉ giao hàng</h3>
 
-            {/* Danh sách địa chỉ hiện có */}
             <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
               {addresses.length > 0 ? (
                 addresses.map(addr => (
@@ -286,36 +314,23 @@ const Checkout = () => {
               </button>
             </div>
 
-            {/* ✅ Form thêm địa chỉ mới với cascading dropdown */}
             {showNewAddressForm && (
               <div className="grid grid-cols-1 gap-3 mt-3 bg-gray-50 p-4 rounded border">
                 <input value={newAddress.fullName} onChange={e => setNewAddress({ ...newAddress, fullName: e.target.value })} placeholder="Họ và tên" className="w-full border rounded px-3 py-2 text-sm" />
                 <input value={newAddress.phone} onChange={e => setNewAddress({ ...newAddress, phone: e.target.value })} placeholder="Số điện thoại" className="w-full border rounded px-3 py-2 text-sm" />
-
-                {/* Tỉnh / Thành */}
                 <select onChange={handleProvinceChange} className="w-full border rounded px-3 py-2 text-sm outline-none">
                   <option value="">-- Chọn Tỉnh / Thành phố --</option>
                   {provinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
                 </select>
-
-                {/* Quận / Huyện */}
                 <select onChange={handleDistrictChange} disabled={!districts.length} className="w-full border rounded px-3 py-2 text-sm outline-none disabled:bg-gray-200">
                   <option value="">-- Chọn Quận / Huyện --</option>
                   {districts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
                 </select>
-
-                {/* Phường / Xã */}
-                <select
-                  onChange={(e) => setNewAddress({ ...newAddress, ward: wards.find(w => w.code == e.target.value)?.name })}
-                  disabled={!wards.length}
-                  className="w-full border rounded px-3 py-2 text-sm outline-none disabled:bg-gray-200"
-                >
+                <select onChange={(e) => setNewAddress({ ...newAddress, ward: wards.find(w => w.code == e.target.value)?.name })} disabled={!wards.length} className="w-full border rounded px-3 py-2 text-sm outline-none disabled:bg-gray-200">
                   <option value="">-- Chọn Phường / Xã --</option>
                   {wards.map(w => <option key={w.code} value={w.code}>{w.name}</option>)}
                 </select>
-
                 <input value={newAddress.street} onChange={e => setNewAddress({ ...newAddress, street: e.target.value })} placeholder="Số nhà, tên đường" className="w-full border rounded px-3 py-2 text-sm" />
-
                 <div className="text-right">
                   <button onClick={addNewAddress} className="hover-flip-btn px-6 py-2 rounded text-sm font-bold">LƯU ĐỊA CHỈ</button>
                 </div>

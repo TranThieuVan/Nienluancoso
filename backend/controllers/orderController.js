@@ -1,15 +1,17 @@
 const Order = require('../models/Order')
 const Cart = require('../models/Cart')
 const Book = require('../models/Book')
+
 // Tạo đơn hàng mới từ giỏ hàng
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { items, shippingAddress } = req.body;
+        // ✅ Đã lấy đầy đủ paymentMethod và totalAmount từ Frontend gửi lên
+        const { items, shippingAddress, paymentMethod, totalAmount } = req.body;
 
-        // Validate địa chỉ
-        const { fullName, phone, street, district, city } = shippingAddress || {};
-        if (!fullName || !phone || !street || !district || !city) {
+        // ✅ Validate địa chỉ (Đã bổ sung Phường/Xã - ward)
+        const { fullName, phone, street, ward, district, city } = shippingAddress || {};
+        if (!fullName || !phone || !street || !ward || !district || !city) {
             return res.status(400).json({ msg: 'Thiếu thông tin giao hàng' });
         }
 
@@ -26,7 +28,7 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ msg: 'Một số sách không tồn tại' });
         }
 
-        // ✅ Kiểm tra tồn kho từng sách
+        // Kiểm tra tồn kho từng sách
         for (const item of items) {
             const book = books.find(b => String(b._id) === String(item.book));
             if (!book) {
@@ -46,13 +48,7 @@ exports.createOrder = async (req, res) => {
             };
         });
 
-        const subTotal = mergedItems.reduce((sum, item) => {
-            const book = books.find(b => String(b._id) === String(item.book));
-            return sum + book.price * item.quantity;
-        }, 0);
-
         const shippingFee = 40000;
-        const totalPrice = subTotal + shippingFee;
 
         // Tạo đơn hàng
         const order = new Order({
@@ -60,7 +56,9 @@ exports.createOrder = async (req, res) => {
             items: mergedItems,
             shippingAddress,
             shippingFee,
-            totalPrice,
+            totalPrice: totalAmount, // ✅ Lưu tổng tiền chính xác từ Frontend
+            paymentMethod: paymentMethod || 'cod', // ✅ Lưu phương thức thanh toán
+            paymentStatus: 'Chờ thanh toán', // Mặc định là chờ thanh toán
             status: 'pending',
             statusHistory: [
                 {
@@ -78,7 +76,6 @@ exports.createOrder = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi server khi tạo đơn hàng' });
     }
 };
-
 
 // Lấy đơn hàng của người dùng
 exports.getMyOrders = async (req, res) => {
@@ -108,18 +105,20 @@ exports.getOrderById = async (req, res) => {
     }
 }
 
-
-// controllers/orderController.js
+// Hủy đơn hàng
+// Hủy đơn hàng
 exports.cancelOrder = async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
-        const userId = req.user.id;
+        // Bọc thép: Lấy id hoặc _id tuỳ thuộc vào payload của JWT
+        const userId = req.user.id || req.user._id;
 
         const order = await Order.findById(id);
         if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
 
-        if (order.user.toString() !== userId)
+        // Bọc thép: Ép về String an toàn tuyệt đối
+        if (String(order.user) !== String(userId))
             return res.status(403).json({ message: 'Không có quyền hủy đơn' });
 
         if (order.status !== 'pending')
@@ -128,9 +127,13 @@ exports.cancelOrder = async (req, res) => {
         // Cập nhật trạng thái
         order.status = 'cancelled';
         order.cancelReason = reason;
-        order.cancelledAt = new Date(); // Thêm thời gian hủy
 
-        // ✅ Cập nhật lịch sử trạng thái để Frontend hiển thị đúng
+        if (order.paymentStatus === 'Đã thanh toán') {
+            order.paymentStatus = 'Hoàn tiền';
+        }
+
+        // Bọc thép: Khởi tạo mảng nếu trong DB bị rỗng
+        if (!order.statusHistory) order.statusHistory = [];
         order.statusHistory.push({
             status: 'cancelled',
             date: new Date()
@@ -139,7 +142,37 @@ exports.cancelOrder = async (req, res) => {
         await order.save();
         res.json({ message: 'Đã hủy đơn hàng thành công', order });
     } catch (error) {
-        console.error("Lỗi chi tiết:", error); // In lỗi ra terminal để debug
+        console.error("Lỗi HỦY ĐƠN HÀNG:", error);
         res.status(500).json({ message: 'Lỗi server khi hủy đơn hàng' });
+    }
+};
+
+// ✅ API: Cập nhật trạng thái đơn hàng thành "Đã thanh toán" (Gọi từ VNPAY)
+exports.updateOrderToPaid = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+
+        // 1. Nhận thêm 2 thông số từ Frontend gửi lên
+        const { vnpayTransactionNo, vnpayPayDate } = req.body;
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            {
+                paymentStatus: 'Đã thanh toán',
+                // 2. Lưu vào Database
+                vnpayTransactionNo: vnpayTransactionNo,
+                vnpayPayDate: vnpayPayDate
+            },
+            { new: true }
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+        }
+
+        res.json({ message: "Cập nhật thanh toán thành công", order: updatedOrder });
+    } catch (error) {
+        console.error("Lỗi cập nhật thanh toán:", error);
+        res.status(500).json({ message: "Lỗi server" });
     }
 };

@@ -201,12 +201,20 @@ const Orders = () => {
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2 text-sm text-gray-700">
-                  <p className="flex justify-between"><strong>Người nhận:</strong> <span>{order.shippingAddress.fullName}</span></p>
-                  <p className="flex justify-between"><strong>Điện thoại:</strong> <span>{order.shippingAddress.phone}</span></p>
+                  <p className="flex justify-between"><strong>Tên Người nhận:</strong> <span>{order.shippingAddress.fullName}</span></p>
+                  <p className="flex justify-between"><strong>Số Điện thoại:</strong> <span>{order.shippingAddress.phone}</span></p>
+
+                  {/* ✅ THÔNG TIN THANH TOÁN */}
+                  <p className="flex justify-between">
+                    <strong>Hình thức thanh toán:</strong>
+                    <span className="font-semibold text-blue-700 uppercase">{order.paymentMethod === 'vnpay' ? 'VNPAY' : 'Chuyển khoản'}</span>
+                  </p>
+
                   <div className="border-t pt-2 mt-1">
                     <strong>Địa chỉ giao hàng:</strong>
                     <p className="text-gray-500 mt-0.5 leading-snug">{formatAddress(order.shippingAddress)}</p>
                   </div>
+
                   <p className="flex justify-between text-base border-t pt-2 mt-2 font-bold">
                     <span>Tổng tiền:</span>
                     <span className="text-red-600">{formatPrice(order.totalPrice)}</span>
@@ -225,6 +233,20 @@ const Orders = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* ✅ TRẠNG THÁI HOÀN TIỀN DÀNH CHO ĐƠN HÀNG ĐÃ HỦY */}
+                  {order.status === 'cancelled' && (
+                    <div className="pt-2 border-t mt-2 flex justify-between items-center bg-white p-2 rounded-lg border border-gray-100">
+                      <strong className="text-xs">Hoàn tiền:</strong>
+                      {order.paymentStatus === 'Hoàn tiền' ? (
+                        <span className="text-orange-600 font-bold text-xs animate-pulse">⏳ Đang chờ hoàn tiền</span>
+                      ) : order.paymentStatus === 'Đã hoàn tiền' ? (
+                        <span className="text-green-600 font-bold text-xs">✅ Hoàn tiền thành công</span>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">Không áp dụng (COD)</span>
+                      )}
+                    </div>
+                  )}
 
                   {order.status === 'cancelled' && order.cancelReason && (
                     <div className="mt-3 p-2 bg-red-50 border border-red-100 rounded-lg">
@@ -246,6 +268,7 @@ const Orders = () => {
             </div>
           ))}
 
+          {/* ... phần phân trang giữ nguyên ... */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-6">
               <button
@@ -281,6 +304,7 @@ const Orders = () => {
         </>
       )}
 
+      {/* ... phần modal giữ nguyên ... */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm relative animate-in zoom-in duration-300">

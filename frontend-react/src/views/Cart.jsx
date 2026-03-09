@@ -18,9 +18,12 @@ const Cart = () => {
       const { data } = await axios.get('/api/cart', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCart(data.items || []);
 
-      const totalQty = (data.items || []).reduce((sum, i) => sum + i.quantity, 0);
+      // ✅ Đảo ngược mảng để sản phẩm mới nhất đứng đầu
+      const items = data.items || [];
+      setCart([...items].reverse());
+
+      const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
       setCartCountStore(totalQty);
 
       const preselect = localStorage.getItem('preselectItem');
@@ -100,11 +103,11 @@ const Cart = () => {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* BÊN TRÁI */}
         <div className="w-full lg:w-3/4">
-          <h1 className="text-3xl font-bold text-center mb-6">GIỎ HÀNG CỦA BẠN</h1>
+          <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">GIỎ HÀNG CỦA BẠN</h1>
 
           <div className="bg-gray-100 p-4 space-y-1">
             {cart.length === 0 ? (
-              <div className="text-center text-gray-500">Giỏ hàng trống.</div>
+              <div className="text-center text-gray-500 py-10">Giỏ hàng trống.</div>
             ) : (
               <div className="flex items-center gap-2 mb-2">
                 <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-5 h-5 cursor-pointer" />

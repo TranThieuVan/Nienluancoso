@@ -8,6 +8,10 @@ import { useCart } from '../composables/useCart';
 import { useFavorites } from '../composables/useFavorites';
 import { useAuthStore } from '../stores/auth';
 
+// ✅ BƯỚC 1: IMPORT BOOKSLIDER
+import BookSlider from '../components/BookSlider';
+import BookCard from '../components/BookCard';
+
 const BookDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -27,6 +31,11 @@ const BookDetail = () => {
   const [editContent, setEditContent] = useState('');
   const [menuOpenId, setMenuOpenId] = useState(null);
 
+  // State chứa sách đề xuất
+  const [recommendedBooks, setRecommendedBooks] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const taRef = useRef(null);
 
   const isCommentOwner = (cmtUserId) => {
@@ -46,6 +55,7 @@ const BookDetail = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      // Vì bạn đã xài Context API cho Favorites, có thể bỏ gọi fetchFavorites ở đây nếu main.jsx đã bọc toàn cục
       await fetchFavorites();
 
       try {
@@ -67,8 +77,22 @@ const BookDetail = () => {
       } catch (err) {
         console.error('Lỗi tải dữ liệu chi tiết sách', err);
       }
+
+      // ✅ BƯỚC 2: GỌI API LẤY SÁCH ĐỀ XUẤT (TRANG 1)
+      try {
+        const recommendRes = await axios.get(`/api/books/${id}/recommend?page=1&limit=6`);
+        setRecommendedBooks(recommendRes.data.books); // Lưu 5 cuốn đầu
+        setHasMore(recommendRes.data.hasMore);        // Cập nhật trạng thái xem còn sách ko
+        setPage(1); // Reset lại trang 1
+      } catch (err) {
+        console.error('Lỗi khi lấy sách đề xuất:', err);
+      }
+
     };
+
     loadData();
+    // Cuộn lên đầu trang mỗi khi click vào một cuốn sách mới từ Slider
+    window.scrollTo(0, 0);
   }, [id, isLoggedIn, token, fetchFavorites]);
 
   useEffect(() => {
@@ -76,6 +100,26 @@ const BookDetail = () => {
       autosize(taRef.current);
     }
   }, [book]);
+
+
+  // Hàm chạy khi user bấm nút "Xem thêm"
+  const loadMoreRecommendations = async () => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+
+    try {
+      const res = await axios.get(`/api/books/${id}/recommend?page=${nextPage}&limit=6`);
+      // NỐI TIẾP 5 cuốn mới vào đằng sau 5 cuốn cũ
+      setRecommendedBooks(prev => [...prev, ...res.data.books]);
+      setHasMore(res.data.hasMore);
+      setPage(nextPage);
+    } catch (err) {
+      console.error('Lỗi load more:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const handleMsgChange = (e) => {
     setMsg(e.target.value);
@@ -151,7 +195,6 @@ const BookDetail = () => {
   };
 
   const handleBuyNow = async () => {
-    // ✅ KIỂM TRA ĐĂNG NHẬP Ở ĐÂY
     if (!isLoggedIn) {
       Swal.fire({
         icon: 'warning',
@@ -286,7 +329,7 @@ const BookDetail = () => {
         </div>
 
         {/* PHẦN PHẢI */}
-        <div className="md:w-2/5 space-y-4 border p-6 shadow-md h-fit sticky top-[80px]">
+        <div className="md:w-2/5 space-y-4 border p-6 shadow-md h-fit sticky top-[80px] bg-white">
           <h1 className="text-2xl font-bold">{book.title}</h1>
           <p className="text-gray-600 text-sm">{book.author}</p>
           <hr />
@@ -301,6 +344,37 @@ const BookDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ BƯỚC 3: RENDER DANH SÁCH LƯỚI & NÚT XEM THÊM (SHOPEE STYLE) */}
+      {/* ✅ RENDER DANH SÁCH LƯỚI & NÚT XEM THÊM (SHOPEE STYLE) */}
+      {recommendedBooks.length > 0 && (
+        <div className="mt-16 mb-10">
+          <h2 className="text-2xl font-bold mb-6 border-b-2 border-blue-600 pb-2 inline-block">
+            ✨ Sách Tương Tự Dành Cho Bạn
+          </h2>
+
+          {/* Lưới hiển thị sách siêu gọn gàng */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {recommendedBooks.map((recBook) => (
+              <BookCard key={recBook._id} book={recBook} />
+            ))}
+          </div>
+
+          {/* Nút Xem thêm */}
+          {hasMore && (
+            <div className="text-center mt-8">
+              <button
+                onClick={loadMoreRecommendations}
+                disabled={isLoadingMore}
+                className="hover-flip-btn px-10 py-2 rounded-[5px]"
+              >
+                {isLoadingMore ? 'Đang tải...' : 'Xem thêm'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 };
