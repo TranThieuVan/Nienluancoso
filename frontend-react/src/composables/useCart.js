@@ -1,12 +1,12 @@
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { useCartStore } from './cartStore'; // Đường dẫn tới file store Zustand bạn vừa tạo
+import { useCartStore } from './cartStore';
 
 export const useCart = () => {
-    // Lấy hàm incrementCartCount từ Zustand Store
     const incrementCartCount = useCartStore((state) => state.incrementCartCount);
 
-    const addToCart = async (book) => {
+    // ✅ Nhận thêm tham số quantity, cho mặc định là 1 nếu gọi từ các trang không có nút chọn số lượng
+    const addToCart = async (book, quantity = 1) => {
         const token = localStorage.getItem('token');
 
         if (!token) {
@@ -21,17 +21,17 @@ export const useCart = () => {
         try {
             await axios.post(
                 '/api/cart/add',
-                { bookId: book._id, quantity: 1 },
+                { bookId: book._id, quantity: quantity }, // ✅ Gửi đúng số lượng khách chọn lên Server
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // Gọi hàm tăng số lượng giỏ hàng
-            incrementCartCount(1);
+            // ✅ Cập nhật con số trên Header đúng với số lượng vừa thêm
+            incrementCartCount(quantity);
 
             Swal.fire({
                 toast: true,
                 icon: 'success',
-                title: 'Đã thêm vào giỏ',
+                title: `Đã thêm ${quantity} sản phẩm vào giỏ`,
                 position: 'bottom-end',
                 showConfirmButton: false,
                 timer: 2000,

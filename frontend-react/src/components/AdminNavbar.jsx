@@ -46,6 +46,12 @@ const AdminNavbar = () => {
                         Người dùng
                     </Link>
 
+                    {/* ✅ THÊM MENU QUẢN LÝ VOUCHER Ở ĐÂY */}
+                    <Link to="/admin/vouchers" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/vouchers')}`}>
+                        <FontAwesomeIcon icon={['fas', 'ticket-alt']} />
+                        Mã giảm giá
+                    </Link>
+
                     <Link to="/admin/comments" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/comments')}`}>
                         <FontAwesomeIcon icon={['fas', 'comments']} />
                         Bình luận

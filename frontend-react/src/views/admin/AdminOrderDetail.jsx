@@ -251,7 +251,7 @@ const AdminOrderDetail = () => {
                   className="className=w-12 h-16 object-cover rounded shadow-sm"
                 />
                 <div className="col-span-2 text-gray-800 font-medium pr-2">{item.book.title}</div>
-                <div className="text-gray-700">x{item.quantity}</div>
+                <div className="text-gray-700 ml-6">{item.quantity}</div>
                 <div className="text-gray-700 font-semibold">{formatPrice(item.book.price)}</div>
               </div>
             ))}

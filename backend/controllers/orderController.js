@@ -1,26 +1,23 @@
 const Order = require('../models/Order')
 const Cart = require('../models/Cart')
 const Book = require('../models/Book')
-
+const User = require('../models/User');
+// Tạo đơn hàng mới từ giỏ hàng
 // Tạo đơn hàng mới từ giỏ hàng
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.user.id;
-        // ✅ Đã lấy đầy đủ paymentMethod và totalAmount từ Frontend gửi lên
         const { items, shippingAddress, paymentMethod, totalAmount } = req.body;
 
-        // ✅ Validate địa chỉ (Đã bổ sung Phường/Xã - ward)
         const { fullName, phone, street, ward, district, city } = shippingAddress || {};
         if (!fullName || !phone || !street || !ward || !district || !city) {
             return res.status(400).json({ msg: 'Thiếu thông tin giao hàng' });
         }
 
-        // Validate items
         if (!items || items.length === 0) {
             return res.status(400).json({ msg: 'Không có sản phẩm nào' });
         }
 
-        // Lấy thông tin sách từ DB để tính tổng tiền và kiểm tra tồn kho
         const bookIds = items.map(i => i.book);
         const books = await Book.find({ _id: { $in: bookIds } });
 
@@ -28,7 +25,6 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ msg: 'Một số sách không tồn tại' });
         }
 
-        // Kiểm tra tồn kho từng sách
         for (const item of items) {
             const book = books.find(b => String(b._id) === String(item.book));
             if (!book) {
@@ -39,7 +35,6 @@ exports.createOrder = async (req, res) => {
             }
         }
 
-        // Gộp lại items với thông tin sách
         const mergedItems = items.map(item => {
             const book = books.find(b => String(b._id) === String(item.book));
             return {
@@ -50,15 +45,14 @@ exports.createOrder = async (req, res) => {
 
         const shippingFee = 40000;
 
-        // Tạo đơn hàng
         const order = new Order({
             user: userId,
             items: mergedItems,
             shippingAddress,
             shippingFee,
-            totalPrice: totalAmount, // ✅ Lưu tổng tiền chính xác từ Frontend
-            paymentMethod: paymentMethod || 'cod', // ✅ Lưu phương thức thanh toán
-            paymentStatus: 'Chờ thanh toán', // Mặc định là chờ thanh toán
+            totalPrice: totalAmount,
+            paymentMethod: paymentMethod || 'cod',
+            paymentStatus: 'Chờ thanh toán',
             status: 'pending',
             statusHistory: [
                 {
@@ -68,15 +62,40 @@ exports.createOrder = async (req, res) => {
             ]
         });
 
+        // 1. LƯU ĐƠN HÀNG VÀO DATABASE
         await order.save();
 
+        // ==========================================
+        // 2. ✅ LOGIC THĂNG HẠNG ĐẶT VÀO TRONG NÀY 
+        // ==========================================
+        const user = await User.findById(req.user.id);
+        if (user) {
+            user.lastPurchaseDate = new Date();
+            let newRank = user.rank;
+            const amount = totalAmount;
+
+            if (amount >= 10000000) {
+                newRank = 'Kim cương';
+            } else if (amount >= 5000000 && ['Khách hàng', 'Bạc', 'Vàng'].includes(user.rank)) {
+                newRank = 'Bạch kim';
+            } else if (amount >= 2000000 && ['Khách hàng', 'Bạc'].includes(user.rank)) {
+                newRank = 'Vàng';
+            } else if (amount >= 500000 && user.rank === 'Khách hàng') {
+                newRank = 'Bạc';
+            }
+
+            user.rank = newRank;
+            await user.save();
+        }
+        // ==========================================
+
+        // 3. TRẢ VỀ KẾT QUẢ THÀNH CÔNG CHO FRONTEND
         res.status(201).json({ msg: 'Đặt hàng thành công', order });
     } catch (err) {
         console.error(err);
         res.status(500).json({ msg: 'Lỗi server khi tạo đơn hàng' });
     }
 };
-
 // Lấy đơn hàng của người dùng
 exports.getMyOrders = async (req, res) => {
     try {

@@ -12,7 +12,7 @@ import {
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash,
     faAngleLeft, faAngleRight, faChartLine, faStar as fasStar,
-    faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave // ✅ THÊM DÒNG NÀY (Icon định vị)
+    faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt,// ✅ THÊM DÒNG NÀY (Icon định vị)
 } from '@fortawesome/free-solid-svg-icons'
 import {
     faHeart as faHeartRegular,
@@ -26,7 +26,7 @@ library.add(
     fasStar, farStar, faPaperPlane, faEnvelope, faLock, faBook,
     faBoxOpen, faUser, faRightFromBracket, faEdit, faTrash,
     faAngleLeft, faAngleRight, faChartLine, faComments, faEllipsisV, faPen,
-    faMapMarkerAlt, faPhoneAlt, faMoneyBillWave, faQrcode // ✅ THÊM DÒNG NÀY ĐỂ KÍCH HOẠT ICON
+    faMapMarkerAlt, faPhoneAlt, faMoneyBillWave, faQrcode, faTicketAlt // ✅ THÊM DÒNG NÀY ĐỂ KÍCH HOẠT ICON
 )
 
 import { FavoritesProvider } from './composables/useFavorites'

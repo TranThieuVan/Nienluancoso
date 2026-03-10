@@ -26,18 +26,19 @@ app.use('/api/books', require('./routes/book'));
 app.use('/api/rating', require('./routes/rating'));
 app.use('/api/comments', require('./routes/comment'));
 app.use('/api/vnpay', vnpayRoutes);
-
+app.use('/api/vouchers', require('./routes/voucher'));
 // --- Các route admin ---
 app.use('/api/admin', require('./routes/admin/admin'));
 app.use('/api/admin/users', require('./routes/admin/adminUsers'));
 app.use('/api/admin/orders', require('./routes/admin/adminOrders'));
+app.use('/api/admin/vouchers', require('./routes/admin/adminVouchers'));
 app.use('/api/admin/revenue', require('./routes/admin/revenue'));
 app.use('/api/admin/comments', require('./routes/admin/comments')); // 👈 thêm dòng này
 app.use('/api/messages', messageRoutes);
 
-// ✅ GỌI BOT CHẠY NGẦM Ở ĐÂY (Nó sẽ tự động canh me 2h sáng mỗi ngày)
+// ✅ GỌI BOT CHẠY NGẦM Ở ĐÂY 
 require('./services/refundCron');
-
+require('./services/rankCron');
 // Kết nối MongoDB và chạy server
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {

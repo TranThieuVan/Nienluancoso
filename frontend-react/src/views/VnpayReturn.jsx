@@ -32,7 +32,7 @@ const VnpayReturn = () => {
                     });
 
                     setStatus('success');
-                    setMessage('🎉 Chúc mừng! Bạn đã thanh toán thành công.');
+                    setMessage('Chúc mừng! Bạn đã thanh toán thành công.');
                     localStorage.removeItem('checkoutItems');
 
                 } catch (error) {
@@ -53,8 +53,8 @@ const VnpayReturn = () => {
     }, [searchParams]);
 
     return (
-        <div className="min-h-[60vh] flex items-center justify-center bg-gray-50 px-4 mt-10">
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div className="min-h-[60vh] flex items-center justify-center px-4 mt-10">
+            <div className="max-w-md w-full p-8 text-center">
 
                 {/* Icon Trạng thái */}
                 {status === 'loading' && (

@@ -19,7 +19,7 @@ import Profile from '@/views/Profile';
 import Checkout from '@/views/Checkout';
 import SearchResults from '@/views/SearchResults';
 import BookList from '@/views/BookList';
-import VnpayReturn from './views/VnPayReturn';
+import VnpayReturn from './views/VnpayReturn';
 import AdminDashboard from '@/views/admin/AdminDashBoard';
 import AdminBookList from '@/views/admin/AdminBookList';
 import AddBook from '@/views/admin/AddBook';
@@ -27,7 +27,7 @@ import EditBook from '@/views/admin/EditBook';
 import AdminUsers from '@/views/admin/AdminUsers';
 import AdminOrders from '@/views/admin/AdminOrders';
 import AdminCommentList from '@/views/admin/AdminCommentList';
-
+import AdminVouchers from '@/views/admin/AdminVouchers';
 // --- LAZY LOAD VIEWS ---
 const ViewAllBooks = lazy(() => import('@/views/ViewAllBooks'));
 const AdminOrderDetail = lazy(() => import('@/views/admin/AdminOrderDetail'));
@@ -96,6 +96,7 @@ const AppRoutes = () => {
                     <Route path="orders/:id" element={<AdminOrderDetail />} />
                     <Route path="revenue" element={<AdminRevenue />} />
                     <Route path="messages" element={<AdminMessages />} />
+                    <Route path="/admin/vouchers" element={<AdminVouchers />} />
                 </Route>
 
                 {/* 404 */}
