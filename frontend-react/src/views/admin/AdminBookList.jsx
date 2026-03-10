@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 
-import InputSearchAdmin from '@/components/InputSearchAdmin'; // Đảm bảo đã chuyển component này sang React
-import Pagination from '@/components/Pagination'; // Đảm bảo đã chuyển component này sang React
+import InputSearchAdmin from '@/components/InputSearch';
+import Pagination from '@/components/Pagination';
 
 const AdminBookList = () => {
   const navigate = useNavigate();
@@ -147,8 +147,20 @@ const AdminBookList = () => {
                 <td className="p-3 border-b align-middle">
                   <img src={`http://localhost:5000${book.image}`} alt="Book" className="h-12 w-12 object-cover rounded" />
                 </td>
-                <td className="p-3 border-b align-middle">{book.title}</td>
-                <td className="p-3 border-b text-green-700 font-semibold align-middle">{formatPrice(book.price)}</td>
+                <td className="p-3 border-b align-middle font-medium">{book.title}</td>
+
+                {/* ✅ CẬP NHẬT GIAO DIỆN CỘT GIÁ (PRICE) TẠI ĐÂY */}
+                <td className="p-3 border-b align-middle whitespace-nowrap">
+                  {book.discountedPrice && book.discountedPrice < book.price ? (
+                    <div className="flex flex-col">
+                      <span className="text-gray-400 line-through text-sm">{formatPrice(book.price)}</span>
+                      <span className="text-red-600 font-bold">{formatPrice(book.discountedPrice)}</span>
+                    </div>
+                  ) : (
+                    <span className="text-green-700 font-semibold">{formatPrice(book.price)}</span>
+                  )}
+                </td>
+
                 <td className="p-3 border-b align-middle">
                   <span className={book.stock === 0 ? 'text-red-500 font-bold' : ''}>
                     {book.stock === 0 ? 'Out of stock' : book.stock}

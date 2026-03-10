@@ -36,6 +36,27 @@ const EditBook = () => {
     }
   };
 
+  // Hàm xử lý gõ số Tiền
+  const handleCurrencyChange = (field, value) => {
+    if (value === "") {
+      setBook(prev => ({ ...prev, [field]: "" }));
+      return;
+    }
+    const rawValue = value.replace(/\D/g, "");
+    setBook(prev => ({ ...prev, [field]: rawValue !== "" ? parseInt(rawValue, 10) : "" }));
+  };
+
+  // Hàm xử lý phím mũi tên (+/- 1000đ)
+  const handleCurrencyKeyDown = (e, field) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setBook(prev => ({ ...prev, [field]: (Number(prev[field]) || 0) + 1000 }));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setBook(prev => ({ ...prev, [field]: Math.max(0, (Number(prev[field]) || 0) - 1000) }));
+    }
+  };
+
   const confirmEditBook = async (e) => {
     e.preventDefault();
     if (!book) return;
@@ -117,20 +138,33 @@ const EditBook = () => {
               <input name="title" value={book.title} onChange={handleInputChange} type="text" required className={inputClasses} />
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-1">Tác giả</label>
-              <input name="author" value={book.author} onChange={handleInputChange} type="text" required className={inputClasses} />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 font-medium mb-1">Thể loại</label>
-              <input name="genre" value={book.genre} onChange={handleInputChange} type="text" required className={inputClasses} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            {/* ✅ Tác giả và Thể loại chung 1 hàng */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Giá (VNĐ)</label>
-                <input name="price" value={book.price} onChange={handleInputChange} type="number" min="0" required className={inputClasses} />
+                <label className="block text-gray-700 font-medium mb-1">Tác giả</label>
+                <input name="author" value={book.author} onChange={handleInputChange} type="text" required className={inputClasses} />
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">Thể loại</label>
+                <input name="genre" value={book.genre} onChange={handleInputChange} type="text" required className={inputClasses} />
+              </div>
+            </div>
+
+            {/* Giá gốc và Số lượng */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">Giá bán (VNĐ)</label>
+                <div className="relative">
+                  <input
+                    type="text" required
+                    value={book.price !== "" ? Number(book.price).toLocaleString('vi-VN') : ""}
+                    onChange={(e) => handleCurrencyChange('price', e.target.value)}
+                    onKeyDown={(e) => handleCurrencyKeyDown(e, 'price')}
+                    className={`${inputClasses} pr-8 font-semibold`}
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-3 text-gray-500 font-bold">₫</span>
+                </div>
               </div>
 
               <div>

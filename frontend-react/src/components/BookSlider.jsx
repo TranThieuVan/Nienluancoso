@@ -112,8 +112,10 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = 'Danh S�
                 className="flex gap-4 overflow-x-auto scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
                 {books.map((book) => (
-                    // Bọc thêm 1 thẻ div để quy định độ rộng cố định cho Slider ngang
-                    <BookCard book={book} />
+                    // Đã thêm key={book._id} vào thẻ bọc ngoài cùng
+                    <div key={book._id} className="swiper-slide-custom">
+                        <BookCard book={book} />
+                    </div>
                 ))}
             </div>
         </div>

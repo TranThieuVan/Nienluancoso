@@ -52,6 +52,12 @@ const AdminNavbar = () => {
                         Mã giảm giá
                     </Link>
 
+
+                    <Link to="/admin/promotions" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/promotions')}`}>
+                        <FontAwesomeIcon icon={['fas', 'bullhorn']} />
+                        Chiến dịch giảm giá sách
+                    </Link>
+
                     <Link to="/admin/comments" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/comments')}`}>
                         <FontAwesomeIcon icon={['fas', 'comments']} />
                         Bình luận

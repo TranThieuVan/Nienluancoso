@@ -28,6 +28,7 @@ import AdminUsers from '@/views/admin/AdminUsers';
 import AdminOrders from '@/views/admin/AdminOrders';
 import AdminCommentList from '@/views/admin/AdminCommentList';
 import AdminVouchers from '@/views/admin/AdminVouchers';
+import AdminPromotions from './views/admin/AdminPromotions';
 // --- LAZY LOAD VIEWS ---
 const ViewAllBooks = lazy(() => import('@/views/ViewAllBooks'));
 const AdminOrderDetail = lazy(() => import('@/views/admin/AdminOrderDetail'));
@@ -97,6 +98,7 @@ const AppRoutes = () => {
                     <Route path="revenue" element={<AdminRevenue />} />
                     <Route path="messages" element={<AdminMessages />} />
                     <Route path="/admin/vouchers" element={<AdminVouchers />} />
+                    <Route path="/admin/promotions" element={<AdminPromotions />} />
                 </Route>
 
                 {/* 404 */}

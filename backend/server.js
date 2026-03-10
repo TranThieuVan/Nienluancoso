@@ -35,7 +35,7 @@ app.use('/api/admin/vouchers', require('./routes/admin/adminVouchers'));
 app.use('/api/admin/revenue', require('./routes/admin/revenue'));
 app.use('/api/admin/comments', require('./routes/admin/comments')); // 👈 thêm dòng này
 app.use('/api/messages', messageRoutes);
-
+app.use('/api/admin/promotions', require('./routes/admin/adminPromotions'));
 // ✅ GỌI BOT CHẠY NGẦM Ở ĐÂY 
 require('./services/refundCron');
 require('./services/rankCron');

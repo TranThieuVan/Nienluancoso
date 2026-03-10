@@ -9,6 +9,10 @@ const bookSchema = new mongoose.Schema({
     genre: String,
     stock: { type: Number, required: true },
     sold: { type: Number, default: 0 },
+    discountedPrice: {
+        type: Number,
+        default: null
+    },
     // ✅ THÊM DÒNG NÀY: Mảng chứa 1536 con số của AI
     embedding: { type: [Number], select: false }
 }, { timestamps: true });
