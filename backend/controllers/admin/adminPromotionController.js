@@ -3,40 +3,71 @@ const Book = require('../../models/Book');
 
 // 🛠️ HÀM HELPER: Quét và cập nhật giá sách tự động
 const syncDiscountToBooks = async (promotion, isRemoving = false) => {
-    let filter = {};
 
-    // 1. Phân loại điều kiện lọc sách
+    // ==========================================
+    // TRƯỜNG HỢP 1: GIẢM THEO TỪNG SÁCH CỤ THỂ (Có mức giảm riêng)
+    // ==========================================
+    if (promotion.targetType === 'book') {
+        try {
+            // Frontend gửi lên chuỗi JSON chứa mảng Object: [{ bookId, discountType, discountValue }]
+            const bookConfigs = JSON.parse(promotion.targetValue);
+
+            // Trích xuất ra mảng chỉ chứa chữ ID (Tránh lỗi BSON ObjectId)
+            const bookIds = bookConfigs.map(c => c.bookId);
+
+            if (isRemoving || !promotion.isActive) {
+                // Nếu xóa / tắt chiến dịch -> Gỡ sạch giá giảm của các sách này
+                await Book.updateMany({ _id: { $in: bookIds } }, { $set: { discountedPrice: null } });
+                return;
+            }
+
+            // Nếu đang chạy -> Tính toán giá giảm riêng rẽ cho TỪNG CUỐN SÁCH
+            for (let config of bookConfigs) {
+                const book = await Book.findById(config.bookId);
+                if (book) {
+                    let discountAmount = config.discountType === 'percent'
+                        ? (book.price * config.discountValue) / 100
+                        : config.discountValue;
+
+                    let newPrice = Math.round(book.price - discountAmount); // Làm tròn
+
+                    await Book.updateOne(
+                        { _id: book._id },
+                        { $set: { discountedPrice: newPrice > 0 ? newPrice : 0 } }
+                    );
+                }
+            }
+        } catch (e) {
+            console.error("Lỗi parse cấu hình Sách cụ thể:", e);
+        }
+        return; // Xử lý xong sách cụ thể thì thoát hàm, không chạy phần Thể loại bên dưới nữa
+    }
+
+    // ==========================================
+    // TRƯỜNG HỢP 2: GIẢM THEO THỂ LOẠI HOẶC TOÀN SHOP (Mức giảm chung)
+    // ==========================================
+    let filter = {};
     if (promotion.targetType === 'genre') {
         filter.genre = promotion.targetValue;
-    } else if (promotion.targetType === 'book') {
-        try {
-            const bookIds = JSON.parse(promotion.targetValue);
-            filter._id = { $in: bookIds };
-        } catch (e) {
-            return; // Lỗi parse thì bỏ qua
-        }
     }
 
     const books = await Book.find(filter);
 
-    // 2. Cập nhật từng cuốn sách (Sử dụng updateOne để chống lỗi Validation)
     for (let book of books) {
         let updateData = {};
 
         if (isRemoving || !promotion.isActive) {
-            // Gỡ giảm giá, về lại giá gốc
             updateData = { $set: { discountedPrice: null } };
         } else {
-            // Tính toán giá mới
             let discountAmount = promotion.discountType === 'percent'
                 ? (book.price * promotion.discountValue) / 100
                 : promotion.discountValue;
 
-            let newPrice = Math.round(book.price - discountAmount); // Làm tròn số tiền
+            let newPrice = Math.round(book.price - discountAmount);
             updateData = { $set: { discountedPrice: newPrice > 0 ? newPrice : 0 } };
         }
 
-        // ✅ Cập nhật thẳng vào DB, cực nhanh và không sợ lỗi sách cũ bị thiếu dữ liệu
+        // Cập nhật thẳng vào DB, bỏ qua validation thừa
         await Book.updateOne({ _id: book._id }, updateData);
     }
 };
