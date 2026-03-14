@@ -92,6 +92,19 @@ exports.createPromotion = async (req, res) => {
         if (promotion.isActive) {
             await syncDiscountToBooks(promotion, false);
         }
+
+        // 👈 THÊM ĐOẠN NÀY ĐỂ BẮN THÔNG BÁO REAL-TIME QUA SOCKET
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('new_notification', {
+                _id: promotion._id,
+                title: `🔥 Khuyến mãi sốc: ${promotion.name}`,
+                message: promotion.description || 'Nhiều tựa sách đang được giảm giá cực mạnh. Khám phá ngay!',
+                createdAt: promotion.createdAt,
+                type: 'promotion'
+            });
+        }
+
         res.status(201).json({ message: 'Tạo chiến dịch thành công', promotion });
     } catch (err) {
         console.error("LỖI TẠO CHIẾN DỊCH:", err);

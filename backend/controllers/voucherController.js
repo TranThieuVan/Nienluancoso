@@ -62,22 +62,24 @@ exports.applyVoucher = async (req, res) => {
 
 
 
-// Lấy danh sách voucher đang hoạt động để hiển thị cho User chọn
+// Lấy danh sách voucher đang hoạt động để hiển thị cho User
 exports.getActiveVouchers = async (req, res) => {
     try {
         const now = new Date();
 
-        // 1. Tìm thông tin User đang đăng nhập để lấy Rank của họ
+        // 1. Lấy thông tin User để xác định Hạng (Rank)
         const user = await User.findById(req.user.id);
         const userRank = (user && user.rank) ? user.rank : 'Khách hàng';
-        // 2. Query Database: Chỉ lấy những mã mà cột applicableRanks có chứa Hạng của User này
+
+        // 2. Truy vấn danh sách Voucher hợp lệ
         const vouchers = await Voucher.find({
             isActive: true,
-            startDate: { $lte: now },
-            expirationDate: { $gt: now },
-            applicableRanks: { $in: [userRank] }, // 👈 CHỐT CHẶN NẰM Ở ĐÂY
-            $expr: { $lt: ["$usedCount", "$usageLimit"] }
-        }).sort({ discountValue: -1 });
+            startDate: { $lte: now }, // Đã đến ngày bắt đầu
+            expirationDate: { $gt: now }, // Chưa hết hạn
+            applicableRanks: { $in: [userRank] }, // Áp dụng cho hạng của User này
+            // Đảm bảo số lượt đã dùng nhỏ hơn giới hạn (xử lý an toàn khi usedCount bị null)
+            $expr: { $lt: [{ $ifNull: ["$usedCount", 0] }, "$usageLimit"] }
+        }).sort({ discountValue: -1 }); // Ưu tiên xếp mã có giá trị giảm cao lên trước
 
         res.json(vouchers);
     } catch (err) {

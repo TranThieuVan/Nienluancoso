@@ -1,13 +1,39 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-dotenv.config();
-
 const cors = require('cors');
 const path = require('path');
+
+// 1. Import thêm http và socket.io
+const http = require('http');
+const { Server } = require('socket.io');
+
+dotenv.config();
+
 const messageRoutes = require('./routes/messages');
 const vnpayRoutes = require('./routes/vnpay');
 const app = express();
+
+// 2. Khởi tạo HTTP Server và gắn Socket.io vào
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:5174", // Thay URL này bằng port chạy Frontend React của bạn nếu khác
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    }
+});
+
+// 3. Đưa biến `io` vào app để lát nữa các file Controller có thể lôi ra xài
+app.set('io', io);
+
+// 4. Lắng nghe kết nối từ Client
+io.on('connection', (socket) => {
+    console.log('🟢 Một user vừa kết nối với Socket ID:', socket.id);
+
+    socket.on('disconnect', () => {
+        console.log('🔴 User đã ngắt kết nối:', socket.id);
+    });
+});
 
 app.use(cors());
 app.use(express.json());
@@ -27,23 +53,27 @@ app.use('/api/rating', require('./routes/rating'));
 app.use('/api/comments', require('./routes/comment'));
 app.use('/api/vnpay', vnpayRoutes);
 app.use('/api/vouchers', require('./routes/voucher'));
+
 // --- Các route admin ---
 app.use('/api/admin', require('./routes/admin/admin'));
 app.use('/api/admin/users', require('./routes/admin/adminUsers'));
 app.use('/api/admin/orders', require('./routes/admin/adminOrders'));
 app.use('/api/admin/vouchers', require('./routes/admin/adminVouchers'));
 app.use('/api/admin/revenue', require('./routes/admin/revenue'));
-app.use('/api/admin/comments', require('./routes/admin/comments')); // 👈 thêm dòng này
+app.use('/api/admin/comments', require('./routes/admin/comments'));
 app.use('/api/messages', messageRoutes);
 app.use('/api/admin/promotions', require('./routes/admin/adminPromotions'));
+app.use('/api/notifications', require('./routes/notification'));
 // ✅ GỌI BOT CHẠY NGẦM Ở ĐÂY 
 require('./services/refundCron');
 require('./services/rankCron');
+
 // Kết nối MongoDB và chạy server
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('MongoDB connected');
-        app.listen(process.env.PORT, () => {
+        // 5. CHÚ Ý QUAN TRỌNG: Đổi app.listen thành server.listen
+        server.listen(process.env.PORT, () => {
             console.log(`Server running at http://localhost:${process.env.PORT}`);
         });
     })

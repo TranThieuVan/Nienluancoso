@@ -58,7 +58,7 @@ const BookCard = ({ book }) => {
                 <div className="flex justify-between items-end shrink-0 ">
 
                     {/* Khu vực giá */}
-                    <div className="flex flex-col text-left">
+                    <div className="flex flex-col text-left" style={{ minHeight: '2.75rem' }}>
                         {book.discountedPrice && book.discountedPrice < book.price ? (
                             <>
                                 <span className="text-red-500 text-xs line-through mb-0.5 font-medium">
@@ -69,9 +69,12 @@ const BookCard = ({ book }) => {
                                 </span>
                             </>
                         ) : (
-                            <span className="text-green-600 text-base font-bold">
-                                {book.price?.toLocaleString('vi-VN')}₫
-                            </span>
+                            <>
+                                <span className="text-xs mb-0.5 invisible select-none">placeholder</span>
+                                <span className="text-green-600 text-base font-bold">
+                                    {book.price?.toLocaleString('vi-VN')}₫
+                                </span>
+                            </>
                         )}
                     </div>
 

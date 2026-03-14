@@ -14,13 +14,8 @@ exports.getAllVouchers = async (req, res) => {
 // 2. TẠO VOUCHER MỚI
 exports.createVoucher = async (req, res) => {
     try {
-        const {
-            code, discountType, discountValue, minOrderValue,
-            maxDiscountAmount, startDate, expirationDate,
-            usageLimit, applicableRanks
-        } = req.body;
+        const { code, discountType, discountValue, minOrderValue, maxDiscountAmount, startDate, expirationDate, usageLimit, applicableRanks } = req.body;
 
-        // Ép mã viết hoa và kiểm tra trùng lặp
         const upperCode = code.toUpperCase().trim();
         const existingVoucher = await Voucher.findOne({ code: upperCode });
         if (existingVoucher) {
@@ -29,24 +24,31 @@ exports.createVoucher = async (req, res) => {
 
         const newVoucher = new Voucher({
             code: upperCode,
-            discountType,
-            discountValue,
-            minOrderValue: minOrderValue || 0,
-            maxDiscountAmount: maxDiscountAmount || null,
-            startDate,
-            expirationDate,
-            usageLimit,
-            applicableRanks: applicableRanks || ['Khách hàng', 'Bạc', 'Vàng', 'Bạch kim', 'Kim cương']
+            discountType, discountValue, minOrderValue: minOrderValue || 0,
+            maxDiscountAmount: maxDiscountAmount || null, startDate, expirationDate,
+            usageLimit, applicableRanks: applicableRanks || ['Khách hàng', 'Bạc', 'Vàng', 'Bạch kim', 'Kim cương']
         });
 
         await newVoucher.save();
+
+        // 👈 THÊM ĐOẠN NÀY ĐỂ BẮN THÔNG BÁO REAL-TIME
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('new_notification', {
+                _id: newVoucher._id,
+                title: '🎟️ Voucher Mới Trình Làng!',
+                message: `Nhập mã ${newVoucher.code} để nhận ưu đãi. Nhanh tay kẻo lỡ!`,
+                createdAt: newVoucher.createdAt,
+                type: 'voucher'
+            });
+        }
+
         res.status(201).json({ message: 'Tạo mã giảm giá thành công!', voucher: newVoucher });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Lỗi server khi tạo Voucher' });
     }
 };
-
 // 3. CẬP NHẬT VOUCHER (Sửa ngày hết hạn, sửa đối tượng sử dụng, khóa mã...)
 exports.updateVoucher = async (req, res) => {
     try {

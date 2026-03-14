@@ -32,5 +32,9 @@ export const useAuthStore = create((set, get) => ({
             user: JSON.parse(localStorage.getItem('user')) || null,
             token: localStorage.getItem('token') || null,
         });
-    }
+    },
+    setUser: (userData) => {
+        localStorage.setItem('user', JSON.stringify(userData));
+        set({ user: userData });
+    },
 }));

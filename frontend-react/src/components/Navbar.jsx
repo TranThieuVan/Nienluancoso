@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 // Components & Assets
 import InputSearch from './InputSearch';
 import logo from '../assets/image/logo.png';
-
+import NotificationBell from './NotificationBell'; // ✅ Đã import
 // Stores
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../composables/cartStore';
@@ -157,22 +157,20 @@ const Navbar = () => {
                         <img src={logo} alt="Logo" className="h-10 w-auto bigger-small" />
                     </Link>
 
-                    {/* Center links (desktop) - ✅ ĐÃ TĂNG CỠ CHỮ THÀNH text-lg VÀ THÊM items-center */}
+                    {/* Center links (desktop) */}
                     <div className="hidden md:flex items-center gap-6 text-lg font-medium text-gray-700 relative">
                         <Link to="/" className="hover:text-blue-600 transition-colors">Trang chủ</Link>
 
-                        {/* Thể loại Dropdown - ✅ ĐÃ SỬA LỖI HOVER */}
+                        {/* Thể loại Dropdown */}
                         <div
-                            className="relative py-2" // Thêm py-2 để mở rộng vùng nhận diện chuột
+                            className="relative py-2"
                             onMouseEnter={() => setShowGenres(true)}
                             onMouseLeave={() => setShowGenres(false)}
                         >
                             <span className="cursor-pointer hover:text-blue-600 transition-colors">Thể loại</span>
 
                             {showGenres && (
-                                // ✅ THAY ĐỔI QUAN TRỌNG: Đổi mt-2 thành pt-2 ở thẻ bọc ngoài cùng
                                 <div className="absolute left-0 top-full pt-2 w-48 z-50 transition-opacity duration-300">
-                                    {/* Đẩy background trắng và box-shadow vào thẻ div con bên trong */}
                                     <div className="bg-white shadow-lg border rounded overflow-hidden">
                                         <ul className="py-2 space-y-1">
                                             {genres.map(genre => (
@@ -196,6 +194,10 @@ const Navbar = () => {
                     {/* Search & icons (desktop) */}
                     <div className="hidden md:flex items-center gap-4">
                         <InputSearch />
+
+                        {/* ✅ THÊM CHUÔNG THÔNG BÁO Ở ĐÂY CHO DESKTOP */}
+                        <NotificationBell />
+
                         <Link to="/favorites" className="text-gray-700 hover:text-red-600 text-xl bigger transition-colors">
                             <FontAwesomeIcon icon={['far', 'heart']} />
                         </Link>
@@ -209,10 +211,15 @@ const Navbar = () => {
                         </Link>
                     </div>
 
-                    {/* Mobile menu toggle button */}
-                    <button className="md:hidden text-black text-2xl ml-4" onClick={toggleMenu}>
-                        <FontAwesomeIcon icon={['fas', 'bars']} />
-                    </button>
+                    {/* Mobile menu toggle button & Bell */}
+                    <div className="md:hidden flex items-center gap-3 ml-4">
+                        {/* ✅ THÊM CHUÔNG THÔNG BÁO Ở ĐÂY CHO MOBILE */}
+                        <NotificationBell />
+
+                        <button className="text-black text-2xl" onClick={toggleMenu}>
+                            <FontAwesomeIcon icon={['fas', 'bars']} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* ================= MOBILE MENU ================= */}
