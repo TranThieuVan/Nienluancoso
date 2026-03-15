@@ -58,3 +58,20 @@ exports.hideComment = async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi ẩn bình luận', error: err.message });
     }
 };
+
+exports.unhideComment = async (req, res) => {
+    try {
+        const comment = await Comment.findById(req.params.id);
+        if (!comment) {
+            return res.status(404).json({ message: 'Không tìm thấy bình luận' });
+        }
+
+        comment.isHidden = false;
+        comment.hiddenReason = '';
+        await comment.save();
+
+        res.json({ message: 'Đã hiện bình luận thành công' });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi khi hiện bình luận', error: err.message });
+    }
+};

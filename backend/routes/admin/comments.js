@@ -8,7 +8,7 @@ router.use(verifyToken, verifyAdmin);
 
 // Lấy tất cả bình luận (phân trang, lọc)
 router.get('/', adminCommentController.getAllComments);
-
+router.put('/:id/unhide', adminCommentController.unhideComment);
 // Xoá bình luận
 router.put('/:id/hide', adminCommentController.hideComment);
 

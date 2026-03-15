@@ -72,7 +72,7 @@ require('./services/rankCron');
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('MongoDB connected');
-        // 5. CHÚ Ý QUAN TRỌNG: Đổi app.listen thành server.listen
+
         server.listen(process.env.PORT, () => {
             console.log(`Server running at http://localhost:${process.env.PORT}`);
         });
