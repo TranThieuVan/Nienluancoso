@@ -1,19 +1,68 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import axios from 'axios';
+import { io } from 'socket.io-client';
 
 const AdminNavbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
+
+    // ✨ State lưu số lượng thông báo
+    const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
     const logout = () => {
         localStorage.removeItem('adminToken');
         navigate('/login');
     };
 
-    // Hàm kiểm tra route active
     const isActive = (path) => {
-        return location.pathname === path ? 'bg-green-200' : '';
+        return location.pathname === path ? 'bg-green-200 font-medium' : '';
     };
+
+    // ✨ Hàm lấy dữ liệu đếm số lượng
+    const fetchNotificationCounts = async () => {
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return;
+
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+
+            // 1. Đếm đơn hàng đang chờ xử lý (pending)
+            const ordersRes = await axios.get('/api/admin/orders', config);
+            const pendingCount = ordersRes.data.filter(o => o.status === 'pending').length;
+            setPendingOrdersCount(pendingCount);
+
+            // 2. Đếm tin nhắn chưa đọc
+            const msgsRes = await axios.get('/api/messages/admin/all', config);
+            const unreadCount = msgsRes.data.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+            setUnreadMessagesCount(unreadCount);
+
+        } catch (err) {
+            console.error("Lỗi lấy thông báo Navbar:", err);
+        }
+    };
+
+    // ✨ Cập nhật lại số lượng mỗi khi Admin chuyển trang (để lỡ admin vừa xử lý đơn xong thì số giảm xuống)
+    useEffect(() => {
+        fetchNotificationCounts();
+    }, [location.pathname]);
+
+    // ✨ Lắng nghe Socket.io để nảy số Real-time
+    useEffect(() => {
+        const socket = io('http://localhost:5000'); // Thay URL này nếu BE của bạn chạy port khác
+
+        socket.on('new_order_admin', () => {
+            setPendingOrdersCount(prev => prev + 1);
+        });
+
+        socket.on('new_message_admin', () => {
+            fetchNotificationCounts(); // Lấy lại số lượng tin nhắn cho chính xác
+        });
+
+        return () => socket.disconnect();
+    }, []);
 
     return (
         <aside className="fixed top-0 left-0 w-64 h-screen bg-white text-black flex flex-col justify-between shadow-md transition duration-200 z-50">
@@ -26,46 +75,60 @@ const AdminNavbar = () => {
                 </div>
 
                 <nav className="flex flex-col gap-2 mt-4 px-4 text-base">
-                    <Link to="/admin/books" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/books')}`}>
-                        <FontAwesomeIcon icon={['fas', 'book']} />
+                    <Link to="/admin/books" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/books')}`}>
+                        <FontAwesomeIcon icon={['fas', 'book']} className="w-5" />
                         Sách
                     </Link>
 
-                    <Link to="/admin/orders" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/orders')}`}>
-                        <FontAwesomeIcon icon={['fas', 'box-open']} />
-                        Đơn hàng
+                    {/* ✨ Mục Đơn hàng (Kèm Badge đỏ) */}
+                    <Link to="/admin/orders" className={`flex items-center justify-between py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/orders')}`}>
+                        <div className="flex items-center gap-3">
+                            <FontAwesomeIcon icon={['fas', 'box-open']} className="w-5" />
+                            Đơn hàng
+                        </div>
+                        {pendingOrdersCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                                {pendingOrdersCount}
+                            </span>
+                        )}
                     </Link>
 
-                    <Link to="/admin/revenue" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/revenue')}`}>
-                        <FontAwesomeIcon icon={['fas', 'chart-line']} />
+                    <Link to="/admin/revenue" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/revenue')}`}>
+                        <FontAwesomeIcon icon={['fas', 'chart-line']} className="w-5" />
                         Doanh thu
                     </Link>
 
-                    <Link to="/admin/users" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/users')}`}>
-                        <FontAwesomeIcon icon={['fas', 'user']} />
+                    <Link to="/admin/users" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/users')}`}>
+                        <FontAwesomeIcon icon={['fas', 'user']} className="w-5" />
                         Người dùng
                     </Link>
 
-                    {/* ✅ THÊM MENU QUẢN LÝ VOUCHER Ở ĐÂY */}
-                    <Link to="/admin/vouchers" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/vouchers')}`}>
-                        <FontAwesomeIcon icon={['fas', 'ticket-alt']} />
+                    <Link to="/admin/vouchers" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/vouchers')}`}>
+                        <FontAwesomeIcon icon={['fas', 'ticket-alt']} className="w-5" />
                         Mã giảm giá
                     </Link>
 
-
-                    <Link to="/admin/promotions" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/promotions')}`}>
-                        <FontAwesomeIcon icon={['fas', 'bullhorn']} />
-                        Chiến dịch giảm giá sách
+                    <Link to="/admin/promotions" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/promotions')}`}>
+                        <FontAwesomeIcon icon={['fas', 'bullhorn']} className="w-5" />
+                        Chiến dịch giảm giá
                     </Link>
 
-                    <Link to="/admin/comments" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/comments')}`}>
-                        <FontAwesomeIcon icon={['fas', 'comments']} />
+                    <Link to="/admin/comments" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/comments')}`}>
+                        <FontAwesomeIcon icon={['fas', 'comments']} className="w-5" />
                         Bình luận
                     </Link>
 
-                    <Link to="/admin/messages" className={`flex items-center gap-2 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/messages')}`}>
-                        <FontAwesomeIcon icon={['fas', 'envelope']} />
-                        Tin nhắn
+                    {/* ✨ Mục Tin nhắn (Kèm Badge đỏ) */}
+                    <Link to="/admin/messages" className={`flex items-center justify-between py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/messages')}`}>
+                        <div className="flex items-center gap-3">
+                            <FontAwesomeIcon icon={['fas', 'envelope']} className="w-5" />
+                            Tin nhắn
+                        </div>
+                        {unreadMessagesCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                                {unreadMessagesCount}
+                            </span>
+                        )}
                     </Link>
                 </nav>
             </div>
@@ -74,7 +137,7 @@ const AdminNavbar = () => {
                 <p className="text-sm mb-2">Xin chào, <strong>Admin</strong></p>
                 <button
                     onClick={logout}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm flex items-center justify-center gap-2"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm flex items-center justify-center gap-2 transition-colors"
                 >
                     <FontAwesomeIcon icon={['fas', 'right-from-bracket']} />
                     Đăng xuất

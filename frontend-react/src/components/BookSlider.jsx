@@ -8,7 +8,8 @@ import BookCard from './BookCard';
 
 const EMPTY_ARRAY = [];
 
-const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) => {
+// ✨ Thêm prop isFlashSale để thay đổi UI nếu cần
+const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '', isFlashSale = false }) => {
     const navigate = useNavigate();
     const scrollContainer = useRef(null);
     const [books, setBooks] = useState([]);
@@ -34,7 +35,6 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) =>
         loadBooks();
     }, [initialBooks, genre]);
 
-    // Track scroll position to show/hide arrows
     const updateScrollButtons = () => {
         const el = scrollContainer.current;
         if (!el) return;
@@ -57,7 +57,9 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) =>
     const shouldShowControls = books.length > 5;
 
     const goToViewAll = () => {
-        if (genre) {
+        if (isFlashSale) {
+            navigate(`/books?filter=sale`);
+        } else if (genre) {
             navigate(`/books/view-all?genre=${encodeURIComponent(genre)}`);
         } else {
             navigate('/books/view-all', { state: { books } });
@@ -79,9 +81,10 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) =>
     if (books.length === 0) return null;
 
     return (
-        <div className="relative">
+        <div className="relative group">
             {/* ── Header ── */}
-            {(title || shouldShowControls) && (
+            {/* Ẩn header mặc định nếu là Flash Sale (vì Flash Sale đã có header xịn ở Home.jsx rồi) */}
+            {!isFlashSale && (title || shouldShowControls) && (
                 <div className="flex items-center justify-between mb-6">
                     {title && (
                         <h2 className="text-lg font-bold text-black truncate pr-4">{title}</h2>
@@ -90,7 +93,6 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) =>
                     <div className="flex items-center gap-2 ml-auto flex-shrink-0">
                         {shouldShowControls && (
                             <>
-                                {/* Scroll Arrows */}
                                 <button
                                     onClick={scrollLeft}
                                     disabled={!canScrollLeft}
@@ -107,8 +109,6 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) =>
                                 >
                                     <FontAwesomeIcon icon={['fas', 'angle-right']} className="text-xs" />
                                 </button>
-
-                                {/* View All */}
                                 <button
                                     onClick={goToViewAll}
                                     className="ml-1 text-xs tracking-widest uppercase text-stone-400 hover:text-black transition-colors border-b border-transparent hover:border-stone-400 pb-0.5"
@@ -121,17 +121,38 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) =>
                 </div>
             )}
 
+            {/* ✨ Thêm nút cuộn nổi bên trên cho chế độ Flash Sale */}
+            {isFlashSale && shouldShowControls && (
+                <>
+                    <button
+                        onClick={scrollLeft}
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-rose-500 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${!canScrollLeft && 'hidden'}`}
+                    >
+                        <FontAwesomeIcon icon={['fas', 'angle-left']} />
+                    </button>
+                    <button
+                        onClick={scrollRight}
+                        className={`absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-rose-500 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${!canScrollRight && 'hidden'}`}
+                    >
+                        <FontAwesomeIcon icon={['fas', 'angle-right']} />
+                    </button>
+                </>
+            )}
+
             {/* ── Book List ── */}
             <div
                 ref={scrollContainer}
-                className="flex gap-4 overflow-x-auto scroll-smooth pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
                 {books.map((book) => (
                     <div
                         key={book._id}
-                        className="flex-shrink-0 w-[160px] sm:w-[180px]"
+                        className="flex-shrink-0 w-[160px] sm:w-[180px] transition-transform duration-300 hover:-translate-y-1"
                     >
-                        <BookCard book={book} />
+                        {/* Bọc BookCard trong div có theme tối nếu là Flash Sale để phù hợp viền Electric */}
+                        <div className={isFlashSale ? "bg-white/5 rounded-xl overflow-hidden shadow-lg border border-white/10" : ""}>
+                            <BookCard book={book} />
+                        </div>
                     </div>
                 ))}
             </div>

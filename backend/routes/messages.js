@@ -9,9 +9,11 @@ router.post('/start', verifyToken, messageController.startConversation);
 router.post('/', verifyToken, messageController.sendMessage);
 router.get('/:conversationId', verifyToken, messageController.getMessages);
 
+// ✨ MỚI: Tắt/Bật Bot cho cuộc trò chuyện
+router.put('/:conversationId/toggle-bot', verifyToken, messageController.toggleBot);
+
 // 🟢 ADMIN – Xem danh sách conversation
 router.get('/admin/all', verifyToken, messageController.getAllConversations);
-
 
 // 🔵 Đếm số tin nhắn chưa đọc
 router.get('/unread/count', verifyToken, messageController.getUnreadCount);

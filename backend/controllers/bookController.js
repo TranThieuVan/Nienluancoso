@@ -252,46 +252,104 @@ exports.getLowStockBooks = async (req, res) => {
     }
 };
 
-// ✅ API CHÍNH: LẤY SÁCH ĐỀ XUẤT (CÓ PHÂN TRANG NHƯ SHOPEE)
+// ==========================================
+// TẠO BỘ NHỚ ĐỆM (CACHE) BẢO VỆ SERVER
+// ==========================================
+const recommendationCache = new Map();
+const CACHE_TTL = 15 * 60 * 1000; // Thời gian sống của Cache: 15 phút (tính bằng mili-giây)
+
 exports.getRecommendations = async (req, res) => {
     try {
-        // 1. Lấy thông số phân trang từ Frontend (Mặc định: Trang 1, mỗi lần 5 cuốn)
+        const bookId = req.params.id;
+
+        // Nhận thông số phân trang từ Frontend
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 6;
+        const MAX_CACHE_RESULTS = 30; // Giới hạn lưu tối đa 30 cuốn ngon nhất vào RAM
 
-        const currentBook = await Book.findById(req.params.id).select('+embedding');
+        let allSortedRecommendations = []; // Biến chứa toàn bộ sách đã sắp xếp
 
-        if (!currentBook || !currentBook.embedding || currentBook.embedding.length === 0) {
-            return res.json({ books: [], hasMore: false });
+        // -------------------------------------------------------------------
+        // 1. KIỂM TRA CACHE (Lấy toàn bộ danh sách từ RAM nếu có)
+        // -------------------------------------------------------------------
+        if (recommendationCache.has(bookId)) {
+            const cachedItem = recommendationCache.get(bookId);
+            const isExpired = (Date.now() - cachedItem.timestamp) > CACHE_TTL;
+
+            if (!isExpired) {
+                allSortedRecommendations = cachedItem.data; // Bốc từ RAM ra
+            } else {
+                recommendationCache.delete(bookId); // Quá hạn thì xóa đi
+            }
         }
 
-        const allBooks = await Book.find({ _id: { $ne: currentBook._id } }).select('+embedding');
+        // -------------------------------------------------------------------
+        // 2. NẾU CACHE TRỐNG -> TRUY VẤN DB VÀ TÍNH TOÁN LẠI TỪ ĐẦU
+        // -------------------------------------------------------------------
+        if (allSortedRecommendations.length === 0) {
+            const currentBook = await Book.findById(bookId).select('+embedding');
 
-        const scoredBooks = allBooks.map(book => {
-            if (!book.embedding || book.embedding.length === 0) return { book, score: 0 };
-            const score = cosineSimilarity(currentBook.embedding, book.embedding);
-            return { book, score };
-        });
+            if (!currentBook || !currentBook.embedding || currentBook.embedding.length === 0) {
+                return res.json({ books: [], hasMore: false });
+            }
 
-        // 2. Chỉ lấy sách > 40% độ giống nhau và xếp từ cao xuống thấp
-        const relevantBooks = scoredBooks
-            .filter(item => item.score > 0.4)
-            .sort((a, b) => b.score - a.score);
+            // Lấy Candidate Books (Giới hạn 200 cuốn)
+            const sameGenreBooks = await Book.find({
+                _id: { $ne: currentBook._id },
+                genre: currentBook.genre
+            }).limit(150).select('+embedding');
 
-        // 3. THUẬT TOÁN CẮT LÁT (Shopee Style)
-        const startIndex = (page - 1) * limit; // Vd: page 1 -> index 0, page 2 -> index 5
-        const endIndex = page * limit;         // Vd: page 1 -> index 5, page 2 -> index 10
+            const otherBooks = await Book.find({
+                _id: { $ne: currentBook._id },
+                genre: { $ne: currentBook.genre }
+            }).limit(50).select('+embedding');
 
-        const paginatedBooks = relevantBooks.slice(startIndex, endIndex).map(item => {
-            const bookObj = item.book.toObject();
-            delete bookObj.embedding;
-            return bookObj;
-        });
+            const candidateBooks = [...sameGenreBooks, ...otherBooks];
 
-        // Kiểm tra xem còn sách để load tiếp cho lần sau không?
-        const hasMore = endIndex < relevantBooks.length;
+            // Tính điểm
+            const scoredBooks = candidateBooks.map(book => {
+                if (!book.embedding || book.embedding.length === 0) return { book, score: 0 };
 
-        // Trả về cả mảng sách VÀ trạng thái hasMore
+                let score = cosineSimilarity(currentBook.embedding, book.embedding);
+
+                if (book.author === currentBook.author) score += 0.15;
+                if (book.genre === currentBook.genre) score += 0.05;
+                if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) score += 0.03;
+                if (book.stock < 5) score -= 0.05;
+
+                return { book, score };
+            });
+
+            // Lọc, Sắp xếp và lưu vào biến tổng
+            allSortedRecommendations = scoredBooks
+                .filter(item => item.score > 0.4)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, MAX_CACHE_RESULTS) // Chỉ giữ 30 cuốn tốt nhất
+                .map(item => {
+                    const bookObj = item.book.toObject();
+                    delete bookObj.embedding;
+                    return bookObj;
+                });
+
+            // Lưu toàn bộ 30 cuốn này vào Cache để các trang sau (page 2, 3) lấy dùng luôn
+            recommendationCache.set(bookId, {
+                data: allSortedRecommendations,
+                timestamp: Date.now()
+            });
+        }
+
+        // -------------------------------------------------------------------
+        // 3. THUẬT TOÁN CẮT LÁT (PHÂN TRANG DỰA TRÊN MẢNG ĐÃ TÍNH TÓAN)
+        // -------------------------------------------------------------------
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+
+        const paginatedBooks = allSortedRecommendations.slice(startIndex, endIndex);
+
+        // Kiểm tra xem cuộn trang tiếp thì còn sách không
+        const hasMore = endIndex < allSortedRecommendations.length;
+
+        // Trả về Frontend
         res.json({
             books: paginatedBooks,
             hasMore: hasMore

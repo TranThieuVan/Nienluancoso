@@ -39,7 +39,7 @@ const BookCard = ({ book }) => {
 
                 {/* Discount Badge */}
                 {hasDiscount && (
-                    <span className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 tracking-wide">
+                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 tracking-wide">
                         -{discountPct}%
                     </span>
                 )}

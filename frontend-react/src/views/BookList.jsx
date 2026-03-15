@@ -1,25 +1,35 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Pagination from '../components/Pagination';
-import { useFavorites } from '../composables/useFavorites';
-import { useCart } from '../composables/useCart';
+import BookCard from '../components/BookCard';
 
 const BookList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const queryParams = new URLSearchParams(location.search);
+  const filterParam = queryParams.get('filter');
+
   const [books, setBooks] = useState([]);
   const [genres, setGenres] = useState([]);
   const [searchTitle, setSearchTitle] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
+
+  // ✨ State mới cho bộ lọc Giảm giá
+  const [isSaleFilter, setIsSaleFilter] = useState(filterParam === 'sale');
+
   const [sortBy, setSortBy] = useState('title');
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const perPage = 20;
 
-  const { toggleFavorite, isFavorite, fetchFavorites } = useFavorites();
-  const { addToCart } = useCart();
+  // ✨ Đồng bộ checkbox với URL (nếu user đi từ Home sang thì checkbox tự động bật)
+  useEffect(() => {
+    setIsSaleFilter(filterParam === 'sale');
+  }, [filterParam]);
 
   const fetchBooks = async () => {
     setIsLoading(true);
@@ -45,7 +55,6 @@ const BookList = () => {
       await fetchBooks();
       const genreRes = await axios.get('/api/books/genres');
       setGenres(genreRes.data);
-      await fetchFavorites();
     };
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,24 +67,36 @@ const BookList = () => {
 
   const filteredBooks = useMemo(() => {
     let result = [...books];
+
+    // ✨ Lọc sách ĐANG GIẢM GIÁ (Dựa vào checkbox ở sidebar)
+    if (isSaleFilter) {
+      result = result.filter(book => book.discountedPrice && book.discountedPrice < book.price);
+    }
+
     if (searchTitle) {
       result = result.filter(book =>
         book.title.toLowerCase().includes(searchTitle.toLowerCase())
       );
     }
+
     if (selectedGenre) {
       result = result.filter(book => book.genre === selectedGenre);
     }
+
     if (['priceHigh', 'priceLow', 'title'].includes(sortBy)) {
       switch (sortBy) {
         case 'title': result.sort((a, b) => a.title.localeCompare(b.title)); break;
-        case 'priceHigh': result.sort((a, b) => b.price - a.price); break;
-        case 'priceLow': result.sort((a, b) => a.price - b.price); break;
+        case 'priceHigh':
+          result.sort((a, b) => (b.discountedPrice || b.price) - (a.discountedPrice || a.price));
+          break;
+        case 'priceLow':
+          result.sort((a, b) => (a.discountedPrice || a.price) - (b.discountedPrice || b.price));
+          break;
         default: break;
       }
     }
     return result;
-  }, [books, searchTitle, selectedGenre, sortBy]);
+  }, [books, searchTitle, selectedGenre, sortBy, isSaleFilter]);
 
   const paginatedBooks = useMemo(() => {
     const start = (page - 1) * perPage;
@@ -91,12 +112,19 @@ const BookList = () => {
     { value: 'priceLow', label: 'Giá thấp → cao' },
   ];
 
+  const getPageTitle = () => {
+    if (isSaleFilter) {
+      return selectedGenre ? `${selectedGenre} GIẢM GIÁ` : 'Tất cả sách GIẢM GIÁ';
+    }
+    return selectedGenre || 'Tất cả sách';
+  };
+
   const filterContent = (
     <div className="flex flex-col gap-6">
       {/* Search */}
       <div>
         <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-3">Tìm kiếm</p>
-        <div className="relative">
+        <div className="relative select-none">
           <input
             value={searchTitle}
             onChange={(e) => { setSearchTitle(e.target.value); setPage(1); }}
@@ -109,6 +137,36 @@ const BookList = () => {
             className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 text-xs"
           />
         </div>
+      </div>
+
+      {/* ✨ Thêm mục Khuyến Mãi (Checkbox Giảm Giá) */}
+      <div>
+        <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-3">Khuyến mãi</p>
+        <label className="flex items-center select-none gap-3 cursor-pointer group">
+          <div className={`w-5 h-5 border flex items-center justify-center transition-colors ${isSaleFilter
+            ? 'bg-rose-500 border-rose-500 text-white'
+            : 'border-gray-300 bg-white group-hover:border-rose-400'
+            }`}
+          >
+            {isSaleFilter && <FontAwesomeIcon icon={['fas', 'check']} className="text-xs" />}
+          </div>
+          <span className={`text-sm select-none transition-colors ${isSaleFilter ? 'text-rose-500 font-medium' : 'text-stone-600 group-hover:text-black'
+            }`}
+          >
+            Đang giảm giá
+          </span>
+          <input
+            type="checkbox"
+            className="hidden"
+            checked={isSaleFilter}
+            onChange={(e) => {
+              setIsSaleFilter(e.target.checked);
+              setPage(1);
+              // Gỡ params trên URL nếu bỏ check để sạch link
+              if (!e.target.checked && filterParam === 'sale') navigate('/books');
+            }}
+          />
+        </label>
       </div>
 
       {/* Genre */}
@@ -146,10 +204,12 @@ const BookList = () => {
       {/* ── PAGE HEADER ── */}
       <div className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Thư viện</p>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">
+            {isSaleFilter ? 'Ưu đãi cực sốc' : 'Thư viện'}
+          </p>
           <div className="flex items-end justify-between">
-            <h1 className="text-3xl font-bold text-black">
-              {selectedGenre || 'Tất cả sách'}
+            <h1 className="text-3xl font-bold text-black uppercase">
+              {getPageTitle()}
             </h1>
             {!isLoading && (
               <p className="text-sm text-stone-400 pb-1">{filteredBooks.length} đầu sách</p>
@@ -172,14 +232,13 @@ const BookList = () => {
           <div className="flex-1 min-w-0">
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-6 gap-3">
-              {/* Mobile filter toggle */}
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="md:hidden flex items-center gap-2 text-sm border border-gray-200 px-4 py-2 text-stone-600 hover:border-black hover:text-black transition-colors"
               >
                 <FontAwesomeIcon icon={['fas', 'sliders']} className="text-xs" />
                 Bộ lọc
-                {selectedGenre && (
+                {(selectedGenre || isSaleFilter) && (
                   <span className="w-1.5 h-1.5 rounded-full bg-black ml-1" />
                 )}
               </button>
@@ -205,63 +264,26 @@ const BookList = () => {
               </div>
             ) : paginatedBooks.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-                {paginatedBooks.map((book) => {
-                  const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
-                  return (
-                    <div key={book._id} className="group flex flex-col">
-                      {/* Image */}
-                      <div className="relative overflow-hidden bg-stone-50 aspect-[2/3]">
-                        <img
-                          src={imgSrc}
-                          alt={book.title}
-                          className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
-                          onClick={() => navigate(`/books/${book._id}`)}
-                        />
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-black/35 flex items-end justify-center pb-4 gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <button
-                            onClick={() => toggleFavorite(book)}
-                            className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
-                          >
-                            <FontAwesomeIcon
-                              icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
-                              className={isFavorite(book._id) ? 'text-red-500 text-sm' : 'text-stone-600 text-sm'}
-                            />
-                          </button>
-                          <button
-                            onClick={() => addToCart(book)}
-                            className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
-                          >
-                            <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-stone-700 text-sm" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Info */}
-                      <div
-                        className="py-3 cursor-pointer flex-1 flex flex-col"
-                        onClick={() => navigate(`/books/${book._id}`)}
-                      >
-                        <h3 className="text-xs font-semibold text-black line-clamp-2 leading-snug" title={book.title}>
-                          {book.title}
-                        </h3>
-                        <p className="text-[11px] text-stone-400 mt-1 truncate">{book.author}</p>
-                        <p className="text-sm font-bold text-black mt-2">{book.price.toLocaleString('vi-VN')}₫</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                {paginatedBooks.map((book) => (
+                  <BookCard key={book._id} book={book} />
+                ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-32 gap-4">
                 <FontAwesomeIcon icon={['far', 'folder-open']} className="text-4xl text-stone-200" />
                 <p className="text-stone-400 text-sm">Không tìm thấy cuốn sách nào phù hợp.</p>
-                {(searchTitle || selectedGenre) && (
+                {(searchTitle || selectedGenre || isSaleFilter) && (
                   <button
-                    onClick={() => { setSearchTitle(''); setSelectedGenre(''); setPage(1); }}
+                    onClick={() => {
+                      setSearchTitle('');
+                      setSelectedGenre('');
+                      setIsSaleFilter(false); // ✨ Reset cả nút sale
+                      setPage(1);
+                      navigate('/books');
+                    }}
                     className="text-xs underline text-stone-500 hover:text-black transition-colors"
                   >
-                    Xoá bộ lọc
+                    Xoá tất cả bộ lọc
                   </button>
                 )}
               </div>
@@ -297,6 +319,20 @@ const BookList = () => {
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-6">
               {filterContent}
+
+              {/* Nút hủy Sale nổi bật trên Mobile */}
+              {isSaleFilter && (
+                <button
+                  onClick={() => {
+                    setIsSaleFilter(false);
+                    if (filterParam === 'sale') navigate('/books');
+                    setSidebarOpen(false);
+                  }}
+                  className="mt-6 w-full text-center py-2 text-sm text-rose-500 font-medium border border-rose-200 bg-rose-50 rounded-md"
+                >
+                  Bỏ lọc giảm giá
+                </button>
+              )}
             </div>
           </div>
         </>
