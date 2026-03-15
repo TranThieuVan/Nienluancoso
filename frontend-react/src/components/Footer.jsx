@@ -3,49 +3,91 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 const Footer = () => {
     return (
-        <footer className="bg-gray-900 text-white py-10 mt-10">
-            <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Logo + Giới thiệu */}
+        <footer className="bg-black text-white mt-10">
+            <div className="max-w-7xl mx-auto px-6 py-14 grid grid-cols-1 md:grid-cols-3 gap-12">
+
+                {/* ── Brand ── */}
                 <div>
-                    <h2 className="text-2xl font-bold mb-4">BookNest</h2>
-                    <p className="text-sm text-gray-300">
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-3">Est. 2024</p>
+                    <h2 className="text-2xl font-bold text-white mb-4">BookNest</h2>
+                    <p className="text-sm text-stone-400 leading-relaxed max-w-xs">
                         Nền tảng mua sách trực tuyến với hàng ngàn đầu sách chất lượng, hỗ trợ người dùng 24/7.
                     </p>
                 </div>
 
-                {/* Liên kết */}
+                {/* ── Links ── */}
                 <div>
-                    <h3 className="text-xl font-semibold mb-4">Liên kết</h3>
-                    <ul className="space-y-2 text-sm text-gray-300">
-                        <li><Link to="/" className="hover:underline">Trang chủ</Link></li>
-                        <li><Link to="/books" className="hover:underline">Sách</Link></li>
-                        <li><Link to="/cart" className="hover:underline">Giỏ hàng</Link></li>
-                        <li><Link to="/profile" className="hover:underline">Tài khoản</Link></li>
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-5">Điều hướng</p>
+                    <ul className="space-y-3">
+                        {[
+                            { to: '/', label: 'Trang chủ' },
+                            { to: '/books', label: 'Sách' },
+                            { to: '/favorites', label: 'Yêu thích' },
+                            { to: '/cart', label: 'Giỏ hàng' },
+                            { to: '/profile', label: 'Tài khoản' },
+                        ].map(link => (
+                            <li key={link.to}>
+                                <Link
+                                    to={link.to}
+                                    className="text-sm text-stone-400 hover:text-white transition-colors duration-200 relative pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-white after:transition-all after:duration-300 hover:after:w-full"
+                                >
+                                    {link.label}
+                                </Link>
+                            </li>
+                        ))}
                     </ul>
                 </div>
 
-                {/* Liên hệ */}
+                {/* ── Contact ── */}
                 <div>
-                    <h3 className="text-xl font-semibold mb-4">Liên hệ</h3>
-                    <ul className="text-sm text-gray-300 space-y-2">
-                        <li className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={['fas', 'phone-alt']} className="text-yellow-400" />
-                            Hotline: 0123 456 789
-                        </li>
-                        <li className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={['fas', 'envelope']} className="text-yellow-400" />
-                            Email: support@booknest.vn
-                        </li>
-                        <li className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={['fas', 'map-marker-alt']} className="text-yellow-400" />
-                            123 Nguyễn Văn Cừ, Q.5, TP.HCM
-                        </li>
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-5">Liên hệ</p>
+                    <ul className="space-y-4">
+                        {[
+                            { icon: 'phone', text: '0123 456 789' },
+                            { icon: 'envelope', text: 'support@booknest.vn' },
+                            { icon: 'location-dot', text: '123 Nguyễn Văn Cừ, Q.5, TP.HCM' },
+                        ].map(({ icon, text }) => (
+                            <li key={text} className="flex items-start gap-3">
+                                <FontAwesomeIcon
+                                    icon={['fas', icon]}
+                                    className="text-stone-500 w-4 mt-0.5 flex-shrink-0"
+                                />
+                                <span className="text-sm text-stone-400">{text}</span>
+                            </li>
+                        ))}
                     </ul>
+
+                    {/* Social Icons */}
+                    <div className="flex items-center gap-3 mt-6">
+                        {[
+                            { icon: ['fab', 'facebook-f'], label: 'Facebook', href: 'https://www.facebook.com/' },
+                            { icon: ['fab', 'instagram'], label: 'Instagram', href: 'https://www.instagram.com/' },
+                            { icon: ['fab', 'x-twitter'], label: 'X', href: 'https://www.x.com/' },
+                        ].map(({ icon, label, href }) => (
+                            <a
+                                key={label}
+                                href={href}
+                                title={label}
+                                target="_blank"
+                                className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-black text-sm transition-transform duration-200 hover:-translate-y-1"
+                            >
+                                <FontAwesomeIcon icon={icon} />
+                            </a>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            <div className="mt-10 text-center text-gray-500 text-xs border-t border-gray-700 pt-4">
-                © 2025 BookNest. All rights reserved.
+            {/* ── Bottom Bar ── */}
+            <div className="border-t border-stone-800">
+                <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
+                    <p className="text-xs text-stone-600">
+                        © 2025 BookNest. All rights reserved.
+                    </p>
+                    <p className="text-xs text-stone-700 tracking-widest uppercase">
+                        Sách · Tri thức · Cảm hứng
+                    </p>
+                </div>
             </div>
         </footer>
     );

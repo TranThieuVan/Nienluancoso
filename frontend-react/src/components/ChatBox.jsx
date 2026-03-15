@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 const ChatBox = ({ userId, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -9,7 +10,6 @@ const ChatBox = ({ userId, onClose }) => {
   const [isTyping, setIsTyping] = useState(false);
   const messageContainerRef = useRef(null);
 
-  // Lấy currentUserId MỘT LẦN DUY NHẤT để tối ưu hiệu năng
   const currentUserId = useMemo(() => {
     if (userId) return String(userId);
     try {
@@ -19,7 +19,7 @@ const ChatBox = ({ userId, onClose }) => {
         return String(storedUser._id || storedUser.id);
       }
     } catch (error) {
-      console.error('Lỗi parse thông tin user từ localStorage:', error);
+      console.error('Lỗi parse user từ localStorage:', error);
     }
     return null;
   }, [userId]);
@@ -28,8 +28,9 @@ const ChatBox = ({ userId, onClose }) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-
-      const res = await axios.post('/api/messages/start', {}, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.post('/api/messages/start', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setConversationId(res.data._id);
     } catch (err) {
       console.error('Lỗi fetch conversation:', err);
@@ -43,7 +44,9 @@ const ChatBox = ({ userId, onClose }) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      const res = await axios.get(`/api/messages/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`/api/messages/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setMessages(res.data);
       await markAsRead(id);
     } catch (err) { console.error('Lỗi fetch messages:', err); }
@@ -52,44 +55,39 @@ const ChatBox = ({ userId, onClose }) => {
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/messages/read/${id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`/api/messages/read/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
     } catch (err) { console.error('Lỗi đánh dấu đã đọc:', err); }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
-
     if (!conversationId) {
-      alert("Đang kết nối với hệ thống chat, vui lòng thử lại sau giây lát.");
+      alert('Đang kết nối, vui lòng thử lại sau giây lát.');
       return;
     }
 
     const textToSend = newMessage;
     setNewMessage('');
 
-    const tempUserId = Date.now().toString();
-    const tempUserMsg = { _id: tempUserId, text: textToSend, sender: currentUserId };
-
-    setMessages((prev) => [...prev, tempUserMsg]);
+    const tempId = Date.now().toString();
+    setMessages((prev) => [...prev, { _id: tempId, text: textToSend, sender: currentUserId }]);
     setIsTyping(true);
 
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post('/api/messages', {
         text: textToSend,
-        conversationId: conversationId
+        conversationId
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       setMessages((prev) => {
-        const filtered = prev.filter(msg => msg._id !== tempUserId);
-        const updatedMessages = [...filtered, res.data.userMessage];
-
-        if (res.data.aiMessage) {
-          updatedMessages.push(res.data.aiMessage);
-        }
-        return updatedMessages;
+        const filtered = prev.filter(msg => msg._id !== tempId);
+        const updated = [...filtered, res.data.userMessage];
+        if (res.data.aiMessage) updated.push(res.data.aiMessage);
+        return updated;
       });
-
     } catch (err) {
       console.error('Lỗi gửi tin nhắn:', err);
       alert('Không thể gửi tin nhắn, vui lòng kiểm tra kết nối.');
@@ -99,20 +97,11 @@ const ChatBox = ({ userId, onClose }) => {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
   };
 
-  useEffect(() => {
-    fetchConversation();
-  }, []);
-
-  useEffect(() => {
-    if (conversationId) fetchMessages(conversationId);
-  }, [conversationId]);
-
+  useEffect(() => { fetchConversation(); }, []);
+  useEffect(() => { if (conversationId) fetchMessages(conversationId); }, [conversationId]);
   useEffect(() => {
     if (messageContainerRef.current) {
       messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
@@ -120,43 +109,63 @@ const ChatBox = ({ userId, onClose }) => {
   }, [messages, isTyping]);
 
   return (
-    // NÂNG CẤP HIỆU ỨNG: origin-bottom-right giúp cửa sổ phóng ra từ vị trí của ChatIcon
-    // bottom-20 giúp ChatBox nổi lên trên, không đè lấp mất cái icon Chat tròn tròn
-    <div className="fixed bottom-20 right-4 z-50 w-[350px] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 fade-in duration-300 origin-bottom-right">
+    <div className="fixed bottom-20 right-5 z-50 w-[340px] md:w-[380px] h-[520px] bg-white border border-gray-200 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 fade-in duration-300 origin-bottom-right">
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 flex justify-between items-center shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          <span className="font-bold tracking-wide">Trợ lý AI Nhà Sách</span>
+      {/* ── Header ── */}
+      <div className="bg-black text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold leading-tight">Trợ lý AI</p>
+            <p className="text-[10px] text-stone-400 tracking-wide">BookNest · Luôn sẵn sàng hỗ trợ</p>
+          </div>
         </div>
-        <button onClick={onClose} className="hover:bg-blue-700 w-8 h-8 rounded-full flex items-center justify-center transition">✕</button>
+        <button
+          onClick={onClose}
+          className="w-7 h-7 flex items-center justify-center text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+        >
+          <FontAwesomeIcon icon={['fas', 'xmark']} className="text-sm" />
+        </button>
       </div>
 
-      {/* Nội dung tin nhắn */}
-      <div ref={messageContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      {/* ── Messages ── */}
+      <div
+        ref={messageContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-stone-50 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-stone-200"
+      >
+        {messages.length === 0 && !isTyping && (
+          <div className="flex flex-col items-center justify-center h-full text-center gap-3 pb-8">
+            <div className="w-12 h-12 bg-black flex items-center justify-center">
+              <FontAwesomeIcon icon={['fas', 'comments']} className="text-white text-lg" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-black">Xin chào!</p>
+              <p className="text-xs text-stone-400 mt-1">Hỏi tôi về sách, phí ship, đơn hàng...</p>
+            </div>
+          </div>
+        )}
+
         {messages.map((msg) => {
           const senderId = typeof msg.sender === 'object' && msg.sender !== null
             ? String(msg.sender._id || msg.sender.id)
             : String(msg.sender);
-
           const isMine = senderId === currentUserId;
 
           return (
-            <div key={msg._id} className={`w-full flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] text-sm leading-relaxed shadow-sm ${isMine
-                ? 'bg-blue-600 text-white rounded-tr-sm'
-                : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
-                }`}
-              >
-                {/* TÍCH HỢP MARKDOWN GIÚP AI XUỐNG DÒNG VÀ IN ĐẬM */}
+            <div key={msg._id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`px-4 py-3 max-w-[82%] text-sm leading-relaxed ${isMine
+                ? 'bg-black text-white'
+                : 'bg-white border border-gray-100 text-stone-700 shadow-sm'
+                }`}>
                 <ReactMarkdown
                   components={{
                     p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                    ul: ({ node, ...props }) => <ul className="list-disc ml-5 mb-2 space-y-1" {...props} />,
-                    ol: ({ node, ...props }) => <ol className="list-decimal ml-5 mb-2 space-y-1" {...props} />,
-                    li: ({ node, ...props }) => <li className="" {...props} />,
-                    strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900" {...props} />
+                    ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2 space-y-1" {...props} />,
+                    ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2 space-y-1" {...props} />,
+                    li: ({ node, ...props }) => <li {...props} />,
+                    strong: ({ node, ...props }) => (
+                      <strong className={`font-semibold ${isMine ? 'text-white' : 'text-black'}`} {...props} />
+                    ),
                   }}
                 >
                   {msg.text}
@@ -166,35 +175,39 @@ const ChatBox = ({ userId, onClose }) => {
           );
         })}
 
-        {/* Hiệu ứng AI đang gõ */}
+        {/* Typing Indicator */}
         {isTyping && (
-          <div className="w-full flex justify-start animate-in fade-in">
-            <div className="px-4 py-3 rounded-2xl bg-white border border-gray-100 rounded-tl-sm shadow-sm flex gap-1.5 items-center">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></span>
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></span>
+          <div className="flex justify-start">
+            <div className="bg-white border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-1.5">
+              {[0, 150, 300].map((delay) => (
+                <span
+                  key={delay}
+                  className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+                  style={{ animationDelay: `${delay}ms` }}
+                />
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Input */}
-      <div className="p-3 border-t bg-white flex items-center gap-2">
+      {/* ── Input ── */}
+      <div className="flex items-center gap-2 px-4 py-3 bg-white border-t border-gray-100 flex-shrink-0">
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isTyping}
-          placeholder={isTyping ? "AI đang phản hồi..." : "Hỏi về sách, phí ship..."}
-          className="flex-1 border-0 bg-gray-100 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm disabled:opacity-50"
+          placeholder={isTyping ? 'AI đang phản hồi...' : 'Hỏi về sách, phí ship...'}
+          className="flex-1 bg-stone-50 border border-gray-200 focus:border-black outline-none px-4 py-2.5 text-sm transition-colors disabled:opacity-50 placeholder:text-stone-400"
         />
         <button
           onClick={sendMessage}
           disabled={!newMessage.trim() || isTyping}
-          className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="w-10 h-10 bg-black text-white flex items-center justify-center hover:bg-stone-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
         >
-          ➤
+          <FontAwesomeIcon icon={['fas', 'paper-plane']} className="text-xs" />
         </button>
       </div>
     </div>

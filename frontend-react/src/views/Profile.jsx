@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Swal from 'sweetalert2';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 
 const Profile = () => {
@@ -196,10 +196,6 @@ const Profile = () => {
     setEditingName(false);
   };
 
-  const handleCopyVoucher = (code) => {
-    navigator.clipboard.writeText(code);
-    Swal.fire({ icon: 'success', title: 'Đã sao chép mã!', text: code, timer: 1500, showConfirmButton: false });
-  };
 
   const tabs = [
     { id: 'security', label: 'Bảo mật', icon: 'lock' },
@@ -207,15 +203,15 @@ const Profile = () => {
     { id: 'vouchers', label: 'Voucher', icon: 'ticket-alt' },
   ];
 
-  const inputClass = "w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all";
+  const inputClass = "w-full border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-black focus:bg-white transition-all";
 
   return (
     <div className="min-h-screen bg-gray-50/70 py-8 px-4">
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ── HERO CARD ── */}
-        <div className="relative bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-          <div className="h-20 bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-400" />
+        <div className="relative bg-white overflow-hidden border border-gray-100">
+          <div className="h-20 bg-black" />
           <div className="px-6 pb-5">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-8">
 
@@ -224,12 +220,12 @@ const Profile = () => {
                 <div className="relative">
                   <img
                     src={preview || `http://localhost:5000/${user.avatar || 'uploads/avatars/default-user.png'}`}
-                    className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-md"
+                    className="w-24 h-24 object-cover border-4 border-white shadow-md"
                     alt="Avatar"
                   />
-                  <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow transition">
+                  <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-black border border-gray-200 flex items-center justify-center cursor-pointer transition">
                     <input type="file" onChange={onFileChange} className="hidden" accept="image/*" />
-                    <FontAwesomeIcon icon={['fas', 'camera']} className="text-xs" />
+                    <FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />
                   </label>
                 </div>
 
@@ -241,12 +237,12 @@ const Profile = () => {
                         value={nameInput}
                         onChange={e => setNameInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') cancelEditName(); }}
-                        className="text-lg font-bold text-gray-800 border-b-2 border-blue-400 outline-none bg-transparent w-44"
+                        className="text-lg font-bold text-gray-800 border-b-2 border-black outline-none bg-transparent w-44"
                       />
-                      <button onClick={saveName} className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition shadow-sm">
+                      <button onClick={saveName} className="w-6 h-6 bg-stone-100 hover:bg-stone-200 text-black flex items-center justify-center transition border border-gray-200">
                         <FontAwesomeIcon icon={['fas', 'check']} className="text-[10px]" />
                       </button>
-                      <button onClick={cancelEditName} className="w-6 h-6 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full flex items-center justify-center transition">
+                      <button onClick={cancelEditName} className="w-6 h-6 bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-black flex items-center justify-center transition border border-gray-200">
                         <FontAwesomeIcon icon={['fas', 'xmark']} className="text-[10px]" />
                       </button>
                     </div>
@@ -255,7 +251,7 @@ const Profile = () => {
                       <h1 className="text-xl font-bold text-gray-800">{user.name || '—'}</h1>
                       <button
                         onClick={() => setEditingName(true)}
-                        className="w-6 h-6 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                        className="w-6 h-6 bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-black flex items-center justify-center transition-all border border-gray-200"
                         title="Chỉnh sửa tên"
                       >
                         <FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />
@@ -269,12 +265,12 @@ const Profile = () => {
               {/* Stats */}
               <div className="flex gap-5 text-center mb-1">
                 <div>
-                  <p className="text-lg font-bold text-blue-600">{addresses.length}</p>
+                  <p className="text-lg font-bold text-black">{addresses.length}</p>
                   <p className="text-xs text-gray-400">Địa chỉ</p>
                 </div>
                 <div className="w-px bg-gray-100" />
                 <div>
-                  <p className="text-lg font-bold text-blue-600">{vouchers.length}</p>
+                  <p className="text-lg font-bold text-black">{vouchers.length}</p>
                   <p className="text-xs text-gray-400">Voucher</p>
                 </div>
                 <div className="w-px bg-gray-100" />
@@ -288,13 +284,13 @@ const Profile = () => {
         </div>
 
         {/* ── TAB BAR ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 flex gap-1">
+        <div className="bg-white border border-gray-100 p-1.5 flex gap-1">
           {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-medium transition-all
-                ${tab === t.id ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-medium transition-all
+                ${tab === t.id ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
             >
               <FontAwesomeIcon icon={['fas', t.icon]} className="text-xs" />
               <span className="hidden sm:inline">{t.label}</span>
@@ -303,9 +299,9 @@ const Profile = () => {
         </div>
 
         {/* ── CONTENT ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 min-h-[380px]">
+        <div className="bg-white border border-gray-100 p-6 min-h-[380px]">
 
-          {/* TAB: BẢO MẬT — 2 cột */}
+          {/* TAB: BẢO MẬT */}
           {tab === 'security' && (
             <div className="space-y-5">
               <div>
@@ -319,8 +315,8 @@ const Profile = () => {
                 {/* Cột trái: Email */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                      <FontAwesomeIcon icon={['fas', 'envelope']} className="text-blue-400 text-sm" />
+                    <div className="w-8 h-8 bg-stone-100 flex items-center justify-center">
+                      <FontAwesomeIcon icon={['fas', 'envelope']} className="text-stone-500 text-sm" />
                     </div>
                     <p className="text-sm font-semibold text-gray-700">Cập nhật Email</p>
                   </div>
@@ -333,15 +329,15 @@ const Profile = () => {
                       <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Email mới</label>
                       <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" className={inputClass} placeholder="Nhập email mới" />
                     </div>
-                    <button className="p-2 hover-flip-btn rounded-lg w-full">Cập nhật email</button>
+                    <button className="p-2 hover-flip-btn w-full">Cập nhật email</button>
                   </div>
                 </div>
 
                 {/* Cột phải: Mật khẩu */}
                 <div className="space-y-4 md:border-l md:border-gray-100 md:pl-6">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
-                      <FontAwesomeIcon icon={['fas', 'lock']} className="text-orange-400 text-sm" />
+                    <div className="w-8 h-8 bg-stone-100 flex items-center justify-center">
+                      <FontAwesomeIcon icon={['fas', 'lock']} className="text-stone-500 text-sm" />
                     </div>
                     <p className="text-sm font-semibold text-gray-700">Đổi mật khẩu</p>
                   </div>
@@ -366,13 +362,13 @@ const Profile = () => {
                         onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
                         type="password"
                         placeholder="Nhập lại mật khẩu mới"
-                        className={`${inputClass} ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-400 focus:ring-red-100' : ''}`}
+                        className={`${inputClass} ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-400' : ''}`}
                       />
                       {form.confirmPassword && form.newPassword !== form.confirmPassword && (
                         <p className="text-xs text-red-500 mt-1">Mật khẩu không khớp</p>
                       )}
                     </div>
-                    <button onClick={changePassword} className="p-2 hover-flip-btn rounded-lg w-full">Đổi mật khẩu</button>
+                    <button onClick={changePassword} className="p-2 hover-flip-btn w-full">Đổi mật khẩu</button>
                     {pwMessage && <p className={`text-sm font-medium ${pwMessageClass}`}>{pwMessage}</p>}
                   </div>
                 </div>
@@ -390,13 +386,13 @@ const Profile = () => {
                   <p className="text-xs text-gray-400 mt-0.5">{addresses.length} địa chỉ đã lưu</p>
                 </div>
                 {!showAddressForm && (
-                  <button onClick={() => setShowAddressForm(true)} className="p-2 hover-flip-btn rounded-lg">+ Thêm mới</button>
+                  <button onClick={() => setShowAddressForm(true)} className="p-2 hover-flip-btn">+ Thêm mới</button>
                 )}
               </div>
               <hr className="border-gray-100" />
 
               {showAddressForm ? (
-                <div className="bg-blue-50/40 border border-blue-100 rounded-2xl p-5 space-y-4">
+                <div className="bg-stone-50 border border-stone-200 p-5 space-y-4">
                   <p className="text-sm font-semibold text-gray-700">{isEditing ? 'Chỉnh sửa địa chỉ' : 'Thêm địa chỉ mới'}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input placeholder="Họ và tên" value={addressForm.fullName} onChange={e => setAddressForm({ ...addressForm, fullName: e.target.value })} className={inputClass} />
@@ -407,17 +403,17 @@ const Profile = () => {
                     <input placeholder="Số nhà, tên đường" value={addressForm.street} onChange={e => setAddressForm({ ...addressForm, street: e.target.value })} className={inputClass} />
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <button onClick={saveAddress} className="p-2 hover-flip-btn rounded-lg">Lưu</button>
-                    <button onClick={resetAddressForm} className="p-2 hover-flip-btn rounded-lg">Hủy</button>
+                    <button onClick={saveAddress} className="p-2 hover-flip-btn">Lưu</button>
+                    <button onClick={resetAddressForm} className="p-2 hover-flip-btn">Hủy</button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {addresses.length > 0 ? addresses.map(addr => (
-                    <div key={addr._id} className="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/20 transition-all group">
+                    <div key={addr._id} className="flex justify-between items-center p-4 border border-gray-100 hover:border-stone-400 hover:bg-stone-50 transition-all group">
                       <div className="flex gap-3 items-start">
-                        <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center mt-0.5 shrink-0">
-                          <FontAwesomeIcon icon={['fas', 'map-marker-alt']} className="text-blue-400 text-sm" />
+                        <div className="w-9 h-9 bg-stone-100 flex items-center justify-center mt-0.5 shrink-0">
+                          <FontAwesomeIcon icon={['fas', 'map-marker-alt']} className="text-stone-500 text-sm" />
                         </div>
                         <div>
                           <p className="font-semibold text-gray-800 text-sm">
@@ -428,8 +424,8 @@ const Profile = () => {
                         </div>
                       </div>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
-                        <button onClick={() => editAddress(addr)} className="p-2 hover-flip-btn rounded-lg text-sm">Sửa</button>
-                        {!addr.isDefault && <button className="p-2 hover-flip-btn rounded-lg text-sm">Xóa</button>}
+                        <button onClick={() => editAddress(addr)} className="p-2 hover-flip-btn text-sm">Sửa</button>
+                        {!addr.isDefault && <button className="p-2 hover-flip-btn text-sm">Xóa</button>}
                       </div>
                     </div>
                   )) : (
@@ -455,13 +451,13 @@ const Profile = () => {
               {vouchers.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {vouchers.map(v => (
-                    <div key={v._id} className="flex rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all h-24">
-                      <div className="w-[88px] bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex flex-col justify-center items-center shrink-0 relative">
-                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full z-10" />
+                    <div key={v._id} className="flex overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all h-24">
+                      <div className="w-[88px] bg-black text-white flex flex-col justify-center items-center shrink-0 relative">
+                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white z-10" />
                         <span className="text-xl font-black leading-none">
                           {v.discountType === 'percent' ? `${v.discountValue}%` : `${v.discountValue / 1000}K`}
                         </span>
-                        <span className="text-[9px] mt-1 opacity-70 uppercase tracking-widest">Giảm</span>
+                        <span className="text-[9px] mt-1 opacity-60 uppercase tracking-widest">Giảm</span>
                       </div>
                       <div className="border-l border-dashed border-gray-200" />
                       <div className="flex-1 px-4 flex items-center justify-between bg-white">
@@ -470,16 +466,16 @@ const Profile = () => {
                           <p className="text-xs text-gray-400 mt-0.5">Đơn tối thiểu {v.minOrderValue?.toLocaleString()}đ</p>
                           <p className="text-[10px] text-red-400 mt-0.5">HSD: {new Date(v.expirationDate).toLocaleDateString('vi-VN')}</p>
                         </div>
-                        <button onClick={() => handleCopyVoucher(v.code)} className="p-2 hover-flip-btn rounded-lg text-xs shrink-0 ml-2">
+                        <Link to='/cart' className="p-2 hover-flip-btn text-xs shrink-0 ml-2">
                           Dùng ngay
-                        </button>
+                        </Link>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-16">
-                  <div className="text-5xl mb-3 opacity-20">🎟️</div>
+                  <FontAwesomeIcon icon={['fas', 'ticket-alt']} className="text-5xl text-gray-200 mb-3" />
                   <p className="text-sm text-gray-400">Chưa có voucher nào</p>
                 </div>
               )}

@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
-
-// Import Component chuẩn của hệ thống
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import BookCard from '../components/BookCard';
 import Pagination from '../components/Pagination';
 
@@ -10,39 +9,36 @@ const SearchResults = () => {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   const [filteredBooks, setFilteredBooks] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // State quản lý Phân trang (Pagination)
   const [currentPage, setCurrentPage] = useState(1);
-  const booksPerPage = 21; // Mỗi trang 18 cuốn (vừa vặn 3 hàng x 6 cột)
+  const booksPerPage = 21;
 
   useEffect(() => {
     const fetchAndFilterBooks = async () => {
+      if (!query) { setFilteredBooks([]); return; }
+
+      setIsLoading(true);
       try {
         const res = await axios.get('/api/books');
-        const allBooks = res.data;
         const q = query.trim().toLowerCase();
-
-        const filtered = allBooks.filter(book =>
+        const filtered = res.data.filter(book =>
           book.title?.toLowerCase().includes(q) ||
           book.author?.toLowerCase().includes(q) ||
           book.genre?.toLowerCase().includes(q)
         );
-
         setFilteredBooks(filtered);
-        setCurrentPage(1); // Trở về trang 1 khi người dùng tìm kiếm từ khóa mới
+        setCurrentPage(1);
       } catch (err) {
         console.error('Lỗi khi tìm kiếm:', err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    if (query) {
-      fetchAndFilterBooks();
-    } else {
-      setFilteredBooks([]);
-    }
+    fetchAndFilterBooks();
   }, [query]);
 
-  // Tính toán dữ liệu cắt trang
   const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
 
   const paginatedBooks = useMemo(() => {
@@ -53,40 +49,72 @@ const SearchResults = () => {
   const changePage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Mượt mà cuộn lên đầu khi sang trang
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen">
-      <h1 className="text-2xl font-bold mb-6 border-b-2 pb-2 inline-block">
-        Kết quả tìm kiếm cho '{query}'
-      </h1>
-
-      {filteredBooks.length > 0 ? (
-        <>
-          {/* Lưới hiển thị sách dùng chuẩn BookCard với gap-4 */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            {paginatedBooks.map((book) => (
-              <BookCard key={book._id} book={book} />
-            ))}
+    <div className="min-h-screen bg-white">
+      {/* ── PAGE HEADER ── */}
+      <div className="border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Tìm kiếm</p>
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <h1 className="text-3xl font-bold text-black">
+              "{query}"
+            </h1>
+            {!isLoading && filteredBooks.length > 0 && (
+              <p className="text-sm text-stone-400 pb-1">
+                {filteredBooks.length} kết quả
+              </p>
+            )}
           </div>
-
-          {/* Chỉ hiển thị thanh phân trang nếu có nhiều hơn 1 trang */}
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={changePage}
-              className="mt-8"
-            />
-          )}
-        </>
-      ) : (
-        <div className="text-gray-500 text-xl font-semibold mt-10 text-center">
-          Không tìm thấy kết quả nào cho '{query}'.
         </div>
-      )}
+      </div>
+
+      {/* ── CONTENT ── */}
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-32 gap-4">
+            <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs tracking-widest uppercase text-stone-400">Đang tìm kiếm...</p>
+          </div>
+        ) : filteredBooks.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-5">
+              {paginatedBooks.map((book) => (
+                <BookCard key={book._id} book={book} />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="mt-12">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={changePage}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-32 gap-5">
+            <div className="w-16 h-16 bg-stone-50 border border-gray-100 flex items-center justify-center">
+              <FontAwesomeIcon icon={['fas', 'magnifying-glass']} className="text-xl text-stone-300" />
+            </div>
+            <div className="text-center">
+              <p className="font-semibold text-black mb-1">Không tìm thấy kết quả</p>
+              <p className="text-sm text-stone-400">
+                Không có sách nào phù hợp với từ khoá <span className="text-black font-medium">"{query}"</span>
+              </p>
+            </div>
+            <div className="text-xs text-stone-400 mt-2 space-y-1 text-center">
+              <p>Thử kiểm tra lại chính tả</p>
+              <p>Hoặc tìm với từ khoá ngắn hơn</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

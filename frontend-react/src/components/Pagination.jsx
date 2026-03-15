@@ -17,42 +17,48 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     return pages;
   };
 
+  if (totalPages <= 1) return null;
+
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex justify-center mt-6 items-center gap-1 text-sm select-none">
-      {/* Nút lùi */}
+    <div className="flex justify-center items-center gap-1 select-none">
+      {/* Prev */}
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-2 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-500 hover:border-black hover:text-black transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <FontAwesomeIcon icon={['fas', 'angle-left']} />
+        <FontAwesomeIcon icon={['fas', 'angle-left']} className="text-xs" />
       </button>
 
-      {/* Số trang */}
-      {visiblePages.map((page, index) => (
+      {/* Pages */}
+      {visiblePages.map((page, index) =>
         page === '...' ? (
-          <span key={index} className="px-2 py-1 text-gray-500">...</span>
+          <span key={`ellipsis-${index}`} className="w-9 h-9 flex items-center justify-center text-stone-400 text-sm">
+            ···
+          </span>
         ) : (
           <button
-            key={index}
+            key={page}
             onClick={() => onPageChange(page)}
-            className={`px-2 py-1 border rounded hover:bg-gray-100 ${currentPage === page ? 'bg-blue-500 text-white' : ''
+            className={`w-9 h-9 flex items-center justify-center text-sm border transition-all duration-200 ${currentPage === page
+              ? 'bg-black text-white border-black font-semibold'
+              : 'border-gray-200 text-stone-600 hover:border-black hover:text-black'
               }`}
           >
             {page}
           </button>
         )
-      ))}
+      )}
 
-      {/* Nút tiến */}
+      {/* Next */}
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-2 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-500 hover:border-black hover:text-black transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <FontAwesomeIcon icon={['fas', 'angle-right']} />
+        <FontAwesomeIcon icon={['fas', 'angle-right']} className="text-xs" />
       </button>
     </div>
   );

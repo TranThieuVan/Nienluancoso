@@ -6,94 +6,133 @@ import axios from 'axios';
 const VnpayReturn = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-
-    const [status, setStatus] = useState('loading'); // loading, success, error
+    const [status, setStatus] = useState('loading');
     const [message, setMessage] = useState('Đang xử lý kết quả thanh toán...');
 
     useEffect(() => {
         const checkPayment = async () => {
             const responseCode = searchParams.get('vnp_ResponseCode');
             const orderId = searchParams.get('vnp_TxnRef');
-
-            // ✅ CHỘP THÊM 2 THÔNG SỐ TRÊN URL XUỐNG
             const vnpayTransactionNo = searchParams.get('vnp_TransactionNo');
             const vnpayPayDate = searchParams.get('vnp_PayDate');
 
             if (responseCode === '00') {
                 try {
                     const token = localStorage.getItem('token');
-
-                    // ✅ GỬI KÈM 2 THÔNG SỐ ĐÓ VÀO BODY CỦA API
                     await axios.put(`/api/orders/${orderId}/pay`, {
-                        vnpayTransactionNo: vnpayTransactionNo,
-                        vnpayPayDate: vnpayPayDate
+                        vnpayTransactionNo,
+                        vnpayPayDate
                     }, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-
                     setStatus('success');
-                    setMessage('Chúc mừng! Bạn đã thanh toán thành công.');
+                    setMessage('Đơn hàng của bạn đã được xác nhận và đang được xử lý.');
                     localStorage.removeItem('checkoutItems');
-
                 } catch (error) {
-                    console.error("Lỗi cập nhật đơn hàng:", error);
+                    console.error('Lỗi cập nhật đơn hàng:', error);
                     setStatus('error');
                     setMessage('Thanh toán thành công nhưng có lỗi khi ghi nhận đơn hàng. Vui lòng liên hệ hỗ trợ.');
                 }
             } else if (responseCode === '24') {
                 setStatus('error');
-                setMessage('Khách hàng đã hủy giao dịch.');
+                setMessage('Giao dịch đã bị huỷ.');
             } else {
                 setStatus('error');
-                setMessage(`Giao dịch thất bại! (Mã lỗi: ${responseCode})`);
+                setMessage(`Giao dịch thất bại. Mã lỗi: ${responseCode}`);
             }
         };
 
         checkPayment();
     }, [searchParams]);
 
+    const config = {
+        loading: {
+            icon: null,
+            spin: true,
+            label: 'Đang kiểm tra...',
+            color: 'text-black',
+            bg: 'bg-stone-50',
+            border: 'border-gray-200',
+        },
+        success: {
+            icon: 'circle-check',
+            spin: false,
+            label: 'Thanh toán thành công',
+            color: 'text-black',
+            bg: 'bg-black',
+            border: 'border-black',
+            iconColor: 'text-white',
+        },
+        error: {
+            icon: 'circle-xmark',
+            spin: false,
+            label: 'Giao dịch thất bại',
+            color: 'text-black',
+            bg: 'bg-stone-50',
+            border: 'border-gray-200',
+            iconColor: 'text-stone-400',
+        },
+    };
+
+    const c = config[status];
+
     return (
-        <div className="min-h-[60vh] flex items-center justify-center px-4 mt-10">
-            <div className="max-w-md w-full p-8 text-center">
+        <div className="min-h-[70vh] flex items-center justify-center px-4 bg-white">
+            <div className="max-w-sm w-full text-center py-16">
 
-                {/* Icon Trạng thái */}
-                {status === 'loading' && (
-                    <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                )}
-                {status === 'success' && (
-                    <div className="text-green-500 text-6xl mb-4">
-                        <FontAwesomeIcon icon={['fas', 'circle-check']} />
-                    </div>
-                )}
-                {status === 'error' && (
-                    <div className="text-red-500 text-6xl mb-4">
-                        <FontAwesomeIcon icon={['fas', 'circle-xmark']} />
-                    </div>
-                )}
-
-                {/* Tiêu đề */}
-                <h2 className={`text-2xl font-bold mb-2 ${status === 'success' ? 'text-green-600' : status === 'error' ? 'text-red-600' : 'text-gray-800'}`}>
-                    {status === 'loading' ? 'Đang kiểm tra...' : status === 'success' ? 'Giao dịch thành công' : 'Giao dịch thất bại'}
-                </h2>
-
-                {/* Lời nhắn */}
-                <p className="text-gray-600 mb-8">{message}</p>
-
-                {/* Nút bấm điều hướng */}
-                <div className="flex gap-4 justify-center">
-                    <Link to="/" className="hover-flip-btn px-10 py-2 ">
-                        Về trang chủ
-                    </Link>
-                    {status === 'success' ? (
-                        <Link to="/orders" className="hover-flip-btn px-10 py-2 ">
-                            Xem đơn hàng
-                        </Link>
+                {/* ── Icon / Spinner ── */}
+                <div className={`w-20 h-20 mx-auto mb-8 flex items-center justify-center border-2 ${c.bg} ${c.border} transition-all duration-500`}>
+                    {status === 'loading' ? (
+                        <div className="w-7 h-7 border-2 border-black border-t-transparent rounded-full animate-spin" />
                     ) : (
-                        <button onClick={() => navigate('/cart')} className="px-6 py-2 bg-red-600 text-white font-semibold rounded-full hover:bg-red-700 transition">
-                            Thanh toán lại
-                        </button>
+                        <FontAwesomeIcon
+                            icon={['fas', c.icon]}
+                            className={`text-3xl ${c.iconColor}`}
+                        />
                     )}
                 </div>
+
+                {/* ── Label ── */}
+                <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-3">
+                    {status === 'loading' ? 'Xử lý' : status === 'success' ? 'VNPAY' : 'Thông báo'}
+                </p>
+
+                {/* ── Title ── */}
+                <h2 className="text-2xl font-bold text-black mb-3">
+                    {c.label}
+                </h2>
+
+                {/* ── Message ── */}
+                <p className="text-sm text-stone-500 leading-relaxed mb-10 max-w-xs mx-auto">
+                    {message}
+                </p>
+
+                {/* ── Actions ── */}
+                {status !== 'loading' && (
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Link
+                            to="/"
+                            className="px-8 py-3 hover-flip-btn text-sm tracking-wide"
+                        >
+                            Trang chủ
+                        </Link>
+                        {status === 'success' ? (
+                            <Link
+                                to="/orders"
+                                className="px-8 py-3 hover-flip-btn text-sm tracking-wide"
+                            >
+                                Xem đơn hàng
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={() => navigate('/cart')}
+                                className="px-8 py-3 border border-black text-black text-sm font-medium hover:bg-black hover:text-white transition-colors duration-200 tracking-wide"
+                            >
+                                Thanh toán lại
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

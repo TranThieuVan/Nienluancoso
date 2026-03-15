@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useFavorites } from '../composables/useFavorites';
@@ -8,6 +8,7 @@ const BookCard = ({ book }) => {
     const navigate = useNavigate();
     const { isFavorite, toggleFavorite } = useFavorites();
     const { addToCart } = useCart();
+    const [hovered, setHovered] = useState(false);
 
     const goToDetail = (id) => {
         navigate(`/books/${id}`);
@@ -16,79 +17,84 @@ const BookCard = ({ book }) => {
 
     if (!book) return null;
 
+    const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
+    const hasDiscount = book.discountedPrice && book.discountedPrice < book.price;
+    const discountPct = hasDiscount ? Math.round((1 - book.discountedPrice / book.price) * 100) : 0;
+
     return (
-        <div className="min-w-[160px] md:w-[16.6667%] sm:w-[33.3333%] bg-white shadow-md rounded-2xl flex flex-col hover:shadow-lg transition-shadow min-h-[300px">
-            {/* Ảnh bìa sách */}
-            <div className="overflow-hidden rounded-t-2xl shrink-0 relative">
+        <div
+            className="group bg-white flex flex-col w-full transition-all duration-300"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onClick={() => goToDetail(book._id)}
+        >
+            {/* ── Image ── */}
+            <div className="relative overflow-hidden bg-stone-50 aspect-[2/3]">
                 <img
-                    src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
-                    alt={book.title || "Book Cover"}
-                    className="w-full h-48 object-cover cursor-pointer transition-transform duration-300 hover:scale-[1.03]"
+                    src={imgSrc}
+                    alt={book.title || 'Book Cover'}
+                    className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
                     onClick={() => goToDetail(book._id)}
                 />
 
-                {book.discountedPrice && book.discountedPrice < book.price && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded">
-                        -{Math.round((1 - book.discountedPrice / book.price) * 100)}%
-                    </div>
+                {/* Discount Badge */}
+                {hasDiscount && (
+                    <span className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 tracking-wide">
+                        -{discountPct}%
+                    </span>
                 )}
+
+                {/* Hover Action Overlay */}
+                <div className={`absolute inset-0 bg-black/35 flex items-end justify-center pb-4 gap-3 transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(book); }}
+                        className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
+                        title={isFavorite(book._id) ? 'Bỏ yêu thích' : 'Yêu thích'}
+                    >
+                        <FontAwesomeIcon
+                            icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
+                            className={isFavorite(book._id) ? 'text-red-500 text-sm' : 'text-stone-600 text-sm'}
+                        />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); addToCart(book); }}
+                        className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
+                        title="Thêm vào giỏ"
+                    >
+                        <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-stone-700 text-sm" />
+                    </button>
+                </div>
             </div>
 
-            {/* Thông tin sách */}
-            <div className="flex-1 p-3 flex flex-col justify-between overflow-hidden">
+            {/* ── Info ── */}
+            <div
+                className="py-3 flex flex-col flex-grow cursor-pointer"
 
-                {/* Khối tiêu đề + tác giả */}
-                <div className="flex flex-col" style={{ minHeight: 'calc(0.875rem * 1.25 * 2 + 1rem + 4px)' }}>
-                    <h2
-                        className="font-bold text-sm text-left leading-tight cursor-pointer hover:text-blue-600 w-full"
-                        style={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                        }}
-                        title={book.title}
-                        onClick={() => goToDetail(book._id)}
-                    >
-                        {book.title}
-                    </h2>
-                    <p className="text-xs text-gray-600 text-left line-clamp-1 mt-1">{book.author}</p>
-                </div>
-                {/* Giá tiền + Nút chức năng */}
-                <div className="flex justify-between items-end shrink-0 ">
+            >
+                <h2
+                    className="text-xs font-semibold text-black leading-snug line-clamp-2"
+                    title={book.title}
+                >
+                    {book.title}
+                </h2>
+                <p className="text-[11px] text-stone-400 mt-1 truncate">{book.author}</p>
 
-                    {/* Khu vực giá */}
-                    <div className="flex flex-col text-left" style={{ minHeight: '2.75rem' }}>
-                        {book.discountedPrice && book.discountedPrice < book.price ? (
-                            <>
-                                <span className="text-red-500 text-xs line-through mb-0.5 font-medium">
-                                    {book.price?.toLocaleString('vi-VN')}₫
-                                </span>
-                                <span className="text-green-600 text-base font-bold">
-                                    {book.discountedPrice?.toLocaleString('vi-VN')}₫
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="text-xs mb-0.5 invisible select-none">placeholder</span>
-                                <span className="text-green-600 text-base font-bold">
-                                    {book.price?.toLocaleString('vi-VN')}₫
-                                </span>
-                            </>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <button onClick={() => toggleFavorite(book)}>
-                            <FontAwesomeIcon
-                                icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
-                                className={`hover:text-red-600 bigger transition-colors ${isFavorite(book._id) ? 'text-red-500' : 'text-gray-500'}`}
-                            />
-                        </button>
-                        <button onClick={() => addToCart(book)} className="text-gray-800 hover:text-green-600 bigger transition-colors">
-                            <FontAwesomeIcon icon={['fas', 'bag-shopping']} />
-                        </button>
-                    </div>
+                {/* Price */}
+                <div className="mt-2 flex items-baseline gap-2">
+                    {hasDiscount ? (
+                        <>
+                            <span className="text-sm font-bold text-black">
+                                {book.discountedPrice?.toLocaleString('vi-VN')}₫
+                            </span>
+                            <span className="text-[11px] text-stone-400 line-through">
+                                {book.price?.toLocaleString('vi-VN')}₫
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-sm font-bold text-black">
+                            {book.price?.toLocaleString('vi-VN')}₫
+                        </span>
+                    )}
                 </div>
             </div>
         </div>

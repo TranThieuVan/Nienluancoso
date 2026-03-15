@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 // Components & Assets
 import InputSearch from './InputSearch';
 import logo from '../assets/image/logo.png';
-import NotificationBell from './NotificationBell'; // ✅ Đã import
+import NotificationBell from './NotificationBell';
 // Stores
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../composables/cartStore';
@@ -14,66 +14,49 @@ import { useCartStore } from '../composables/cartStore';
 const Navbar = () => {
     const navigate = useNavigate();
 
-    // State quản lý UI
     const [menuOpen, setMenuOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [genres, setGenres] = useState([]);
     const [showGenres, setShowGenres] = useState(false);
 
-    // Refs
     const dropdownRef = useRef(null);
 
-    // Lấy dữ liệu từ Global Stores
     const { user, logout, token } = useAuthStore();
     const { cartCount, setCartCount } = useCartStore();
 
-    // Đóng mở Menu & Dropdown
     const toggleMenu = () => setMenuOpen(!menuOpen);
     const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
     const closeDropdown = () => setDropdownOpen(false);
 
-    // Xử lý Avatar URL
     const getAvatarUrl = () => {
         if (!user) return '';
-        // Thêm http://localhost:5000 nếu backend của bạn chạy ở cổng này
         return `http://localhost:5000/${user.avatar || 'uploads/avatars/default-user.png'}?t=${Date.now()}`;
     };
 
-    // Lấy số lượng giỏ hàng
     const loadCartCount = async () => {
-        if (!token) {
-            setCartCount(0);
-            return;
-        }
+        if (!token) { setCartCount(0); return; }
         try {
             const { data } = await axios.get('http://localhost:5000/api/cart', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const total = data.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
             setCartCount(total);
-        } catch {
-            setCartCount(0);
-        }
+        } catch { setCartCount(0); }
     };
 
-    // Đăng xuất
     const handleLogout = () => {
-        logout(); // Hàm logout từ zustand store
+        logout();
         closeDropdown();
         navigate('/');
     };
 
-    // Lấy danh sách thể loại
     const fetchGenres = async () => {
         try {
             const { data } = await axios.get('http://localhost:5000/api/books/genres');
             setGenres(data);
-        } catch (err) {
-            console.error('Lỗi khi tải thể loại:', err);
-        }
+        } catch (err) { console.error('Lỗi khi tải thể loại:', err); }
     };
 
-    // Điều hướng thể loại
     const goToGenre = (genre) => {
         navigate(`/books/view-all?genre=${encodeURIComponent(genre)}`);
         setShowGenres(false);
@@ -84,7 +67,6 @@ const Navbar = () => {
         setMenuOpen(false);
     };
 
-    // Click outside để đóng dropdown user
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -92,12 +74,9 @@ const Navbar = () => {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Khởi tạo data khi mount
     useEffect(() => {
         loadCartCount();
         fetchGenres();
@@ -106,169 +85,269 @@ const Navbar = () => {
 
     return (
         <>
-            {/* ================= TOP BAR ================= */}
-            <div className="bg-gray-100 px-5 py-2 text-sm flex justify-between items-center md:justify-end gap-3 relative">
-                {/* Logo on small screen */}
-                <Link to="/" className="md:hidden font-semibold text-lg bigger">BookNest</Link>
+            {/* ── TOP BAR ── */}
+            <div className="bg-black border-b border-gray-100 px-6 py-2 text-xs flex justify-between items-center">
+                <p className="text-white tracking-widest uppercase hidden md:block text-[10px] ml-[40%] select-none">
+                    Sách · Tri thức · Cảm hứng
+                </p>
 
-                {/* User dropdown or login/register */}
-                <div className="flex items-center gap-3 ml-auto">
+                <div className="flex items-center gap-4 ml-auto">
                     {user ? (
                         <div className="relative" ref={dropdownRef}>
-                            <img
-                                src={getAvatarUrl()}
-                                alt="User Avatar"
+                            <button
                                 onClick={toggleDropdown}
-                                className="w-8 h-8 rounded-full object-cover cursor-pointer border-2 border-gray-300 bigger"
-                                onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }}
-                            />
-                            {dropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-[999]">
-                                    <div className="px-4 py-2 text-sm text-gray-700 font-semibold truncate">
-                                        {user.name || user.username}
-                                    </div>
-                                    <hr className="my-1" />
-                                    <Link to="/profile" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                className="flex items-center gap-2 text-stone-600 hover:text-black transition-colors duration-200"
+                            >
+                                <img
+                                    src={getAvatarUrl()}
+                                    alt="Avatar"
+                                    className="w-7 h-7 rounded-full object-cover border border-gray-200"
+                                    onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }}
+                                />
+                                <span className="text-xs font-medium hidden sm:block text-white">
+                                    {user.name || user.username}
+                                </span>
+                                <FontAwesomeIcon
+                                    icon={['fas', dropdownOpen ? 'chevron-up' : 'chevron-down']}
+                                    className="text-[10px] text-stone-400"
+                                />
+                            </button>
+
+                            {/* User Dropdown */}
+                            <div className={`absolute right-0 mt-3 w-52 bg-white border border-gray-100 shadow-lg z-[999] transition-all duration-200 origin-top-right ${dropdownOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                                <div className="px-4 py-3 border-b border-gray-50">
+                                    <p className="text-xs text-stone-400 uppercase tracking-wider">Tài khoản</p>
+                                    <p className="text-sm font-semibold text-black truncate mt-0.5">{user.name || user.username}</p>
+                                </div>
+                                <div className="py-1">
+                                    <Link
+                                        to="/profile"
+                                        onClick={closeDropdown}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                                    >
+                                        <FontAwesomeIcon icon={['far', 'user']} className="w-4" />
                                         Hồ sơ cá nhân
                                     </Link>
-                                    <Link to="/orders" onClick={closeDropdown} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <Link
+                                        to="/orders"
+                                        onClick={closeDropdown}
+                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:text-black hover:bg-stone-50 transition-colors"
+                                    >
+                                        <FontAwesomeIcon icon={['fas', 'box']} className="w-4" />
                                         Lịch sử mua hàng
                                     </Link>
-                                    <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                    <hr className="my-1 border-gray-100" />
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                                    >
+                                        <FontAwesomeIcon icon={['fas', 'arrow-right-from-bracket']} className="w-4" />
                                         Đăng xuất
                                     </button>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     ) : (
-                        <>
-                            <Link className="hover:underline font-medium" to="/register">Join Us</Link>
-                            <Link className="hover:underline font-medium border-l pl-3 border-gray-400" to="/login">Sign In</Link>
-                        </>
+                        <div className="flex items-center gap-3">
+                            <Link
+                                to="/register"
+                                className="text-xs font-medium text-white hover:text-gray-200 transition-colors tracking-wide"
+                            >
+                                Đăng ký
+                            </Link>
+                            <span className="text-stone-200">|</span>
+                            <Link
+                                to="/login"
+                                className="text-xs font-medium text-white hover:text-gray-200 transition-colors tracking-wide"
+                            >
+                                Đăng nhập
+                            </Link>
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* ================= NAVBAR CHÍNH ================= */}
-            <nav className="bg-white sticky top-0 shadow py-3 z-50">
-                <div className="container mx-auto flex items-center justify-between px-4 md:px-8">
+            {/* ── MAIN NAVBAR ── */}
+            <nav className="bg-white sticky top-0 shadow-sm z-50 border-b border-gray-100">
+                <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
+
                     {/* Logo */}
-                    <Link to="/" className="flex items-center flex-shrink-0">
-                        <img src={logo} alt="Logo" className="h-10 w-auto bigger-small" />
+                    <Link to="/" className="flex items-center flex-shrink-0 group">
+                        <img
+                            src={logo}
+                            alt="BookNest"
+                            className="h-9 w-auto transition-opacity duration-200 group-hover:opacity-80"
+                        />
                     </Link>
 
-                    {/* Center links (desktop) */}
-                    <div className="hidden md:flex items-center gap-6 text-lg font-medium text-gray-700 relative">
-                        <Link to="/" className="hover:text-blue-600 transition-colors">Trang chủ</Link>
+                    {/* Center Links (desktop) */}
+                    <div className="hidden md:flex items-center gap-8 text-sm font-medium text-stone-700">
+                        <Link
+                            to="/"
+                            className="relative pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full hover:text-black transition-colors duration-200"
+                        >
+                            Trang chủ
+                        </Link>
 
-                        {/* Thể loại Dropdown */}
+                        {/* Genre Dropdown */}
                         <div
-                            className="relative py-2"
+                            className="relative py-4"
                             onMouseEnter={() => setShowGenres(true)}
                             onMouseLeave={() => setShowGenres(false)}
                         >
-                            <span className="cursor-pointer hover:text-blue-600 transition-colors">Thể loại</span>
+                            <span className="relative cursor-pointer pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full hover:text-black transition-colors duration-200 flex items-center gap-1.5">
+                                Thể loại
+                                <FontAwesomeIcon
+                                    icon={['fas', 'chevron-down']}
+                                    className={`text-[10px] transition-transform duration-200 ${showGenres ? 'rotate-180' : ''}`}
+                                />
+                            </span>
 
-                            {showGenres && (
-                                <div className="absolute left-0 top-full pt-2 w-48 z-50 transition-opacity duration-300">
-                                    <div className="bg-white shadow-lg border rounded overflow-hidden">
-                                        <ul className="py-2 space-y-1">
-                                            {genres.map(genre => (
-                                                <li
-                                                    key={genre}
-                                                    className="cursor-pointer hover:bg-blue-50 hover:text-blue-600 px-4 py-2 text-base transition-colors"
-                                                    onClick={() => goToGenre(genre)}
-                                                >
-                                                    {genre}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
+                            <div className={`absolute left-0 top-full pt-1 w-52 z-50 transition-all duration-200 origin-top ${showGenres ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-95 pointer-events-none'}`}>
+                                <div className="bg-white border border-gray-100 shadow-lg py-2">
+                                    {genres.map((genre, i) => (
+                                        <button
+                                            key={genre}
+                                            onClick={() => goToGenre(genre)}
+                                            className="w-full text-left px-5 py-2.5 text-sm text-stone-600 hover:text-black hover:bg-stone-50 transition-colors duration-150 tracking-wide"
+                                        >
+                                            {genre}
+                                        </button>
+                                    ))}
                                 </div>
-                            )}
+                            </div>
                         </div>
 
-                        <Link to="/books" className="hover:text-blue-600 transition-colors">Sách</Link>
+                        <Link
+                            to="/books"
+                            className="relative pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full hover:text-black transition-colors duration-200"
+                        >
+                            Sách
+                        </Link>
                     </div>
 
-                    {/* Search & icons (desktop) */}
-                    <div className="hidden md:flex items-center gap-4">
+                    {/* Right Icons (desktop) */}
+                    <div className="hidden md:flex items-center gap-5">
                         <InputSearch />
 
-                        {/* ✅ THÊM CHUÔNG THÔNG BÁO Ở ĐÂY CHO DESKTOP */}
                         <NotificationBell />
 
-                        <Link to="/favorites" className="text-gray-700 hover:text-red-600 text-xl bigger transition-colors">
-                            <FontAwesomeIcon icon={['far', 'heart']} />
+                        <Link
+                            to="/favorites"
+                            className="text-stone-500 hover:text-black transition-colors duration-200 relative"
+                            title="Yêu thích"
+                        >
+                            <FontAwesomeIcon icon={['far', 'heart']} className="text-lg" />
                         </Link>
-                        <Link to="/cart" className="relative text-gray-700 hover:text-green-600 text-2xl bigger transition-colors">
-                            <FontAwesomeIcon icon={['fas', 'bag-shopping']} />
+
+                        <Link
+                            to="/cart"
+                            className="relative text-stone-500 hover:text-black transition-colors duration-200"
+                            title="Giỏ hàng"
+                        >
+                            <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-xl" />
                             {cartCount > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                                <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-bold rounded-full w-4.5 h-4.5 flex items-center justify-center min-w-[18px] min-h-[18px] px-1 animate-in zoom-in">
                                     {cartCount}
                                 </span>
                             )}
                         </Link>
                     </div>
 
-                    {/* Mobile menu toggle button & Bell */}
-                    <div className="md:hidden flex items-center gap-3 ml-4">
-                        {/* ✅ THÊM CHUÔNG THÔNG BÁO Ở ĐÂY CHO MOBILE */}
+                    {/* Mobile Right */}
+                    <div className="md:hidden flex items-center gap-4">
                         <NotificationBell />
-
-                        <button className="text-black text-2xl" onClick={toggleMenu}>
-                            <FontAwesomeIcon icon={['fas', 'bars']} />
+                        <Link to="/cart" className="relative text-stone-600 hover:text-black transition-colors">
+                            <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-xl" />
+                            {cartCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-bold rounded-full min-w-[18px] min-h-[18px] flex items-center justify-center px-1">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </Link>
+                        <button
+                            onClick={toggleMenu}
+                            className="text-stone-600 hover:text-black transition-colors p-1"
+                        >
+                            <FontAwesomeIcon icon={['fas', menuOpen ? 'xmark' : 'bars']} className="text-xl" />
                         </button>
                     </div>
                 </div>
 
-                {/* ================= MOBILE MENU ================= */}
-                <div
-                    className={`md:hidden fixed top-0 right-0 h-full w-full bg-white shadow-md z-40 transition-transform duration-300 ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}
-                >
-                    <div className="flex items-center justify-between p-4 border-b">
+                {/* ── MOBILE MENU ── */}
+                <div className={`md:hidden fixed inset-0 bg-white z-40 transition-transform duration-300 ease-in-out ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    {/* Mobile Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                         <img src={logo} alt="Logo" className="h-8 w-auto" />
-                        <button onClick={toggleMenu} className="text-gray-500 hover:text-black">
+                        <button onClick={toggleMenu} className="text-stone-500 hover:text-black transition-colors">
                             <FontAwesomeIcon icon={['fas', 'xmark']} className="text-2xl" />
                         </button>
                     </div>
-                    <ul className="flex flex-col gap-4 p-5 text-lg font-medium text-gray-800">
-                        <li>
-                            <Link to="/" onClick={toggleMenu} className="hover:text-blue-600 transition-colors">Trang chủ</Link>
-                        </li>
-                        <li>
-                            <Link to="/books" onClick={toggleMenu} className="hover:text-blue-600 transition-colors">Sách</Link>
-                        </li>
 
-                        {/* Dropdown thể loại trên Mobile */}
-                        <li>
-                            <details>
-                                <summary className="cursor-pointer hover:text-blue-600 transition-colors">Thể loại</summary>
-                                <ul className="ml-4 mt-2 flex flex-col gap-2 text-base font-normal">
+                    {/* Mobile Nav Links */}
+                    <div className="overflow-y-auto h-full pb-20">
+                        <nav className="flex flex-col px-6 py-6 gap-1">
+                            {[{ to: '/', label: 'Trang chủ' }, { to: '/books', label: 'Sách' }].map(link => (
+                                <Link
+                                    key={link.to}
+                                    to={link.to}
+                                    onClick={toggleMenu}
+                                    className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 transition-colors"
+                                >
+                                    {link.label}
+                                </Link>
+                            ))}
+
+                            {/* Genre Accordion */}
+                            <details className="group">
+                                <summary className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 cursor-pointer list-none flex items-center justify-between">
+                                    Thể loại
+                                    <FontAwesomeIcon icon={['fas', 'chevron-down']} className="text-xs text-stone-400 transition-transform duration-200 group-open:rotate-180" />
+                                </summary>
+                                <div className="pl-4 py-2 flex flex-col gap-1">
                                     {genres.map(genre => (
-                                        <li key={genre}>
-                                            <button onClick={() => goToGenreMobile(genre)} className="text-left hover:text-blue-500 transition-colors w-full">
-                                                {genre}
-                                            </button>
-                                        </li>
+                                        <button
+                                            key={genre}
+                                            onClick={() => goToGenreMobile(genre)}
+                                            className="text-left py-2 text-sm text-stone-500 hover:text-black transition-colors"
+                                        >
+                                            {genre}
+                                        </button>
                                     ))}
-                                </ul>
+                                </div>
                             </details>
-                        </li>
 
-                        <li>
-                            <Link to="/favorites" onClick={toggleMenu} className="hover:text-blue-600 transition-colors">Yêu thích</Link>
-                        </li>
-                        <li>
-                            <Link to="/cart" onClick={toggleMenu} className="hover:text-blue-600 transition-colors">Giỏ hàng</Link>
-                        </li>
-                        {!user && (
-                            <li>
-                                <Link to="/login" onClick={toggleMenu} className="hover:text-blue-600 transition-colors">Đăng nhập</Link>
-                            </li>
-                        )}
-                    </ul>
+                            <Link to="/favorites" onClick={toggleMenu} className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 transition-colors flex items-center gap-3">
+                                <FontAwesomeIcon icon={['far', 'heart']} className="text-stone-400 w-5" />
+                                Yêu thích
+                            </Link>
+                            <Link to="/cart" onClick={toggleMenu} className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 transition-colors flex items-center gap-3">
+                                <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-stone-400 w-5" />
+                                Giỏ hàng
+                                {cartCount > 0 && <span className="ml-auto bg-black text-white text-xs rounded-full px-2 py-0.5">{cartCount}</span>}
+                            </Link>
+
+                            {!user && (
+                                <>
+                                    <Link to="/login" onClick={toggleMenu} className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 transition-colors">
+                                        Đăng nhập
+                                    </Link>
+                                    <Link to="/register" onClick={toggleMenu} className="py-3 text-base font-medium text-stone-700 hover:text-black transition-colors">
+                                        Đăng ký
+                                    </Link>
+                                </>
+                            )}
+                        </nav>
+                    </div>
                 </div>
+
+                {/* Mobile Menu Overlay */}
+                {menuOpen && (
+                    <div
+                        className="md:hidden fixed inset-0 bg-black/20 z-30 backdrop-blur-sm"
+                        onClick={toggleMenu}
+                    />
+                )}
             </nav>
         </>
     );

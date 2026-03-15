@@ -7,8 +7,8 @@ import bannerImg from '../assets/image/banner.png';
 
 const Home = () => {
   const [topBooks, setTopBooks] = useState([]);
-  const [allBooks, setAllBooks] = useState([]); // State chứa toàn bộ sách
-  const [isLoading, setIsLoading] = useState(true); // Trạng thái loading
+  const [allBooks, setAllBooks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   const goToFilteredBooks = (filterType) => {
@@ -19,12 +19,10 @@ const Home = () => {
     const fetchHomeData = async () => {
       try {
         setIsLoading(true);
-        // Dùng Promise.all để gọi 2 API cùng một lúc, tiết kiệm tối đa thời gian chờ
         const [topRes, allRes] = await Promise.all([
           axios.get('/api/books/top-selling'),
           axios.get('/api/books')
         ]);
-
         setTopBooks(topRes.data);
         setAllBooks(allRes.data);
       } catch (err) {
@@ -33,72 +31,125 @@ const Home = () => {
         setIsLoading(false);
       }
     };
-
     fetchHomeData();
   }, []);
 
-  // Hàm helper để lọc sách theo thể loại, giúp code ở dưới gọn gàng hơn
-  const getBooksByGenre = (genre) => {
-    return allBooks.filter(book => book.genre === genre);
-  };
+  const getBooksByGenre = (genre) => allBooks.filter(book => book.genre === genre);
 
-  // Hiển thị màn hình chờ trong lúc gọi API (tránh việc Slider bị render khi chưa có data)
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-[50vh]">
-        <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+      <div className="flex flex-col justify-center items-center h-[60vh] gap-4">
+        <div className="w-10 h-10 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs tracking-widest uppercase text-stone-400">Đang tải...</p>
       </div>
     );
   }
 
+  const genreSections = [
+    { genre: 'Comics', title: 'Truyện Tranh', sub: 'Những bộ truyện tranh nổi bật nhất' },
+    { genre: 'Viễn Tưởng', title: 'Viễn Tưởng', sub: 'Bay bổng cùng những thế giới kỳ diệu' },
+    { genre: 'Tiểu thuyết', title: 'Tiểu Thuyết', sub: 'Tuyển tập các tiểu thuyết lôi cuốn' },
+    { genre: 'Lãng mạn', title: 'Lãng Mạn', sub: 'Những câu chuyện tình yêu đẹp nhất' },
+    { genre: 'Khoa học', title: 'Khoa Học', sub: 'Khám phá thế giới qua lăng kính khoa học' },
+    { genre: 'Tài chính', title: 'Tài Chính', sub: 'Nền tảng vững chắc cho sự thành công' },
+  ];
+
   return (
-    <>
-      <div className="flex justify-center items-center mx-auto w-fit p-6">
-        <div className="flex w-full">
-          {/* Cột trái */}
-          <div className="w-[40%] flex flex-col justify-center bg-yellow-100 p-6 rounded-l-2xl">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+    <div className="bg-white">
+      {/* ── HERO BANNER ── */}
+      <section className="relative overflow-hidden bg-black text-white">
+
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row min-h-[400px]">
+          {/* Left: Text */}
+          <div className="md:w-5/12 flex flex-col justify-center px-10 md:px-16 py-16 z-10">
+            <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-4">
+              BookNest · Bộ sưu tập
+            </p>
+            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4 text-white">
               Bạn đã mua được gì chưa?
-            </h2>
+            </h1>
+            <p className="text-stone-400 text-sm mb-8 leading-relaxed">
+              Khám phá hàng ngàn tựa sách được tuyển chọn kỹ lưỡng, từ best-seller đến những viên ngọc ẩn.
+            </p>
             <button
               onClick={() => goToFilteredBooks('highest-rated')}
-              className="hover-flip-btn px-4 py-2 border border-gray-800 w-max rounded"
+              className="px-8 py-3 hover-flip-btn w-fit"
             >
-              Xem ngay
+              Khám phá ngay
             </button>
           </div>
 
-          {/* Cột phải */}
-          <div className="w-[60%]">
-            <img src={bannerImg} alt="Banner" className="h-full object-cover rounded-r-2xl" />
+          {/* Right: Image */}
+          <div className="md:w-7/12 relative overflow-hidden">
+            <img
+              src={bannerImg}
+              alt="Banner"
+              className="w-full h-full object-cover object-center opacity-70 transition-transform duration-700 hover:scale-105"
+              style={{ minHeight: '320px' }}
+            />
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/30 to-transparent" />
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="p-6 mb-20 mx-auto mt-10">
+      {/* ── QUICK STATS ── */}
+      <section className="border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 py-5 grid grid-cols-3 md:grid-cols-3 gap-4 text-center">
+          {[
+            { icon: 'book', label: 'Tựa sách', value: `${allBooks.length}+` },
+            { icon: 'truck', label: 'Giao hàng toàn quốc', value: 'Miễn phí' },
+            { icon: 'star', label: 'Đánh giá trung bình', value: '4.8 / 5' },
+          ].map((item, i) => (
+            <div key={i} className="flex flex-col items-center gap-1 py-2">
+              <p className="text-xl font-bold text-black">{item.value}</p>
+              <p className="text-xs text-stone-500 tracking-wide">{item.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── TOP SELLING ── */}
+      <section className="max-w-7xl mx-auto px-6 py-16">
+        <div className="flex items-end justify-between mb-10">
+          <div>
+            <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-2">Bán chạy nhất</p>
+            <h2 className="text-3xl font-bold text-black">Top Sách Nổi Bật</h2>
+          </div>
+          <button
+            onClick={() => navigate('/books')}
+            className="text-xs tracking-widest uppercase text-stone-500 hover:text-black transition-colors border-b border-stone-300 hover:border-black pb-0.5"
+          >
+            Xem tất cả
+          </button>
+        </div>
         <TopSellingBooks books={topBooks} />
+      </section>
+
+      {/* ── DIVIDER ── */}
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="border-t border-gray-100" />
       </div>
 
-      {/* Truyền mảng sách đã lọc vào từng Component */}
-      <div className="p-6">
-        <BookSlider books={getBooksByGenre("Comics")} genre="Comics" title="Bạn yêu thích truyện tranh (Comics)" />
+      {/* ── GENRE SECTIONS ── */}
+      <div className="max-w-7xl mx-auto px-6">
+        {genreSections.map((section, index) => (
+          <section
+            key={section.genre}
+            className={`py-14 ${index < genreSections.length - 1 ? 'border-b border-gray-100' : ''}`}
+          >
+            <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-1 mt-0">{section.sub}</p>
+            <BookSlider
+              books={getBooksByGenre(section.genre)}
+              genre={section.genre}
+              title={section.title}
+            />
+          </section>
+        ))}
       </div>
-      <div className="p-6">
-        <BookSlider books={getBooksByGenre("Viễn Tưởng")} genre="Viễn Tưởng" title="Sách Viễn Tưởng hay không tưởng" />
-      </div>
-      <div className="p-6">
-        <BookSlider books={getBooksByGenre("Tiểu thuyết")} genre="Tiểu thuyết" title="Tuyển tập các tiểu thuyết lôi cuốn" />
-      </div>
-      <div className="p-6">
-        <BookSlider books={getBooksByGenre("Lãng mạn")} genre="Lãng mạn" title="Bạn thích một chút lãng mạn?" />
-      </div>
-      <div className="p-6">
-        <BookSlider books={getBooksByGenre("Khoa học")} genre="Khoa học" title="Nội dung khoa học cho bạn" />
-      </div>
-      <div className="p-6">
-        <BookSlider books={getBooksByGenre("Tài chính")} genre="Tài chính" title="Bạn muốn có nền tảng cho việc kinh doanh?" />
-      </div>
-    </>
+
+
+    </div>
   );
 };
 

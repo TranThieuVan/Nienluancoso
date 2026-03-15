@@ -5,7 +5,6 @@ const TopSellingBooks = ({ books = [] }) => {
 
   return (
     <div className="mt-10">
-      <h2 className="text-4xl mb-12 font-semibold text-center">🔥 Top 5 Sách Bán Chạy Nhất</h2>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {books.map((book, index) => (
@@ -15,7 +14,7 @@ const TopSellingBooks = ({ books = [] }) => {
                 <img
                   src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
                   alt={book.title}
-                  className="w-full h-full rounded-3xl object-cover transition-all duration-300 border-transparent group-hover:border-black border-[4px]"
+                  className="w-full h-full  object-cover transition-all duration-300 border-transparent group-hover:border-black border-[4px]"
                 />
               </div>
 

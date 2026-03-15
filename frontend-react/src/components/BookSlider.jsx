@@ -7,113 +7,130 @@ import { useCart } from '../composables/useCart';
 import BookCard from './BookCard';
 
 const EMPTY_ARRAY = [];
-const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = 'Danh Sách Sách' }) => {
+
+const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '' }) => {
     const navigate = useNavigate();
     const scrollContainer = useRef(null);
     const [books, setBooks] = useState([]);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
 
-    // Khởi tạo các Custom Hook
-    const { isFavorite, toggleFavorite, } = useFavorites();
+    const { isFavorite, toggleFavorite } = useFavorites();
     const { addToCart } = useCart();
 
-    // Xử lý nạp dữ liệu sách
     useEffect(() => {
         const loadBooks = async () => {
-            // Nếu không có sách truyền vào qua props thì tự fetch
-            if (!initialBooks) {
+            if (!initialBooks || initialBooks.length === 0) {
                 try {
                     const res = await axios.get('/api/books');
-                    if (genre) {
-                        setBooks(res.data.filter(b => b.genre === genre));
-                    } else {
-                        setBooks(res.data);
-                    }
+                    setBooks(genre ? res.data.filter(b => b.genre === genre) : res.data);
                 } catch (err) {
-                    console.error('Lỗi tải danh sách sách cho slider:', err);
+                    console.error('Lỗi tải sách cho slider:', err);
                 }
             } else {
                 setBooks(initialBooks);
             }
-
         };
-
         loadBooks();
     }, [initialBooks, genre]);
 
-    // Điều kiện hiển thị thanh điều hướng (scroll + xem tất cả)
-    const shouldShowSlider = books.length > 8;
-
-    // Chuyển hướng sang trang Xem tất cả
-    const goToViewAll = () => {
-        localStorage.setItem('viewAllBooks', JSON.stringify(books));
-        navigate(`/books/view-all?title=${encodeURIComponent(title)}`, {
-            state: { books }
-        });
+    // Track scroll position to show/hide arrows
+    const updateScrollButtons = () => {
+        const el = scrollContainer.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 10);
+        setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
     };
 
-    // Cuộn trái
+    useEffect(() => {
+        const el = scrollContainer.current;
+        if (!el) return;
+        updateScrollButtons();
+        el.addEventListener('scroll', updateScrollButtons);
+        window.addEventListener('resize', updateScrollButtons);
+        return () => {
+            el.removeEventListener('scroll', updateScrollButtons);
+            window.removeEventListener('resize', updateScrollButtons);
+        };
+    }, [books]);
+
+    const shouldShowControls = books.length > 5;
+
+    const goToViewAll = () => {
+        if (genre) {
+            navigate(`/books/view-all?genre=${encodeURIComponent(genre)}`);
+        } else {
+            navigate('/books/view-all', { state: { books } });
+        }
+    };
+
     const scrollLeft = () => {
         if (scrollContainer.current) {
-            const width = scrollContainer.current.clientWidth;
-            scrollContainer.current.scrollLeft -= width * 0.5;
+            scrollContainer.current.scrollLeft -= scrollContainer.current.clientWidth * 0.6;
         }
     };
 
     const scrollRight = () => {
         if (scrollContainer.current) {
-            const width = scrollContainer.current.clientWidth;
-            scrollContainer.current.scrollLeft += width * 0.5;
+            scrollContainer.current.scrollLeft += scrollContainer.current.clientWidth * 0.6;
         }
     };
-    // Chuyển hướng đến chi tiết sách
-    const goToDetail = (id) => {
-        navigate(`/books/${id}`);
-    };
+
+    if (books.length === 0) return null;
 
     return (
-        <div className="p-6">
-            {/* Tiêu đề + nút scroll + xem tất cả */}
-            <div className="flex justify-between items-center mb-4 flex-nowrap overflow-hidden">
-                {/* Tiêu đề */}
-                <h1 className="text-xl font-bold truncate">{title}</h1>
-
-                {/* Nút scroll trái/phải + Xem tất cả */}
-                <div className="flex items-center gap-2 mr-4 shrink-0">
-                    {shouldShowSlider && (
-                        <>
-                            <button
-                                className="bg-white p-2 shadow rounded-full hover:bg-gray-100 transition-colors"
-                                onClick={scrollLeft}
-                                aria-label="Scroll left"
-                            >
-                                <FontAwesomeIcon icon={['fas', 'angle-left']} className="bigger" />
-                            </button>
-                            <button
-                                className="bg-white p-2 shadow rounded-full hover:bg-gray-100 transition-colors"
-                                onClick={scrollRight}
-                                aria-label="Scroll right"
-                            >
-                                <FontAwesomeIcon icon={['fas', 'angle-right']} className="bigger" />
-                            </button>
-                            <button
-                                onClick={goToViewAll}
-                                className="text-blue-600 text-sm hover:underline ml-2"
-                            >
-                                Xem tất cả
-                            </button>
-                        </>
+        <div className="relative">
+            {/* ── Header ── */}
+            {(title || shouldShowControls) && (
+                <div className="flex items-center justify-between mb-6">
+                    {title && (
+                        <h2 className="text-lg font-bold text-black truncate pr-4">{title}</h2>
                     )}
-                </div>
-            </div>
 
-            {/* Danh sách sách dạng ngang */}
+                    <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+                        {shouldShowControls && (
+                            <>
+                                {/* Scroll Arrows */}
+                                <button
+                                    onClick={scrollLeft}
+                                    disabled={!canScrollLeft}
+                                    className={`w-8 h-8 flex items-center justify-center border transition-all duration-200 ${canScrollLeft ? 'border-stone-300 text-stone-600 hover:border-black hover:text-black' : 'border-stone-100 text-stone-200 cursor-not-allowed'}`}
+                                    aria-label="Scroll left"
+                                >
+                                    <FontAwesomeIcon icon={['fas', 'angle-left']} className="text-xs" />
+                                </button>
+                                <button
+                                    onClick={scrollRight}
+                                    disabled={!canScrollRight}
+                                    className={`w-8 h-8 flex items-center justify-center border transition-all duration-200 ${canScrollRight ? 'border-stone-300 text-stone-600 hover:border-black hover:text-black' : 'border-stone-100 text-stone-200 cursor-not-allowed'}`}
+                                    aria-label="Scroll right"
+                                >
+                                    <FontAwesomeIcon icon={['fas', 'angle-right']} className="text-xs" />
+                                </button>
+
+                                {/* View All */}
+                                <button
+                                    onClick={goToViewAll}
+                                    className="ml-1 text-xs tracking-widest uppercase text-stone-400 hover:text-black transition-colors border-b border-transparent hover:border-stone-400 pb-0.5"
+                                >
+                                    Xem tất cả
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Book List ── */}
             <div
                 ref={scrollContainer}
-                className="flex gap-4 overflow-x-auto scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                className="flex gap-4 overflow-x-auto scroll-smooth pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
                 {books.map((book) => (
-                    // Đã thêm key={book._id} vào thẻ bọc ngoài cùng
-                    <div key={book._id} className="swiper-slide-custom">
+                    <div
+                        key={book._id}
+                        className="flex-shrink-0 w-[160px] sm:w-[180px]"
+                    >
                         <BookCard book={book} />
                     </div>
                 ))}

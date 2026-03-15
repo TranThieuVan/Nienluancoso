@@ -3,17 +3,14 @@ import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ChatIcon from '../components/ChatIcon';
-import ChatBox from '../components/ChatBox'; // ✅ Nhớ import ChatBox vào nhé
+import ChatBox from '../components/ChatBox';
+import ClickSpark from '../components/ClickSpark';
 
 const UserLayout = () => {
-    // ✅ State quản lý đóng/mở chat
     const [isChatOpen, setIsChatOpen] = useState(false);
-
-    // ✅ State lưu ID của người dùng đang đăng nhập
     const [userId, setUserId] = useState(null);
 
     useEffect(() => {
-        // Lấy thông tin user từ localStorage để truyền cho ChatBox biết ai đang chat
         const userStr = localStorage.getItem('user');
         if (userStr) {
             try {
@@ -28,28 +25,29 @@ const UserLayout = () => {
     }, []);
 
     return (
-        <div className="flex flex-col min-h-screen relative">
-            <Navbar />
-            <main className="flex-grow">
-                <Outlet />
-            </main>
-            <Footer />
+        <ClickSpark sparkColor="#666" sparkSize={10}
+            sparkRadius={10}
+            sparkCount={8}
+            duration={400}>
+            <div className="flex flex-col min-h-screen relative">
+                <Navbar />
+                <main className="flex-grow">
+                    <Outlet />
+                </main>
+                <Footer />
 
-            {/* ✅ LOGIC ĐÓNG MỞ CHAT NẰM Ở ĐÂY */}
+                {!isChatOpen && (
+                    <ChatIcon onToggle={() => setIsChatOpen(true)} />
+                )}
 
-            {/* Nếu khung chat chưa mở -> Hiện cục Icon tròn tròn */}
-            {!isChatOpen && (
-                <ChatIcon onToggle={() => setIsChatOpen(true)} />
-            )}
-
-            {/* Nếu click vào Icon (isChatOpen = true) -> Hiện cái khung ChatBox lên */}
-            {isChatOpen && (
-                <ChatBox
-                    userId={userId}
-                    onClose={() => setIsChatOpen(false)}
-                />
-            )}
-        </div>
+                {isChatOpen && (
+                    <ChatBox
+                        userId={userId}
+                        onClose={() => setIsChatOpen(false)}
+                    />
+                )}
+            </div>
+        </ClickSpark>
     );
 };
 
