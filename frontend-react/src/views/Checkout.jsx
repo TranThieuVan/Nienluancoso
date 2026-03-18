@@ -25,6 +25,7 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState('vnpay');
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
+  const [qrOrderId, setQrOrderId] = useState(null); // ✅ Lưu orderId để gọi API sau khi xác nhận chuyển khoản
 
   const [vouchers, setVouchers] = useState([]);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
@@ -102,9 +103,10 @@ const Checkout = () => {
     const BANK_ID = 'vietcombank';
     const ACCOUNT_NO = '1026325913';
     const TEMPLATE = 'compact2';
-    const ACCOUNT_NAME = 'CHU TAI KHOAN';
+    const ACCOUNT_NAME = 'Tran Thieu Van';
     const url = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${totalAmount}&addInfo=TT DON HANG ${orderId}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`;
     setQrUrl(url);
+    setQrOrderId(orderId); // ✅ Lưu lại orderId
     setShowQRModal(true);
   };
 
@@ -499,8 +501,22 @@ const Checkout = () => {
                 <p className="text-xs text-stone-400">Nội dung chuyển khoản đã tích hợp trong mã QR.</p>
               </div>
 
+              {/* ✅ FIX BUG 2: Gọi API cập nhật paymentStatus = 'Đã thanh toán' trước khi navigate */}
               <button
-                onClick={() => { localStorage.removeItem('checkoutItems'); navigate('/orders'); }}
+                onClick={async () => {
+                  try {
+                    if (qrOrderId) {
+                      await axios.put(`/api/orders/${qrOrderId}/pay`, {}, {
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                    }
+                  } catch (err) {
+                    console.error('Lỗi cập nhật trạng thái thanh toán:', err);
+                  } finally {
+                    localStorage.removeItem('checkoutItems');
+                    navigate('/orders');
+                  }
+                }}
                 className="w-full py-3 hover-flip-btn"
               >
                 Tôi đã chuyển khoản xong

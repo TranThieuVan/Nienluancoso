@@ -8,7 +8,6 @@ const AdminNavbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // ✨ State lưu số lượng thông báo
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
@@ -21,7 +20,6 @@ const AdminNavbar = () => {
         return location.pathname === path ? 'bg-green-200 font-medium' : '';
     };
 
-    // ✨ Hàm lấy dữ liệu đếm số lượng
     const fetchNotificationCounts = async () => {
         try {
             const token = localStorage.getItem('adminToken');
@@ -44,21 +42,33 @@ const AdminNavbar = () => {
         }
     };
 
-    // ✨ Cập nhật lại số lượng mỗi khi Admin chuyển trang (để lỡ admin vừa xử lý đơn xong thì số giảm xuống)
     useEffect(() => {
         fetchNotificationCounts();
     }, [location.pathname]);
 
-    // ✨ Lắng nghe Socket.io để nảy số Real-time
+    // ✨ Lắng nghe Socket.io để nảy số Real-time chuẩn xác
     useEffect(() => {
-        const socket = io('http://localhost:5000'); // Thay URL này nếu BE của bạn chạy port khác
+        const socket = io('http://localhost:5000'); // Đảm bảo đúng port backend
 
+        // Đơn hàng mới
         socket.on('new_order_admin', () => {
-            setPendingOrdersCount(prev => prev + 1);
+            fetchNotificationCounts();
         });
 
-        socket.on('new_message_admin', () => {
-            fetchNotificationCounts(); // Lấy lại số lượng tin nhắn cho chính xác
+        // Bắt thêm sự kiện khi đơn hàng bị HỦY hoặc đổi trạng thái
+        socket.on('order_updated', () => {
+            fetchNotificationCounts();
+        });
+
+        // Chỉ báo tin nhắn nếu người gửi không phải admin hay bot
+        socket.on('new_message_admin', (data) => {
+            // Tùy theo cấu trúc data backend trả về, kiểm tra role người gửi
+            if (data && data.senderRole !== 'admin' && data.senderRole !== 'bot') {
+                fetchNotificationCounts();
+            } else if (!data) {
+                // Đề phòng backend chỉ gửi tín hiệu rỗng
+                fetchNotificationCounts();
+            }
         });
 
         return () => socket.disconnect();
@@ -80,14 +90,14 @@ const AdminNavbar = () => {
                         Sách
                     </Link>
 
-                    {/* ✨ Mục Đơn hàng (Kèm Badge đỏ) */}
+                    {/* ✨ Mục Đơn hàng */}
                     <Link to="/admin/orders" className={`flex items-center justify-between py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/orders')}`}>
                         <div className="flex items-center gap-3">
                             <FontAwesomeIcon icon={['fas', 'box-open']} className="w-5" />
                             Đơn hàng
                         </div>
                         {pendingOrdersCount > 0 && (
-                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                            <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm ">
                                 {pendingOrdersCount}
                             </span>
                         )}
@@ -118,14 +128,14 @@ const AdminNavbar = () => {
                         Bình luận
                     </Link>
 
-                    {/* ✨ Mục Tin nhắn (Kèm Badge đỏ) */}
+                    {/* ✨ Mục Tin nhắn */}
                     <Link to="/admin/messages" className={`flex items-center justify-between py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/messages')}`}>
                         <div className="flex items-center gap-3">
                             <FontAwesomeIcon icon={['fas', 'envelope']} className="w-5" />
                             Tin nhắn
                         </div>
                         {unreadMessagesCount > 0 && (
-                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                            <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm ">
                                 {unreadMessagesCount}
                             </span>
                         )}

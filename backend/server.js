@@ -1,6 +1,7 @@
+const dotenv = require('dotenv');
 const express = require('express');
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+
 const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
@@ -22,6 +23,7 @@ const io = new Server(server, {
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
+
 
 // 3. Đưa biến `io` vào app để lát nữa các file Controller có thể lôi ra xài
 app.set('io', io);

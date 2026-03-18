@@ -2,86 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 
-/* ─── Styles ────────────────────────────────────────────────────── */
-const S = {
-  page: {
-    fontFamily: "'Sora', 'Inter', sans-serif",
-    background: '#f9fafb',
-    minHeight: '100vh',
-    padding: '2rem 2.5rem',
-  },
-  header: {
-    display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-    flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem',
-  },
-  eyebrow: {
-    fontSize: '10px', letterSpacing: '.18em', textTransform: 'uppercase',
-    color: '#4f46e5', fontWeight: 600, marginBottom: '3px',
-  },
-  title: { fontSize: '1.75rem', fontWeight: 700, color: '#111827', margin: 0 },
-  controls: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
-  selWrap: { display: 'flex', alignItems: 'center', gap: '7px' },
-  selLabel: { fontSize: '11px', color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' },
-  select: {
-    padding: '6px 10px', borderRadius: '8px',
-    border: '1px solid #e5e7eb', background: '#fff',
-    color: '#374151', fontSize: '12px', fontFamily: 'inherit',
-    cursor: 'pointer', outline: 'none',
-    boxShadow: '0 1px 2px rgba(0,0,0,.04)',
-  },
-  stats: {
-    display: 'grid', gridTemplateColumns: 'repeat(4,1fr)',
-    gap: '10px', marginBottom: '1.25rem',
-  },
-  statCard: {
-    background: '#fff', border: '1px solid #e5e7eb',
-    borderRadius: '12px', padding: '12px 16px',
-    boxShadow: '0 1px 3px rgba(0,0,0,.06)',
-  },
-  statLabel: {
-    fontSize: '10px', textTransform: 'uppercase',
-    letterSpacing: '.12em', color: '#9ca3af', fontWeight: 700,
-  },
-  statDot: { width: '7px', height: '7px', borderRadius: '50%', display: 'inline-block', marginRight: '5px' },
-  statValue: {
-    fontSize: '1.05rem', fontWeight: 700, color: '#111827',
-    marginTop: '4px', fontFamily: "'JetBrains Mono', monospace",
-    wordBreak: 'break-all',
-  },
-  chartCard: {
-    background: '#fff', border: '1px solid #e5e7eb',
-    borderRadius: '14px', padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,.06)',
-  },
-  chartHeader: {
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    marginBottom: '1.5rem', flexWrap: 'wrap', gap: '8px',
-  },
-  chartTitle: { fontSize: '13px', fontWeight: 700, color: '#374151', margin: 0 },
-  chartSub: { fontSize: '11px', color: '#9ca3af', marginTop: '2px' },
-  legend: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280' },
-  legendDot: { width: '10px', height: '10px', borderRadius: '2px', background: '#4f46e5', display: 'inline-block' },
-  weekGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(5,1fr)',
-    gap: '8px', marginTop: '1.25rem',
-    paddingTop: '1rem', borderTop: '1px solid #f3f4f6',
-  },
-  weekCell: { textAlign: 'center' },
-  weekLabel: { fontSize: '10px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em' },
-  weekVal: { fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700, marginTop: '3px' },
-  emptyBox: {
-    background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px',
-    padding: '3rem', textAlign: 'center', color: '#9ca3af', fontSize: '14px',
-    boxShadow: '0 1px 3px rgba(0,0,0,.06)',
-  },
-  error: {
-    marginTop: '1rem', padding: '12px 16px',
-    background: '#fef2f2', border: '1px solid #fecaca',
-    borderRadius: '10px', color: '#991b1b', fontSize: '13px',
-    display: 'flex', alignItems: 'center', gap: '8px',
-  },
-};
-
 /* ─── Helpers ───────────────────────────────────────────────────── */
 const WEEK_LABELS = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'];
 
@@ -106,10 +26,10 @@ const AdminRevenue = () => {
 
   /* Chart.js refs */
   const canvasRef = useRef(null);
-  const chartRef = useRef(null);
 
   const fetchRevenue = async () => {
-    setError(null); setLoading(true);
+    setError(null);
+    setLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(
@@ -125,7 +45,9 @@ const AdminRevenue = () => {
     }
   };
 
-  useEffect(() => { fetchRevenue(); }, [selectedMonth, selectedYear]);
+  useEffect(() => {
+    fetchRevenue();
+  }, [selectedMonth, selectedYear]);
 
   /* Stats */
   const stats = useMemo(() => {
@@ -139,7 +61,7 @@ const AdminRevenue = () => {
 
   const hasData = weeklyRevenue.some(v => v > 0);
 
-  /* ── Chart.js: khởi tạo / cập nhật ── */
+  /* ── Chart.js: Khởi tạo & Tự động dọn dẹp (Fix bug mất biểu đồ) ── */
   useEffect(() => {
     if (!canvasRef.current || !hasData) return;
 
@@ -147,14 +69,7 @@ const AdminRevenue = () => {
       i === stats.bestIdx ? '#4f46e5' : '#c7d2fe'
     );
 
-    if (chartRef.current) {
-      chartRef.current.data.datasets[0].data = weeklyRevenue;
-      chartRef.current.data.datasets[0].backgroundColor = colors;
-      chartRef.current.update();
-      return;
-    }
-
-    chartRef.current = new Chart(canvasRef.current, {
+    const chartInstance = new Chart(canvasRef.current, {
       type: 'bar',
       data: {
         labels: WEEK_LABELS,
@@ -175,142 +90,138 @@ const AdminRevenue = () => {
             callbacks: {
               label: ctx => ' ' + formatFull(ctx.raw),
             },
-            bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
-            titleFont: { family: 'Sora, sans-serif', size: 11 },
-            backgroundColor: '#fff',
-            titleColor: '#6b7280',
-            bodyColor: '#111827',
-            borderColor: '#e5e7eb',
-            borderWidth: 1,
+            bodyFont: { family: "monospace", size: 13 },
+            titleFont: { family: "sans-serif", size: 12 },
+            backgroundColor: '#1f2937',
+            titleColor: '#9ca3af',
+            bodyColor: '#f9fafb',
             padding: 10,
+            cornerRadius: 8,
           },
         },
         scales: {
           x: {
             grid: { display: false },
-            ticks: { font: { family: 'Sora, sans-serif', size: 11 }, color: '#9ca3af' },
+            border: { display: false },
+            ticks: { font: { size: 12 }, color: '#9ca3af' },
           },
           y: {
             grid: { color: '#f3f4f6' },
             border: { display: false },
             ticks: {
-              font: { family: 'Sora, sans-serif', size: 11 },
-              color: '#9ca3af',
+              font: { size: 12 },
+              color: '#6b7280',
               callback: v => formatShort(v),
             },
           },
         },
       },
     });
+
+    // Cleanup function: Hủy biểu đồ cũ khi Component re-render hoặc unmount
+    return () => {
+      chartInstance.destroy();
+    };
   }, [weeklyRevenue, hasData, stats.bestIdx]);
 
-  /* Hủy chart khi unmount */
-  useEffect(() => {
-    return () => { chartRef.current?.destroy(); };
-  }, []);
-
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .ar-select:focus { border-color: #a5b4fc !important; box-shadow: 0 0 0 3px rgba(165,180,252,.3); }
-      `}</style>
+    <div className="min-h-screen bg-gray-50 p-8 md:p-10 font-sans">
 
-      <div style={S.page}>
-
-        {/* ── Header ── */}
-        <div style={S.header}>
-          <div>
-            <p style={S.eyebrow}>Admin · Bookstore</p>
-            <h1 style={S.title}>Thống kê Doanh thu</h1>
+      {/* ── Header ── */}
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
+        <div>
+          <p className="text-[10px] tracking-[.18em] uppercase text-indigo-600 font-bold mb-1">
+            Admin · Bookstore
+          </p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 m-0">
+            Thống kê Doanh thu
+          </h1>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 font-semibold whitespace-nowrap">Tháng</span>
+            <select
+              className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs cursor-pointer outline-none shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-all"
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(Number(e.target.value))}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                <option key={m} value={m}>Tháng {m}</option>
+              ))}
+            </select>
           </div>
-          <div style={S.controls}>
-            <div style={S.selWrap}>
-              <span style={S.selLabel}>Tháng</span>
-              <select className="ar-select" style={S.select}
-                value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                  <option key={m} value={m}>Tháng {m}</option>
-                ))}
-              </select>
-            </div>
-            <div style={S.selWrap}>
-              <span style={S.selLabel}>Năm</span>
-              <select className="ar-select" style={S.select}
-                value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 font-semibold whitespace-nowrap">Năm</span>
+            <select
+              className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs cursor-pointer outline-none shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-all"
+              value={selectedYear}
+              onChange={e => setSelectedYear(Number(e.target.value))}
+            >
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
         </div>
-
-        {/* ── Stats ── */}
-        <div style={S.stats}>
-          {[
-            { label: 'Tổng tháng', dot: '#4f46e5', value: formatFull(stats.total) },
-            { label: 'Tuần cao nhất', dot: '#16a34a', value: formatFull(stats.peak) },
-            { label: 'Trung bình / tuần', dot: '#ca8a04', value: formatFull(stats.avg) },
-            { label: 'Tuần tốt nhất', dot: '#6366f1', value: stats.bestWeek },
-          ].map(s => (
-            <div key={s.label} style={S.statCard}>
-              <div style={S.statLabel}>
-                <span style={{ ...S.statDot, background: s.dot }} />
-                {s.label}
-              </div>
-              <div style={S.statValue}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Chart ── */}
-        {loading ? (
-          <div style={S.emptyBox}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round"
-              style={{ animation: 'spin 1s linear infinite', display: 'block', margin: '0 auto 12px' }}>
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-            Đang tải dữ liệu...
-          </div>
-        ) : !hasData ? (
-          <div style={S.emptyBox}>
-            Không có dữ liệu doanh thu cho tháng {selectedMonth}/{selectedYear}
-          </div>
-        ) : (
-          <div style={S.chartCard}>
-            <div style={S.chartHeader}>
-              <div>
-                <p style={S.chartTitle}>Doanh thu theo tuần</p>
-                <p style={S.chartSub}>Tháng {selectedMonth} · {selectedYear}</p>
-              </div>
-              <div style={S.legend}>
-                <span style={S.legendDot} />
-                Doanh thu (VNĐ)
-              </div>
-            </div>
-
-            {/* Canvas */}
-            <div style={{ position: 'relative', width: '100%', height: '260px' }}>
-              <canvas ref={canvasRef} />
-            </div>
-
-
-          </div>
-        )}
-
-        {/* ── Error ── */}
-        {error && (
-          <div style={S.error}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            {error}
-          </div>
-        )}
       </div>
-    </>
+
+      {/* ── Stats ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Tổng tháng', dot: 'bg-indigo-600', value: formatFull(stats.total) },
+          { label: 'Tuần cao nhất', dot: 'bg-green-600', value: formatFull(stats.peak) },
+          { label: 'Trung bình / tuần', dot: 'bg-yellow-500', value: formatFull(stats.avg) },
+          { label: 'Tuần tốt nhất', dot: 'bg-indigo-400', value: stats.bestWeek },
+        ].map(s => (
+          <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="text-[10px] uppercase tracking-[.12em] text-gray-400 font-bold flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full inline-block ${s.dot}`} />
+              {s.label}
+            </div>
+            <div className="text-lg md:text-xl font-bold text-gray-900 mt-1.5 font-mono break-all">
+              {s.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Chart ── */}
+      {loading ? (
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center text-gray-400 text-sm shadow-sm flex flex-col items-center justify-center min-h-[300px]">
+          <i className="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500 mb-3"></i>
+          Đang tải dữ liệu...
+        </div>
+      ) : !hasData ? (
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center text-gray-400 text-sm shadow-sm flex flex-col items-center justify-center min-h-[300px]">
+          <i className="fa-regular fa-folder-open text-4xl text-gray-300 mb-3"></i>
+          Không có dữ liệu doanh thu cho tháng {selectedMonth}/{selectedYear}
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-start justify-between mb-6 flex-wrap gap-2">
+            <div>
+              <p className="text-sm font-bold text-gray-700 m-0">Doanh thu theo tuần</p>
+              <p className="text-xs text-gray-400 mt-1">Tháng {selectedMonth} · {selectedYear}</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <span className="w-2.5 h-2.5 rounded-sm bg-indigo-600 inline-block" />
+              Doanh thu (VNĐ)
+            </div>
+          </div>
+
+          {/* Canvas */}
+          <div className="relative w-full h-[260px]">
+            <canvas ref={canvasRef} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Error ── */}
+      {error && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2">
+          <i className="fa-solid fa-circle-exclamation text-lg"></i>
+          {error}
+        </div>
+      )}
+    </div>
   );
 };
 

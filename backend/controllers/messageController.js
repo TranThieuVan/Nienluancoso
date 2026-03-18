@@ -2,20 +2,25 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const Book = require('../models/Book');
+const Promotion = require('../models/Promotion');
+const Voucher = require('../models/Voucher'); // ✅ THÊM MODEL VOUCHER CHO AI ĐỌC
 const OpenAI = require('openai');
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: 'https://openrouter.ai/api/v1',
-});
+// ✅ KHỞI TẠO ĐỘNG ĐỂ CHẮC CHẮN LUÔN ĐỌC ĐƯỢC API KEY TỪ .ENV
+const getOpenAI = () => {
+    return new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: 'https://openrouter.ai/api/v1',
+    });
+};
 
 /* ─────────────────────────────────────────────────────────────────
    CONSTANTS
 ───────────────────────────────────────────────────────────────── */
 const AI_MODEL = 'openai/gpt-4o-mini';
-const AI_TIMEOUT_MS = 15_000;   // 15 giây timeout cho mỗi lần gọi AI
-const HISTORY_LIMIT = 6;       // Số tin nhắn lịch sử gửi vào context
-const SEARCH_LIMIT = 5;        // Số sách tối đa trả về mỗi lần tìm
+const AI_TIMEOUT_MS = 15_000;
+const HISTORY_LIMIT = 6;
+const SEARCH_LIMIT = 5;
 const FALLBACK_MSG = 'Xin lỗi bạn, mình đang gặp sự cố nhỏ. Bạn vui lòng thử lại nhé! 😊';
 
 /* ─────────────────────────────────────────────────────────────────
@@ -27,18 +32,64 @@ const tools = [
         function: {
             name: 'search_books',
             description:
-                'Tìm kiếm sách trong cơ sở dữ liệu. Trả về tên, tác giả, thể loại, giá gốc, giá khuyến mãi và tồn kho. ' +
-                '🔴 QUAN TRỌNG: Nếu khách hỏi "có sách nào đang giảm giá/sale/khuyến mãi không?", BẮT BUỘC phải truyền chữ "sale" vào biến query.',
+                'Tìm kiếm sách theo tên, tác giả, thể loại. ' +
+                'Nếu khách hỏi sách đang giảm giá/sale/khuyến mãi → truyền "sale" vào query.',
             parameters: {
                 type: 'object',
                 properties: {
                     query: {
                         type: 'string',
-                        description:
-                            'Từ khóa tìm kiếm (tên sách, tác giả). Hoặc truyền đúng chữ "sale" nếu muốn lấy danh sách sách đang giảm giá.',
+                        description: 'Từ khóa tìm kiếm (tên sách, tác giả, thể loại). Hoặc "sale" để lọc sách đang giảm giá.',
                     },
                 },
                 required: ['query'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_books_by_price',
+            description:
+                'Lấy sách rẻ nhất HOẶC đắt nhất. ' +
+                'DÙNG KHI khách hỏi "sách rẻ nhất", "sách đắt nhất", "giá cao nhất", "giá thấp nhất". ' +
+                '⚠️ PHÂN BIỆT sort: "asc" = rẻ nhất, "desc" = đắt nhất. ' +
+                '⚠️ PHÂN BIỆT price_type: "original" = theo giá gốc, "discounted" = theo giá KM (chỉ sách đang giảm giá).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    price_type: {
+                        type: 'string',
+                        enum: ['original', 'discounted'],
+                        description:
+                            '"original": theo giá bán gốc. ' +
+                            '"discounted": theo giá sau khi đã giảm (chỉ sách đang có KM).',
+                    },
+                    sort: {
+                        type: 'string',
+                        enum: ['asc', 'desc'],
+                        description: '"asc" = rẻ nhất (giá thấp nhất). "desc" = đắt nhất (giá cao nhất).',
+                    },
+                    limit: {
+                        type: 'number',
+                        description: 'Số sách trả về. Mặc định 1 — chỉ trả 1 cuốn trừ khi khách yêu cầu nhiều hơn.',
+                    },
+                },
+                required: ['price_type', 'sort'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_promotions',
+            description:
+                'Lấy danh sách chương trình khuyến mãi VÀ MÃ VOUCHER đang hoạt động (isActive=true). ' +
+                'DÙNG KHI khách hỏi về chương trình KM, mã giảm giá, voucher, ưu đãi, sự kiện.',
+            parameters: {
+                type: 'object',
+                properties: {},
+                required: [],
             },
         },
     },
@@ -56,18 +107,15 @@ const executeSearchBooks = async (query) => {
         const original = query.trim();
         const noAccents = removeAccents(original);
 
-        // ✨ LOGIC MỚI: Bắt từ khóa sale để lọc riêng sách giảm giá
-        const isSaleQuery = ['sale', 'giam gia', 'khuyen mai', 'uu dai'].some(kw => noAccents.toLowerCase().includes(kw));
+        const isSaleQuery = ['sale', 'giam gia', 'khuyen mai', 'uu dai'].some(kw =>
+            noAccents.toLowerCase().includes(kw)
+        );
 
         let filter = {};
 
         if (isSaleQuery) {
-            // Lọc ra những cuốn sách đang có giá khuyến mãi
-            filter = {
-                discountedPrice: { $ne: null, $gt: 0 }
-            };
+            filter = { discountedPrice: { $ne: null, $gt: 0 } };
         } else {
-            // Tìm kiếm bình thường theo tên/tác giả/thể loại
             filter = {
                 $or: [
                     { title: { $regex: original, $options: 'i' } },
@@ -80,15 +128,13 @@ const executeSearchBooks = async (query) => {
             };
         }
 
-        const books = await Book.find(filter)
-            .limit(SEARCH_LIMIT)
-            .lean();
+        const books = await Book.find(filter).limit(SEARCH_LIMIT).lean();
 
         if (books.length === 0) {
             return JSON.stringify({
                 message: isSaleQuery
-                    ? `Hiện tại cửa hàng đang không có chương trình giảm giá nào.`
-                    : `Không tìm thấy cuốn sách nào khớp với từ khóa "${query}".`,
+                    ? 'Hiện tại cửa hàng không có chương trình giảm giá nào.'
+                    : `Không tìm thấy sách nào khớp với từ khóa "${query}".`,
             });
         }
 
@@ -104,18 +150,99 @@ const executeSearchBooks = async (query) => {
             }))
         );
     } catch (error) {
-        console.error('Lỗi khi tìm sách trong DB:', error);
+        console.error('Lỗi search_books:', error);
         return JSON.stringify({ message: 'Lỗi hệ thống khi tìm sách.' });
     }
 };
+
+/* ─────────────────────────────────────────────────────────────────
+   TOOL EXECUTOR: get_books_by_price 
+───────────────────────────────────────────────────────────────── */
+const executeGetBooksByPrice = async (price_type, sort = 'asc', limit = 1) => {
+    try {
+        const sortOrder = sort === 'desc' ? -1 : 1;
+        let books;
+
+        if (price_type === 'discounted') {
+            books = await Book.find({ discountedPrice: { $ne: null, $gt: 0 } })
+                .sort({ discountedPrice: sortOrder })
+                .limit(limit)
+                .lean();
+
+            if (books.length === 0) {
+                return JSON.stringify({ message: 'Hiện không có sách nào đang được khuyến mãi.' });
+            }
+        } else {
+            books = await Book.find({ stock: { $gt: 0 } })
+                .sort({ price: sortOrder })
+                .limit(limit)
+                .lean();
+
+            if (books.length === 0) {
+                return JSON.stringify({ message: 'Không tìm thấy sách nào.' });
+            }
+        }
+
+        return JSON.stringify(
+            books.map((b) => ({
+                title: b.title,
+                author: b.author,
+                genre: b.genre,
+                price: b.price,
+                discountedPrice: b.discountedPrice ?? null,
+                stock: b.stock,
+            }))
+        );
+    } catch (error) {
+        console.error('Lỗi get_books_by_price:', error);
+        return JSON.stringify({ message: 'Lỗi hệ thống.' });
+    }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   TOOL EXECUTOR: get_promotions ✅ CẬP NHẬT ĐỌC CẢ VOUCHER
+───────────────────────────────────────────────────────────────── */
+const executeGetPromotions = async () => {
+    try {
+        const now = new Date();
+        const promotions = await Promotion.find({
+            isActive: true,
+            startDate: { $lte: now },
+            endDate: { $gte: now },
+        }).lean();
+
+        const vouchers = await Voucher.find({ isActive: true }).lean();
+
+        if (promotions.length === 0 && vouchers.length === 0) {
+            return JSON.stringify({ message: 'Hiện không có chương trình khuyến mãi hay voucher nào đang hoạt động.' });
+        }
+
+        return JSON.stringify({
+            message: "Danh sách khuyến mãi và Voucher hiện tại",
+            promotions: promotions.map((p) => ({
+                name: p.name,
+                description: p.description,
+                discountType: p.discountType,
+                discountValue: p.discountValue,
+                targetType: p.targetType,
+                endDate: p.endDate,
+            })),
+            vouchers: vouchers.map((v) => ({
+                code: v.code, // ĐÂY LÀ MÃ VOUCHER KHÁCH CẦN NHẬP
+                discountType: v.discountType,
+                discountValue: v.discountValue,
+                remaining_usage: v.usageLimit - (v.usedCount || 0)
+            }))
+        });
+    } catch (error) {
+        console.error('Lỗi get_promotions:', error);
+        return JSON.stringify({ message: 'Lỗi hệ thống khi lấy khuyến mãi.' });
+    }
+};
+
 /* ─────────────────────────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────────────────────────── */
-
-/**
- * Bỏ dấu tiếng Việt để tạo chuỗi tìm kiếm không dấu.
- * Chỉ dùng để tạo pattern phụ — KHÔNG thay thế bản gốc có dấu.
- */
 const removeAccents = (str) =>
     str
         .normalize('NFD')
@@ -123,45 +250,43 @@ const removeAccents = (str) =>
         .replace(/[^a-zA-Z0-9\s]/g, '')
         .trim();
 
-/**
- * Gọi AI với timeout — tránh treo request vô thời hạn.
- */
 const callAI = (payload) =>
     Promise.race([
-        openai.chat.completions.create(payload),
+        getOpenAI().chat.completions.create(payload), // ✅ Dùng hàm khởi tạo động
         new Promise((_, reject) =>
             setTimeout(() => reject(new Error('AI request timed out')), AI_TIMEOUT_MS)
         ),
     ]);
 
-
-
 /* ─────────────────────────────────────────────────────────────────
    SYSTEM PROMPT
 ───────────────────────────────────────────────────────────────── */
-const SYSTEM_PROMPT = `Bạn là trợ lý AI bán hàng nhiệt tình, am hiểu sách của nhà sách online.
+const SYSTEM_PROMPT = `Bạn là trợ lý AI bán hàng của nhà sách online BookNest.
 
 QUY TẮC GIAO TIẾP:
-- Luôn xưng "mình", gọi khách là "bạn". Trả lời ngắn gọn, thân thiện, có cảm xúc.
-- Khi liệt kê sách: XUỐNG DÒNG và dùng gạch đầu dòng (-) hoặc đánh số (1., 2.).
-- Dùng **tên sách in đậm** để khách dễ nhìn.
+- Xưng "mình", gọi khách là "bạn". Thân thiện, tự nhiên.
+- Trả lời NGẮN GỌN — tối đa 3-5 dòng. Không giải thích lan man, không thêm lời dẫn thừa.
+- Liệt kê sách hoặc voucher: mỗi cuốn/mã 1 dòng, dùng (-). Tên sách in **đậm**.
+- KHÔNG bịa tên sách, giá, tác giả, MÃ VOUCHER nếu không có trong kết quả tool.
 
-TÌM KIẾM & TƯ VẤN SẢN PHẨM:
-- Nếu khách hỏi về sách, giá, tác giả, thể loại → BẮT BUỘC dùng tool search_books để tra kho.
-- Sau khi có kết quả tool, phân tích và trả lời tự nhiên — đừng dump thô JSON ra.
-- TUYỆT ĐỐI KHÔNG bịa tên sách, giá tiền, tác giả nếu không có trong kết quả tool.
+PHÂN BIỆT GIÁ — RẤT QUAN TRỌNG:
+- "sách rẻ nhất" / "giá thấp nhất" → get_books_by_price(price_type="original", sort="asc", limit=1)
+- "sách đắt nhất" / "giá cao nhất" → get_books_by_price(price_type="original", sort="desc", limit=1)
+- "sách KM rẻ nhất" / "sale rẻ nhất" → get_books_by_price(price_type="discounted", sort="asc", limit=1)
+- Mặc định chỉ trả về 1 cuốn duy nhất, trừ khi khách yêu cầu "top 3", "vài cuốn"...
+- Khi hiển thị sách có KM: ghi rõ "Giá gốc: X₫ → Giá KM: Y₫".
 
-XỬ LÝ GIÁ:
-- Nếu sách có discountedPrice (khác null): đó là GIÁ SAU GIẢM — hãy thông báo đang có khuyến mãi và ưu tiên hiển thị giá này, kèm giá gốc bị gạch chân nếu muốn.
-- Nếu discountedPrice = null: dùng price bình thường.
+TÌM KIẾM SẢN PHẨM & ƯU ĐÃI:
+- Khách hỏi về sách, giá, tác giả, thể loại → BẮT BUỘC dùng search_books.
+- Khách hỏi chương trình khuyến mãi, VOUCHER, MÃ GIẢM GIÁ → dùng get_promotions.
+- Nếu có mã voucher, hãy cung cấp mã Code và nhắc khách nhập ở trang Thanh Toán.
 
 XỬ LÝ TỒN KHO:
-- stock = 0: báo hết hàng, xin lỗi khéo léo và đề xuất tìm sách tương tự.
-- stock > 0: có thể xác nhận còn hàng.
+- stock = 0 → báo hết hàng, gợi ý sách tương tự.
+- stock > 0 → xác nhận còn hàng.
 
 THÔNG TIN CỬA HÀNG:
-- Phí ship: 40.000₫ toàn quốc.
-- Thanh toán: COD hoặc VietQR/chuyển khoản.
+- Phí ship: 40.000₫ toàn quốc. Thanh toán: COD hoặc VietQR.
 - Cam kết: sách thật 100%, đóng gói cẩn thận.`;
 
 /* ─────────────────────────────────────────────────────────────────
@@ -194,6 +319,7 @@ exports.sendMessage = async (req, res) => {
     try {
         const sender = req.user.id;
         const { conversationId, text } = req.body;
+        const io = req.app.get('io'); // Lấy IO để phát sự kiện Socket
 
         const admin = await User.findOne({ role: 'admin' });
         if (!admin) return res.status(404).json({ message: 'Không có admin' });
@@ -201,18 +327,36 @@ exports.sendMessage = async (req, res) => {
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ message: 'Hội thoại không tồn tại' });
 
-        // Lưu tin nhắn của user
-        const userMessage = await Message.create({ conversationId, sender, text });
+        // ✅ LOGIC XỬ LÝ NÚT GỌI NHÂN VIÊN
+        const isRequestingHuman = text === '[REQUEST_HUMAN]';
+        const actualText = isRequestingHuman ? 'Mình muốn được nhân viên tư vấn trực tiếp.' : text;
+
+        const userMessage = await Message.create({ conversationId, sender, text: actualText });
         await Conversation.findByIdAndUpdate(conversationId, {
-            lastMessage: text,
+            lastMessage: actualText,
             updatedAt: Date.now(),
         });
 
+        // ✅ NẾU GỌI NHÂN VIÊN -> TẮT BOT & TRẢ LỜI TỰ ĐỘNG
+        if (isRequestingHuman) {
+            await Conversation.findByIdAndUpdate(conversationId, { isBotActive: false });
+            if (io) io.emit('bot_status_changed', { conversationId, isBotActive: false });
+
+            const sysMsg = await Message.create({
+                conversationId,
+                sender: admin._id,
+                text: 'Hệ thống đã ghi nhận yêu cầu. Bạn vui lòng chờ một lát, nhân viên hỗ trợ sẽ phản hồi bạn ngay nhé! 👨‍💻'
+            });
+
+            if (io) io.emit('new_message_user', sysMsg); // Trả lại cho khách hiển thị UI
+            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' }); // Báo chuông cho Admin
+
+            return res.status(201).json({ userMessage, aiMessage: sysMsg });
+        }
+
         let aiMessage = null;
 
-        // Chỉ gọi AI khi: người gửi là user (không phải admin) VÀ bot đang bật
         if (sender !== admin._id.toString() && conversation.isBotActive) {
-            // FIX: tăng lên 20 tin để AI giữ được ngữ cảnh dài hơn
             const history = await Message.find({ conversationId })
                 .sort({ createdAt: -1 })
                 .limit(HISTORY_LIMIT)
@@ -229,64 +373,64 @@ exports.sendMessage = async (req, res) => {
             ];
 
             try {
-                // --- Lần gọi AI thứ nhất ---
                 const firstResponse = await callAI({
                     model: AI_MODEL,
                     messages,
                     tools,
                     tool_choice: 'auto',
-                    temperature: 0.6,
+                    temperature: 0.5,
                 });
 
                 let aiResponseMsg = firstResponse.choices[0].message;
 
-                // Nếu AI muốn gọi tool → thực thi rồi gọi AI lần 2
                 if (aiResponseMsg.tool_calls?.length > 0) {
                     messages.push(aiResponseMsg);
 
                     for (const toolCall of aiResponseMsg.tool_calls) {
+                        let dbResult;
+
                         if (toolCall.function.name === 'search_books') {
                             const args = JSON.parse(toolCall.function.arguments);
-                            const dbResult = await executeSearchBooks(args.query);
-                            messages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                name: 'search_books',
-                                content: dbResult,
-                            });
+                            dbResult = await executeSearchBooks(args.query);
+                        } else if (toolCall.function.name === 'get_books_by_price') {
+                            const args = JSON.parse(toolCall.function.arguments);
+                            dbResult = await executeGetBooksByPrice(args.price_type, args.sort, args.limit);
+                        } else if (toolCall.function.name === 'get_promotions') {
+                            dbResult = await executeGetPromotions();
                         }
+
+                        messages.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            name: toolCall.function.name,
+                            content: dbResult,
+                        });
                     }
 
-                    // --- Lần gọi AI thứ hai (Sau khi có kết quả từ DB) ---
-                    const stream = await openai.chat.completions.create({
+                    const stream = await getOpenAI().chat.completions.create({ // ✅ Dùng hàm khởi tạo động
                         model: AI_MODEL,
                         messages,
-                        temperature: 0.6,
-                        stream: true, // ✨ BẬT STREAMING
+                        temperature: 0.5,
+                        stream: true,
                     });
 
-                    const io = req.app.get('io');
-                    let aiText = "";
+                    let aiText = '';
 
-                    // Báo cho Frontend biết AI bắt đầu trả lời
                     if (io) io.emit('ai_start_typing', { conversationId });
 
-                    // Hứng từng chữ một và bắn xuống Frontend
                     for await (const chunk of stream) {
-                        const content = chunk.choices[0]?.delta?.content || "";
+                        const content = chunk.choices[0]?.delta?.content || '';
                         if (content) {
                             aiText += content;
                             if (io) io.emit('ai_typing_chunk', { conversationId, content });
                         }
                     }
 
-                    // Kết thúc gõ
                     if (io) io.emit('ai_finish_typing', { conversationId });
 
-                    aiResponseMsg = { content: aiText }; // Gắn lại để code phía sau lưu vào DB
+                    aiResponseMsg = { content: aiText };
                 }
 
-                // FIX: fallback message thay vì im lặng khi content rỗng
                 const aiText = aiResponseMsg.content?.trim() || FALLBACK_MSG;
 
                 aiMessage = await Message.create({
@@ -300,8 +444,9 @@ exports.sendMessage = async (req, res) => {
                     updatedAt: Date.now(),
                 });
 
+                if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' });
+
             } catch (aiError) {
-                // FIX: ghi log chi tiết + vẫn gửi fallback về client thay vì im lặng
                 console.error('Lỗi khi xử lý AI:', aiError.message);
 
                 aiMessage = await Message.create({
@@ -315,6 +460,12 @@ exports.sendMessage = async (req, res) => {
                     updatedAt: Date.now(),
                 });
             }
+        } else if (sender !== admin._id.toString() && !conversation.isBotActive) {
+            // ✅ Khách nhắn nhưng AI tắt -> báo cho admin
+            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' });
+        } else if (sender === admin._id.toString()) {
+            // ✅ Admin nhắn -> báo cho khách
+            if (io) io.emit('new_message_user', { conversationId, sender: admin._id, text: text, senderRole: 'admin' });
         }
 
         res.status(201).json({ userMessage, aiMessage });
@@ -335,6 +486,10 @@ exports.toggleBot = async (req, res) => {
             { isBotActive },
             { new: true }
         );
+
+        // ✅ Phát Socket để khách hàng đổi giao diện nút [REQUEST_HUMAN]
+        const io = req.app.get('io');
+        if (io) io.emit('bot_status_changed', { conversationId, isBotActive });
 
         res.status(200).json(conversation);
     } catch (err) {

@@ -44,7 +44,7 @@ const Login = () => {
         localStorage.setItem('adminToken', token);
         navigate('/admin');
       } else {
-        loginAction(user, token); // Gọi hàm của Zustand
+        loginAction(user, token);
         navigate('/');
       }
     } catch (err) {

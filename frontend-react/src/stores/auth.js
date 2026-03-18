@@ -16,6 +16,8 @@ export const useAuthStore = create((set, get) => ({
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('token', token);
         set({ user: userData, token });
+        window.dispatchEvent(new Event('storage')); // ✅ Thêm dòng này
+
     },
 
     logout: () => {
@@ -25,6 +27,8 @@ export const useAuthStore = create((set, get) => ({
         localStorage.removeItem('adminToken');
 
         set({ user: null, token: null });
+        window.dispatchEvent(new Event('storage')); // ✅ Thêm dòng này
+
     },
 
     loadFromLocalStorage: () => {

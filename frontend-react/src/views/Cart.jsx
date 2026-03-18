@@ -123,7 +123,7 @@ const Cart = () => {
             ) : (
               <>
                 {/* Select All Row */}
-                <div className="bg-white border border-gray-100 px-5 py-3.5 flex items-center gap-3">
+                <div className="bg-white border border-gray-100 px-5 py-3.5 flex items-center gap-3 select-none">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -143,7 +143,7 @@ const Cart = () => {
                   return (
                     <div
                       key={item.book._id}
-                      className={`bg-white border border-gray-100 px-5 py-4 flex items-center gap-4 transition-opacity duration-200 ${outOfStock ? 'opacity-60' : ''}`}
+                      className={`bg-white border border-gray-100 px-5 py-4 flex items-center select-none gap-4 transition-opacity duration-200 ${outOfStock ? 'opacity-60' : ''}`}
                     >
                       {/* Checkbox */}
                       <div className="flex-shrink-0">
