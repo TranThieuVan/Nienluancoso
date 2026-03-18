@@ -152,7 +152,7 @@ const Home = () => {
       </section>
 
       {/* ── FLASH SALE ── */}
-      {flashSaleBooks.length > 0 && (
+      {/* {flashSaleBooks.length > 0 && (
         <section className="max-w-7xl mx-auto px-6 py-12">
           <ElectricBorder
             color="#000"
@@ -163,7 +163,6 @@ const Home = () => {
           >
             <div className="bg-black rounded-[20px] px-6 py-8 md:py-10 md:px-10 overflow-hidden">
 
-              {/* Header row */}
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
                 <div>
                   <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-3">Ưu đãi giới hạn</p>
@@ -175,7 +174,6 @@ const Home = () => {
                   <p className="text-stone-400 text-sm mt-2">Số lượng có hạn. Chốt đơn ngay!</p>
                 </div>
 
-                {/* Countdown */}
                 <div className="flex items-center gap-4 border border-stone-700 px-5 py-3">
                   <span className="text-stone-500 text-xs font-medium tracking-widest uppercase hidden md:block">Kết thúc trong</span>
                   <div className="flex items-center gap-2">
@@ -188,12 +186,10 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* Slider */}
               <div className="-mx-2">
                 <FlashSaleSlider books={flashSaleBooks} />
               </div>
 
-              {/* CTA */}
               <div className="mt-8 flex justify-center">
                 <button
                   onClick={() => goToFilteredBooks('sale')}
@@ -205,7 +201,7 @@ const Home = () => {
             </div>
           </ElectricBorder>
         </section>
-      )}
+      )} */}
 
       {/* ── TOP SELLING ── */}
       <section className="max-w-7xl mx-auto px-6 py-16">

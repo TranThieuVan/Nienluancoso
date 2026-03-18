@@ -10,7 +10,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import {
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft,
-    faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash,
+    faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis,
     faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket,
     faPhone // ✅ THÊM DÒNG NÀY (Icon định vị)
@@ -26,7 +26,7 @@ library.add(
     faHeart, faBagShopping, faHouse, faArrowRight, faBars,
     faMagnifyingGlass, faXmark, faHeartRegular, faUserRegular,
     fasStar, farStar, faPaperPlane, faEnvelope, faLock, faBook,
-    faBoxOpen, faUser, faRightFromBracket, faEdit, faTrash, faRotateLeft,
+    faBoxOpen, faUser, faRightFromBracket, faEdit, faTrash, faRotateLeft, faEllipsis,
     faAngleLeft, faAngleRight, faChartLine, faComments, faEllipsisV, faPen,
     faMapMarkerAlt, faPhoneAlt, faMoneyBillWave, faQrcode, faTicketAlt, faBullhorn, faPlus, faCheck, faFacebookF, faInstagram, faXTwitter,
     faChevronDown, faBox, faArrowRightFromBracket,

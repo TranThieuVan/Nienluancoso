@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
-
+const compression = require('compression');
 // 1. Import thêm http và socket.io
 const http = require('http');
 const { Server } = require('socket.io');
@@ -36,6 +36,7 @@ io.on('connection', (socket) => {
 });
 
 app.use(cors());
+app.use(compression());
 app.use(express.json());
 
 // Serve ảnh

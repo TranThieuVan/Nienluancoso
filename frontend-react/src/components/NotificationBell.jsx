@@ -1,24 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { useNavigate } from 'react-router-dom'; // ✅ 1. Import useNavigate
+import { useNavigate } from 'react-router-dom';
+
 const NotificationBell = () => {
     const [notifications, setNotifications] = useState([]);
-    const navigate = useNavigate(); // ✅ 2. Khởi tạo navigate
+    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [toastNoti, setToastNoti] = useState(null);
     const [readIds, setReadIds] = useState([]);
-    const [deletedIds, setDeletedIds] = useState([]); // ✅ Thêm State quản lý thông báo đã xóa
+    const [deletedIds, setDeletedIds] = useState([]);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-        // 1. Lấy danh sách ID đã đọc & đã xóa từ localStorage
         const localReadIds = JSON.parse(localStorage.getItem('readNotifications')) || [];
         const localDeletedIds = JSON.parse(localStorage.getItem('deletedNotifications')) || [];
         setReadIds(localReadIds);
         setDeletedIds(localDeletedIds);
 
-        // 2. Fetch danh sách
         const fetchNotifications = async () => {
             try {
                 const res = await axios.get('http://localhost:5000/api/notifications');
@@ -29,8 +28,11 @@ const NotificationBell = () => {
         };
         fetchNotifications();
 
-        // 3. Socket.io
-        const socket = io('http://localhost:5000');
+        // ✨ FIX 1: Ép dùng WebSocket để dập tắt việc gọi API chạy ngầm liên tục
+        const socket = io('http://localhost:5000', {
+            transports: ['websocket']
+        });
+
         socket.on('new_notification', (newNoti) => {
             setNotifications(prev => [newNoti, ...prev]);
             setToastNoti(newNoti);
@@ -56,17 +58,21 @@ const NotificationBell = () => {
         }
     };
 
-    // ✅ Hàm xử lý xóa thông báo
     const handleDelete = (e, id) => {
-        e.stopPropagation(); // Ngăn sự kiện click lan ra thẻ <li> (gây đánh dấu đã đọc)
+        e.stopPropagation();
         const newDeletedIds = [...deletedIds, id];
         setDeletedIds(newDeletedIds);
         localStorage.setItem('deletedNotifications', JSON.stringify(newDeletedIds));
     };
 
-    // ✅ Lọc ra các thông báo chưa bị xóa
-    const visibleNotifications = notifications.filter(n => !deletedIds.includes(n._id));
-    const unreadCount = visibleNotifications.filter(n => !readIds.includes(n._id)).length;
+    // ✨ FIX 2: Tối ưu hiệu suất INP bằng useMemo và giới hạn số lượng render
+    const { visibleNotifications, unreadCount } = useMemo(() => {
+        const visible = notifications.filter(n => !deletedIds.includes(n._id));
+        const unread = visible.filter(n => !readIds.includes(n._id)).length;
+        return { visibleNotifications: visible, unreadCount: unread };
+    }, [notifications, deletedIds, readIds]);
+
+    const displayNotifications = visibleNotifications.slice(0, 5);
 
     return (
         <>
@@ -103,8 +109,9 @@ const NotificationBell = () => {
                         </div>
 
                         <ul className="max-h-80 overflow-y-auto">
-                            {visibleNotifications.length > 0 ? (
-                                visibleNotifications.map(noti => {
+                            {/* ✨ Áp dụng danh sách đã cắt ngắn */}
+                            {displayNotifications.length > 0 ? (
+                                displayNotifications.map(noti => {
                                     const isRead = readIds.includes(noti._id);
                                     return (
                                         <li
@@ -113,14 +120,13 @@ const NotificationBell = () => {
                                                 handleMarkAsRead(noti._id);
                                                 if (noti.type === 'voucher') {
                                                     setIsOpen(false);
-                                                    navigate('/profile', { state: { tab: 'vouchers' } }); // 👈 truyền tab qua state
+                                                    navigate('/profile', { state: { tab: 'vouchers' } });
                                                 }
                                             }}
                                             className={`relative px-4 py-3 border-b border-gray-50 cursor-pointer transition group
                         ${!isRead ? 'bg-blue-50/30 hover:bg-blue-50' : 'bg-white hover:bg-gray-50'}
                       `}
                                         >
-                                            {/* ✅ Nút Xóa ở góc trên bên phải (chỉ hiện khi hover) */}
                                             <button
                                                 onClick={(e) => handleDelete(e, noti._id)}
                                                 className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
@@ -129,7 +135,7 @@ const NotificationBell = () => {
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
 
-                                            <div className="flex items-start space-x-3 pr-4"> {/* Thêm pr-4 để chữ không đè lên nút xóa */}
+                                            <div className="flex items-start space-x-3 pr-4">
                                                 <span className="text-lg mt-0.5">{noti.type === 'voucher' ? '🎟️' : '🔥'}</span>
                                                 <div className="flex flex-col flex-1">
                                                     <span className={`text-sm ${!isRead ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
