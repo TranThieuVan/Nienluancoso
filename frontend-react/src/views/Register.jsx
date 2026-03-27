@@ -52,14 +52,14 @@ const Register = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen w-full">
+    <div className="flex flex-col md:flex-row min-h-screen w-full select-none">
       {/* Slider background */}
       <div className="hidden md:block md:w-3/5 xl:w-4/5 overflow-hidden relative">
         <img src={ironImg} className="h-screen w-screen object-cover" alt="Background" />
       </div>
 
       {/* Register form */}
-      <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white">
+      <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white select-none">
         <div className="max-w-lg w-full p-6 sm:p-8 rounded">
           <img src={logoImg} alt="Logo" className="mx-auto mb-10 w-48 sm:w-60" />
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 text-gray-800">Đăng Ký</h2>
@@ -69,7 +69,7 @@ const Register = () => {
           )}
 
           <form onSubmit={handleRegister}>
-            <div className="mb-4">
+            <div className="mb-2">
               <label className="block font-medium text-base sm:text-lg">Tên người dùng</label>
               <input
                 name="name"
@@ -81,7 +81,7 @@ const Register = () => {
               />
             </div>
 
-            <div className="mb-4">
+            <div className="mb-2">
               <label className="block font-medium text-base sm:text-lg">Email</label>
               <input
                 name="email"
@@ -93,7 +93,7 @@ const Register = () => {
               />
             </div>
 
-            <div className="mb-4">
+            <div className="mb-2">
               <label className="block font-medium text-base sm:text-lg">Mật khẩu</label>
               <input
                 name="password"
@@ -132,9 +132,9 @@ const Register = () => {
             </button>
           </form>
 
-          <p className="text-center mt-5 text-base sm:text-lg">
+          <p className="ext-center mt-6 text-base text-gray-600">
             Đã có tài khoản?{' '}
-            <Link to="/login" className="text-blue-600 font-semibold hover:underline">
+            <Link to="/login" className="text-blue-600 font-bold hover:underline transition-all">
               Đăng nhập
             </Link>
           </p>

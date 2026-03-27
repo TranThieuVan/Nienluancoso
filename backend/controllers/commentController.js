@@ -1,18 +1,31 @@
 const Comment = require('../models/Comment');
 
 // GET all comments for a specific book
+// GET all comments for a specific book (Có phân trang)
 exports.getCommentsByBook = async (req, res) => {
     try {
         const { bookId } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 5; // Giới hạn 5 bình luận/trang
+        const skip = (page - 1) * limit;
+
         const comments = await Comment.find({ bookId })
             .populate('userId', 'name avatar _id') // lấy tên + avatar user
-            .sort({ createdAt: -1 }); // mới nhất trước
-        res.json(comments);
+            .sort({ createdAt: -1 }) // mới nhất trước
+            .skip(skip)
+            .limit(limit);
+
+        const total = await Comment.countDocuments({ bookId });
+
+        res.json({
+            comments,
+            hasMore: total > skip + comments.length,
+            total
+        });
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi lấy bình luận' });
     }
 };
-
 // POST a new comment
 exports.createComment = async (req, res) => {
     try {
@@ -23,6 +36,20 @@ exports.createComment = async (req, res) => {
             return res.status(400).json({ message: 'Nội dung không được để trống' });
         }
 
+        // --- BẮT ĐẦU CHECK CHỐNG SPAM (5 PHÚT) ---
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const recentComment = await Comment.findOne({
+            userId,
+            createdAt: { $gte: fiveMinutesAgo }
+        });
+
+        if (recentComment) {
+            return res.status(429).json({
+                message: 'Bạn thao tác quá nhanh. Vui lòng đợi 5 phút để bình luận tiếp.'
+            });
+        }
+        // --- KẾT THÚC CHECK ---
+
         const newComment = new Comment({ bookId, userId, content });
         await newComment.save();
 
@@ -31,7 +58,6 @@ exports.createComment = async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi tạo bình luận' });
     }
 };
-
 // DELETE a comment
 exports.deleteComment = async (req, res) => {
     try {

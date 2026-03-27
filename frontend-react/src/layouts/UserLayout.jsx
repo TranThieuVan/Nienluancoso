@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ChatIcon from '../components/ChatIcon';
-import ClickSpark from '../components/ClickSpark';
 import { useAuthStore } from '../stores/auth'; // ✅ Import Zustand store
 
 const ChatBox = lazy(() => import('../components/ChatBox'));

@@ -23,7 +23,8 @@ const BookCard = ({ book }) => {
 
     return (
         <div
-            className="group bg-white flex flex-col w-full transition-all duration-300"
+            // Đổi thành group/card để không bị xung đột với group của Slider
+            className="group/card bg-white flex flex-col w-full transition-all duration-300"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onClick={() => goToDetail(book._id)}
@@ -33,7 +34,8 @@ const BookCard = ({ book }) => {
                 <img
                     src={imgSrc}
                     alt={book.title || 'Book Cover'}
-                    className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
+                    // Sử dụng group-hover/card để chỉ nhận diện hover từ div cha gần nhất này
+                    className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover/card:scale-105"
                     onClick={() => goToDetail(book._id)}
                 />
 

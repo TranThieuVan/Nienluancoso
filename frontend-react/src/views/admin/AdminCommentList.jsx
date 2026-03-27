@@ -165,7 +165,6 @@ const AdminCommentList = () => {
 
       {/* ── Header ── */}
       <div className="mb-6">
-        <p className="text-xs font-semibold tracking-widest uppercase text-indigo-600 mb-1">Admin · Bookstore</p>
         <h1 className="text-3xl font-bold text-gray-900">Quản lý Bình luận</h1>
         <p className="text-sm text-gray-400 mt-1">Xem và kiểm duyệt bình luận của người dùng.</p>
       </div>

@@ -11,7 +11,7 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-// Khoá / mở khoá user
+// VỪA SỬA: Khoá / mở khoá user có thêm thời hạn
 exports.toggleUserLock = async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
@@ -19,10 +19,34 @@ exports.toggleUserLock = async (req, res) => {
             return res.status(404).json({ message: 'Người dùng không tồn tại hoặc không hợp lệ' });
         }
 
-        user.isLocked = !user.isLocked;
+        const { action, duration } = req.body;
+
+        if (action === 'unlock') {
+            user.isLocked = false;
+            user.lockedUntil = null; // Xóa hạn khóa nếu mở
+        } else if (action === 'lock') {
+            user.isLocked = true;
+
+            // Tính toán thời gian khóa
+            if (duration === 'permanent') {
+                user.lockedUntil = null; // null ở đây có nghĩa là vĩnh viễn (hoặc bạn có thể set 1 date rất xa)
+            } else {
+                const days = parseInt(duration, 10);
+                if (!isNaN(days)) {
+                    const unlockDate = new Date();
+                    unlockDate.setDate(unlockDate.getDate() + days);
+                    user.lockedUntil = unlockDate;
+                }
+            }
+        } else {
+            // Fallback (dự phòng) nếu không truyền action
+            user.isLocked = !user.isLocked;
+            if (!user.isLocked) user.lockedUntil = null;
+        }
+
         await user.save();
 
-        res.json({ message: `Đã ${user.isLocked ? 'khóa' : 'mở khóa'} người dùng thành công` });
+        res.json({ message: `Đã ${user.isLocked ? 'khóa' : 'mở khóa'} người dùng thành công`, isLocked: user.isLocked });
     } catch (err) {
         console.error('Lỗi khóa/mở user:', err);
         res.status(500).json({ message: 'Không thể thay đổi trạng thái người dùng' });

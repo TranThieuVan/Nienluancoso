@@ -81,7 +81,8 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '', isFl
     if (books.length === 0) return null;
 
     return (
-        <div className="relative group">
+        // Đổi thành group/slider để không bị ảnh hưởng tới group/card ở bên trong
+        <div className="relative group/slider">
             {/* ── Header ── */}
             {/* Ẩn header mặc định nếu là Flash Sale (vì Flash Sale đã có header xịn ở Home.jsx rồi) */}
             {!isFlashSale && (title || shouldShowControls) && (
@@ -111,7 +112,7 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '', isFl
                                 </button>
                                 <button
                                     onClick={goToViewAll}
-                                    className="ml-1 text-xs tracking-widest uppercase text-stone-400 hover:text-black transition-colors border-b border-transparent hover:border-stone-400 pb-0.5"
+                                    className="ml-1 text-xs tracking-widest uppercase text-stone-400 hover:text-black select-none transition-colors border-b border-transparent hover:border-stone-400 pb-0.5"
                                 >
                                     Xem tất cả
                                 </button>
@@ -126,13 +127,15 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '', isFl
                 <>
                     <button
                         onClick={scrollLeft}
-                        className={`absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-rose-500 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${!canScrollLeft && 'hidden'}`}
+                        // Dùng group-hover/slider
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-rose-500 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover/slider:opacity-100 ${!canScrollLeft && 'hidden'}`}
                     >
                         <FontAwesomeIcon icon={['fas', 'angle-left']} />
                     </button>
                     <button
                         onClick={scrollRight}
-                        className={`absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-rose-500 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 ${!canScrollRight && 'hidden'}`}
+                        // Dùng group-hover/slider
+                        className={`absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-rose-500 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover/slider:opacity-100 ${!canScrollRight && 'hidden'}`}
                     >
                         <FontAwesomeIcon icon={['fas', 'angle-right']} />
                     </button>

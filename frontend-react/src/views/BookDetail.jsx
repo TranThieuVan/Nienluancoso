@@ -26,6 +26,9 @@ const BookDetail = () => {
   const [averageRating, setAverageRating] = useState(0);
   const [totalRatings, setTotalRatings] = useState(0);
   const [comments, setComments] = useState([]);
+  const [commentPage, setCommentPage] = useState(1);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [msg, setMsg] = useState('');
   const [editId, setEditId] = useState(null);
   const [editContent, setEditContent] = useState('');
@@ -47,13 +50,32 @@ const BookDetail = () => {
     return currentUserId && commentUserId && currentUserId === commentUserId;
   };
 
-  const fetchComments = async () => {
+  const fetchComments = async (pageNum = 1, isAppend = false) => {
     try {
-      const res = await axios.get(`/api/comments/${id}/comments`);
-      setComments(res.data);
-    } catch (err) { console.error('Lỗi khi tải bình luận', err); }
+      setIsLoadingComments(true);
+      const res = await axios.get(`/api/comments/${id}/comments?page=${pageNum}&limit=5`);
+
+      if (isAppend) {
+        setComments(prev => [...prev, ...res.data.comments]);
+      } else {
+        setComments(res.data.comments);
+      }
+
+      setHasMoreComments(res.data.hasMore);
+      setCommentPage(pageNum);
+    } catch (err) {
+      console.error('Lỗi khi tải bình luận', err);
+    } finally {
+      setIsLoadingComments(false);
+    }
   };
 
+  const handleCollapseComments = () => {
+    // Chỉ giữ lại 5 bình luận đầu tiên
+    setComments(prev => prev.slice(0, 5));
+    setCommentPage(1);
+    setHasMoreComments(true); // Chắc chắn còn bình luận để xem thêm
+  };
   useEffect(() => {
     const loadData = async () => {
       await fetchFavorites();
@@ -148,11 +170,24 @@ const BookDetail = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMsg('');
-      await fetchComments();
-      if (taRef.current) autosize.update(taRef.current);
-    } catch { alert('Lỗi khi gửi bình luận'); }
-  };
 
+      // Load lại từ trang 1 khi có bình luận mới
+      await fetchComments(1, false);
+      if (taRef.current) autosize.update(taRef.current);
+    } catch (err) {
+      // Bắt lỗi 429 hoặc các lỗi khác từ Backend
+      Swal.fire('Lỗi', err.response?.data?.message || 'Lỗi khi gửi bình luận', 'error');
+    }
+  };
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
   const startEdit = (comment) => {
     setEditId(comment._id);
     setEditContent(comment.content);
@@ -351,12 +386,16 @@ const BookDetail = () => {
                     <div key={cmt._id} className="flex gap-3 pb-5 border-b border-gray-100 last:border-0">
                       <img
                         src={getAvatarUrl(cmt.userId.avatar)}
-                        className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
+                        className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100 select-none"
                         onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }}
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-black">{cmt.userId.name}</p>
+                          {/* --- Phần hiển thị Tên và Ngày tháng --- */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-semibold text-black">{cmt.userId.name}</p>
+                            <span className="text-xs font-medium text-stone-500">• {formatDate(cmt.createdAt)}</span>
+                          </div>
                           {isLoggedIn && isCommentOwner(cmt.userId) && (
                             <div className="relative">
                               <button
@@ -408,6 +447,33 @@ const BookDetail = () => {
                       </div>
                     </div>
                   ))}
+                  {/* --- Cụm nút Xem thêm / Ẩn bớt --- */}
+                  {(hasMoreComments || commentPage > 1) && (
+                    <div className="flex justify-center items-center gap-6 mt-6 pt-2">
+
+                      {/* Nút Ẩn bớt (chỉ hiện khi đang ở trang 2 trở đi) */}
+                      {commentPage > 1 && (
+                        <button
+                          onClick={handleCollapseComments}
+                          className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors"
+                        >
+                          Ẩn bớt
+                        </button>
+                      )}
+
+                      {/* Nút Xem thêm (chỉ hiện khi backend báo còn dữ liệu) */}
+                      {hasMoreComments && (
+                        <button
+                          onClick={() => fetchComments(commentPage + 1, true)}
+                          disabled={isLoadingComments}
+                          className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors disabled:opacity-50"
+                        >
+                          {isLoadingComments ? 'Đang tải...' : 'Xem thêm bình luận'}
+                        </button>
+                      )}
+
+                    </div>
+                  )}
                 </div>
               )}
             </div>

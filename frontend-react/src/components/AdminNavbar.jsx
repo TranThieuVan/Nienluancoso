@@ -60,13 +60,9 @@ const AdminNavbar = () => {
             fetchNotificationCounts();
         });
 
-        // Chỉ báo tin nhắn nếu người gửi không phải admin hay bot
+        // ✅ Chỉ báo tin nhắn nếu người gửi THẬC SỰ là user
         socket.on('new_message_admin', (data) => {
-            // Tùy theo cấu trúc data backend trả về, kiểm tra role người gửi
-            if (data && data.senderRole !== 'admin' && data.senderRole !== 'bot') {
-                fetchNotificationCounts();
-            } else if (!data) {
-                // Đề phòng backend chỉ gửi tín hiệu rỗng
+            if (data && data.senderRole === 'user') {
                 fetchNotificationCounts();
             }
         });
@@ -76,7 +72,7 @@ const AdminNavbar = () => {
 
     return (
         <aside className="fixed top-0 left-0 w-64 h-screen bg-white text-black flex flex-col justify-between shadow-md transition duration-200 z-50">
-            <div>
+            <div className='select-none'>
                 <div className="text-xl font-bold px-6 py-4 border-b border-gray-300">
                     <Link to="/admin" className="flex items-center gap-2">
                         <FontAwesomeIcon icon={['fas', 'book']} />

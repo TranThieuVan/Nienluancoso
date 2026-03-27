@@ -95,9 +95,7 @@ const AdminOrders = () => {
       {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
         <div>
-          <p className="text-[10px] tracking-widest uppercase text-indigo-600 font-semibold mb-0.5">
-            Admin · Bookstore
-          </p>
+
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Đơn hàng</h1>
         </div>
         <button

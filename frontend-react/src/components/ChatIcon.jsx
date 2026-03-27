@@ -58,7 +58,7 @@ const ChatIcon = ({ onToggle, isOpen }) => {
     <div className="fixed bottom-5 right-5 z-50">
       <button
         onClick={handleClick}
-        className={`relative w-12 h-12 bg-black text-white flex items-center justify-center shadow-lg hover:bg-stone-800 transition-all duration-300 ${isOpen ? 'rotate-90' : 'rotate-0'}`}
+        className={`relative w-12 h-12 bg-black text-white flex rounded-full items-center justify-center shadow-lg hover:-translate-y-2 hover:bg-stone-800 transition-all duration-300 ${isOpen ? 'rotate-90' : 'rotate-0'}`}
         title="Chat với AI"
       >
         <FontAwesomeIcon

@@ -172,7 +172,7 @@ const Navbar = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
 
                     {/* Logo */}
-                    <Link to="/" className="flex items-center flex-shrink-0 group">
+                    <Link to="/" className="flex items-center flex-shrink-0 group select-none">
                         <img
                             src={logo}
                             alt="BookNest"
@@ -181,7 +181,7 @@ const Navbar = () => {
                     </Link>
 
                     {/* Center Links (desktop) */}
-                    <div className="hidden md:flex items-center gap-8 text-sm font-medium text-stone-700">
+                    <div className="hidden md:flex items-center gap-8 text-sm font-medium text-stone-700 select-none">
                         <Link
                             to="/"
                             className="relative pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full hover:text-black transition-colors duration-200"
@@ -195,7 +195,7 @@ const Navbar = () => {
                             onMouseEnter={() => setShowGenres(true)}
                             onMouseLeave={() => setShowGenres(false)}
                         >
-                            <span className="relative cursor-pointer pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full hover:text-black transition-colors duration-200 flex items-center gap-1.5">
+                            <span className="relative cursor-pointer select-none pb-0.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full hover:text-black transition-colors duration-200 flex items-center gap-1.5">
                                 Thể loại
                                 <FontAwesomeIcon
                                     icon={['fas', 'chevron-down']}
@@ -227,7 +227,7 @@ const Navbar = () => {
                     </div>
 
                     {/* Right Icons (desktop) */}
-                    <div className="hidden md:flex items-center gap-5">
+                    <div className="hidden md:flex items-center gap-5 select-none">
                         <InputSearch />
 
                         <NotificationBell />
@@ -242,7 +242,7 @@ const Navbar = () => {
 
                         <Link
                             to="/cart"
-                            className="relative text-stone-500 hover:text-black transition-colors duration-200"
+                            className="relative text-stone-500 hover:text-black transition-colors duration-200 select-none"
                             title="Giỏ hàng"
                         >
                             <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-xl" />
@@ -286,13 +286,13 @@ const Navbar = () => {
 
                     {/* Mobile Nav Links */}
                     <div className="overflow-y-auto h-full pb-20">
-                        <nav className="flex flex-col px-6 py-6 gap-1">
+                        <nav className="flex flex-col px-6 py-6 gap-1 select-none">
                             {[{ to: '/', label: 'Trang chủ' }, { to: '/books', label: 'Sách' }].map(link => (
                                 <Link
                                     key={link.to}
                                     to={link.to}
                                     onClick={toggleMenu}
-                                    className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 transition-colors"
+                                    className="py-3 text-base font-medium text-stone-700 hover:text-black border-b border-gray-50 transition-colors select-none"
                                 >
                                     {link.label}
                                 </Link>

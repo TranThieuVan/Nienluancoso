@@ -15,7 +15,8 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null // Ghi nhận thời gian mua đơn hàng gần nhất
     },
-    isLocked: { type: Boolean, default: false }
+    isLocked: { type: Boolean, default: false },
+    lockedUntil: { type: Date, default: null }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

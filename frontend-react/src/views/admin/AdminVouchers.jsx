@@ -31,12 +31,21 @@ const AdminVouchers = () => {
 
     const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
 
+    const now = new Date();
+
     const stats = [
         { label: 'Tổng voucher', dot: 'bg-indigo-500', value: vouchers.length },
-        { label: 'Đang hoạt động', dot: 'bg-green-500', value: vouchers.filter(v => v.isActive).length },
-        { label: 'Đã khóa', dot: 'bg-red-500', value: vouchers.filter(v => !v.isActive).length },
+        {
+            label: 'Đang hoạt động',
+            dot: 'bg-green-500',
+            value: vouchers.filter(v => v.isActive && new Date(v.expirationDate) >= now && v.usedCount < v.usageLimit).length
+        },
+        {
+            label: 'Đã khóa / Hết hạn',
+            dot: 'bg-red-500',
+            value: vouchers.filter(v => !v.isActive || new Date(v.expirationDate) < now || v.usedCount >= v.usageLimit).length
+        },
     ];
-
     const fetchVouchers = async () => {
         try {
             const res = await axios.get('/api/admin/vouchers', { headers: { Authorization: `Bearer ${token}` } });
@@ -126,7 +135,6 @@ const AdminVouchers = () => {
             {/* ── Header ── */}
             <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
                 <div>
-                    <p className="text-[10px] tracking-[.18em] uppercase text-indigo-600 font-semibold mb-1">Admin · Bookstore</p>
                     <h1 className="text-3xl font-bold text-gray-900">Quản lý Voucher</h1>
                 </div>
                 <button onClick={handleOpenAdd}
@@ -189,14 +197,38 @@ const AdminVouchers = () => {
                                         }
                                     </td>
                                     <td className="px-4 py-3 text-center">
-                                        {v.isActive
-                                            ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 border border-green-200 rounded-full text-[10px] font-bold">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Hoạt động
-                                            </span>
-                                            : <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-700 border border-red-200 rounded-full text-[10px] font-bold">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Đã khóa
-                                            </span>
-                                        }
+                                        {(() => {
+                                            const isExpired = new Date(v.expirationDate) < new Date();
+                                            const isOut = v.usageLimit < 999999 && v.usedCount >= v.usageLimit;
+
+                                            if (!v.isActive) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-700 border border-red-200 rounded-full text-[10px] font-bold">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Đã khóa
+                                                    </span>
+                                                );
+                                            }
+                                            if (isExpired) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-[10px] font-bold">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />Hết hạn
+                                                    </span>
+                                                );
+                                            }
+                                            if (isOut) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-100 text-orange-700 border border-orange-200 rounded-full text-[10px] font-bold">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Hết lượt
+                                                    </span>
+                                                );
+                                            }
+
+                                            return (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 border border-green-200 rounded-full text-[10px] font-bold">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Hoạt động
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-2">

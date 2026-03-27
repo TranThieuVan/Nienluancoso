@@ -116,7 +116,7 @@ const AdminMessages = () => {
           <div
             key={conv._id}
             onClick={() => selectConversation(conv)}
-            className={`p-3 rounded cursor-pointer hover:bg-gray-100 flex items-center justify-between ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''
+            className={`p-3 rounded cursor-pointer hover:bg-gray-100 flex select-none items-center justify-between ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''
               }`}
           >
             <div className="flex items-center gap-3">
@@ -145,7 +145,7 @@ const AdminMessages = () => {
           {selectedConversation && (
             <button
               onClick={toggleBot}
-              className={`text-sm px-4 py-1.5 rounded font-medium transition-colors ${selectedConversation.isBotActive
+              className={`text-sm px-4 py-1.5 select-none rounded font-medium transition-colors ${selectedConversation.isBotActive
                 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                 : 'bg-red-500 text-white hover:bg-red-600 shadow-sm animate-pulse'
                 }`}

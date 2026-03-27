@@ -321,13 +321,18 @@ exports.sendMessage = async (req, res) => {
         const { conversationId, text } = req.body;
         const io = req.app.get('io'); // Lấy IO để phát sự kiện Socket
 
+        // ✅ Lấy thông tin người gửi để biết là User hay Admin
+        const currentUser = await User.findById(sender);
+        if (!currentUser) return res.status(404).json({ message: 'Người dùng không tồn tại' });
+        const isSenderAdmin = currentUser.role === 'admin';
+
         const admin = await User.findOne({ role: 'admin' });
         if (!admin) return res.status(404).json({ message: 'Không có admin' });
 
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ message: 'Hội thoại không tồn tại' });
 
-        // ✅ LOGIC XỬ LÝ NÚT GỌI NHÂN VIÊN
+        // ✅ LOGIC XỬ LÝ NÚT GỌI NHÂN VIÊN (Dành riêng cho user)
         const isRequestingHuman = text === '[REQUEST_HUMAN]';
         const actualText = isRequestingHuman ? 'Mình muốn được nhân viên tư vấn trực tiếp.' : text;
 
@@ -337,8 +342,17 @@ exports.sendMessage = async (req, res) => {
             updatedAt: Date.now(),
         });
 
-        // ✅ NẾU GỌI NHÂN VIÊN -> TẮT BOT & TRẢ LỜI TỰ ĐỘNG
-        if (isRequestingHuman) {
+        // ✅ PHÂN LOẠI EMIT THEO ROLE ĐỂ NAVBAR ADMIN KHÔNG BỊ BÁO SAI
+        if (isSenderAdmin) {
+            // Admin nhắn -> Gửi cho User
+            if (io) io.emit('new_message_user', { conversationId, sender, text: actualText, senderRole: 'admin' });
+        } else {
+            // User nhắn -> Báo cho Admin (ĐỂ TĂNG SỐ THÔNG BÁO)
+            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' });
+        }
+
+        // ✅ NẾU USER GỌI NHÂN VIÊN -> TẮT BOT & TRẢ LỜI TỰ ĐỘNG
+        if (isRequestingHuman && !isSenderAdmin) {
             await Conversation.findByIdAndUpdate(conversationId, { isBotActive: false });
             if (io) io.emit('bot_status_changed', { conversationId, isBotActive: false });
 
@@ -348,15 +362,16 @@ exports.sendMessage = async (req, res) => {
                 text: 'Hệ thống đã ghi nhận yêu cầu. Bạn vui lòng chờ một lát, nhân viên hỗ trợ sẽ phản hồi bạn ngay nhé! 👨‍💻'
             });
 
-            if (io) io.emit('new_message_user', sysMsg); // Trả lại cho khách hiển thị UI
-            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' }); // Báo chuông cho Admin
+            if (io) io.emit('new_message_user', sysMsg);
+            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' }); // Báo rõ là bot để Navbar bỏ qua
 
             return res.status(201).json({ userMessage, aiMessage: sysMsg });
         }
 
         let aiMessage = null;
 
-        if (sender !== admin._id.toString() && conversation.isBotActive) {
+        // ✅ QUAN TRỌNG: CHỈ CHO PHÉP AI TRẢ LỜI NẾU NGƯỜI GỬI KHÔNG PHẢI ADMIN & BOT ĐANG BẬT
+        if (!isSenderAdmin && conversation.isBotActive) {
             const history = await Message.find({ conversationId })
                 .sort({ createdAt: -1 })
                 .limit(HISTORY_LIMIT)
@@ -407,7 +422,7 @@ exports.sendMessage = async (req, res) => {
                         });
                     }
 
-                    const stream = await getOpenAI().chat.completions.create({ // ✅ Dùng hàm khởi tạo động
+                    const stream = await getOpenAI().chat.completions.create({
                         model: AI_MODEL,
                         messages,
                         temperature: 0.5,
@@ -444,7 +459,9 @@ exports.sendMessage = async (req, res) => {
                     updatedAt: Date.now(),
                 });
 
+                // Socket gửi tới User và Admin (phân role bot để Navbar Admin lờ đi)
                 if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' });
+                if (io) io.emit('new_message_user', aiMessage);
 
             } catch (aiError) {
                 console.error('Lỗi khi xử lý AI:', aiError.message);
@@ -459,13 +476,10 @@ exports.sendMessage = async (req, res) => {
                     lastMessage: FALLBACK_MSG,
                     updatedAt: Date.now(),
                 });
+
+                if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' });
+                if (io) io.emit('new_message_user', aiMessage);
             }
-        } else if (sender !== admin._id.toString() && !conversation.isBotActive) {
-            // ✅ Khách nhắn nhưng AI tắt -> báo cho admin
-            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' });
-        } else if (sender === admin._id.toString()) {
-            // ✅ Admin nhắn -> báo cho khách
-            if (io) io.emit('new_message_user', { conversationId, sender: admin._id, text: text, senderRole: 'admin' });
         }
 
         res.status(201).json({ userMessage, aiMessage });

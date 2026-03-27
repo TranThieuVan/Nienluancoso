@@ -53,7 +53,7 @@ const ChatBox = ({ userId, onClose }) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const aiResponseReceivedRef = useRef(false);
   const messageContainerRef = useRef(null);
-
+  const inputRef = useRef(null);
   const isBusy = isThinking || isStreaming;
 
   const currentUserId = useMemo(() => {
@@ -252,12 +252,18 @@ const ChatBox = ({ userId, onClose }) => {
     }
   }, [messages, isThinking, isStreaming, isBotActive]);
 
+  useEffect(() => {
+    if (inputRef.current && !isBusy) {
+      inputRef.current.focus();
+    }
+  }, [isBusy]);
+
   /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <div className="fixed bottom-20 right-5 z-50 w-[340px] md:w-[380px] h-[520px] bg-white border border-gray-200 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 fade-in duration-300 origin-bottom-right">
 
       {/* Header */}
-      <div className={`px-5 py-4 flex items-center justify-between flex-shrink-0 transition-colors ${isBotActive ? 'bg-black text-white' : 'bg-black text-white'}`}>
+      <div className={`px-5 py-4 flex items-center justify-between flex-shrink-0 select-none transition-colors ${isBotActive ? 'bg-black text-white' : 'bg-black text-white'}`}>
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
           <div>
@@ -330,6 +336,7 @@ const ChatBox = ({ userId, onClose }) => {
       {/* Input */}
       <div className="flex items-center gap-2 px-4 py-3 bg-white border-t border-gray-100 flex-shrink-0">
         <input
+          ref={inputRef}
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}

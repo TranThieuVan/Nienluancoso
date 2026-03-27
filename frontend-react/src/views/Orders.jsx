@@ -399,11 +399,11 @@ const Orders = () => {
                 <label
                   key={reason}
                   className={`flex items-center gap-3 px-4 py-3 border cursor-pointer transition-all duration-150 ${selectedReason === reason
-                    ? 'border-black bg-stone-800'
-                    : 'border-gray-900 hover:border-stone-800'
+                    ? 'border-stone-800 bg-stone-200 select-none'
+                    : 'border-gray-200 hover:border-stone-800'
                     }`}
                 >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selectedReason === reason ? 'border-black' : 'border-stone-300'
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center select-none justify-center flex-shrink-0 transition-colors ${selectedReason === reason ? 'border-black' : 'border-stone-300'
                     }`}>
                     {selectedReason === reason && (
                       <div className="w-2 h-2 rounded-full bg-black" />

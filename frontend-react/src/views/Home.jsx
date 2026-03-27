@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import bannerImg from '../assets/image/banner.png';
-
+// import FlashSaleSlider from '../components/FlashSaleSlider';
 // Lazy load component nặng
 const BookSlider = lazy(() => import('../components/BookSlider'));
 const TopSellingBooks = lazy(() => import('../components/TopSellingBooks'));
@@ -110,6 +110,8 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* <FlashSaleSlider></FlashSaleSlider> */}
 
       {/* ── TOP SELLING ── */}
       <section className="max-w-7xl mx-auto px-6 py-16">

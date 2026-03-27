@@ -12,6 +12,7 @@ const AdminBookList = () => {
   const [genres, setGenres] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
+  const [sortOption, setSortOption] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const booksPerPage = 20;
@@ -30,13 +31,42 @@ const AdminBookList = () => {
   };
 
   useEffect(() => { fetchBooks(); }, []);
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedGenre]);
 
-  const filteredBooks = useMemo(() =>
-    books.filter(b =>
+  // Reset về trang 1 khi thay đổi bất kỳ bộ lọc nào
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedGenre, sortOption]);
+
+  const filteredBooks = useMemo(() => {
+    // Bước 1: Lọc theo tìm kiếm và thể loại
+    let result = books.filter(b =>
       b.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
       (selectedGenre === '' || b.genre === selectedGenre)
-    ), [books, searchQuery, selectedGenre]);
+    );
+
+    // Bước 2: Lọc riêng cho mục "Sách gần hết hàng" (stock <= 5)
+    if (sortOption === 'low_stock') {
+      result = result.filter(b => b.stock <= 5);
+    }
+
+    // Bước 3: Sắp xếp dựa trên tuỳ chọn
+    result.sort((a, b) => {
+      if (sortOption === 'price_desc') {
+        const priceA = a.discountedPrice ?? a.price;
+        const priceB = b.discountedPrice ?? b.price;
+        return priceB - priceA; // Cao đến thấp
+      }
+      if (sortOption === 'price_asc') {
+        const priceA = a.discountedPrice ?? a.price;
+        const priceB = b.discountedPrice ?? b.price;
+        return priceA - priceB; // Thấp đến cao
+      }
+      if (sortOption === 'low_stock') {
+        return a.stock - b.stock; // Tồn kho nhỏ nhất đứng đầu
+      }
+      return 0; // Trả về thứ tự mặc định
+    });
+
+    return result;
+  }, [books, searchQuery, selectedGenre, sortOption]);
 
   const paginatedBooks = useMemo(() => {
     const start = (currentPage - 1) * booksPerPage;
@@ -79,7 +109,6 @@ const AdminBookList = () => {
       {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
         <div>
-          <p className="text-[10px] tracking-[.18em] uppercase text-indigo-600 font-semibold mb-1">Admin · Bookstore</p>
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Sách</h1>
         </div>
         <div className="flex items-center gap-3">
@@ -128,10 +157,23 @@ const AdminBookList = () => {
             Hiển thị <strong className="text-gray-700">{filteredBooks.length}</strong> / {books.length} đầu sách
           </span>
           <div className="flex items-center gap-2">
+
+            {/* Bộ lọc sắp xếp */}
+            <select
+              value={sortOption}
+              onChange={e => setSortOption(e.target.value)}
+              className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 cursor-pointer font-medium"
+            >
+              <option value="">Sắp xếp mặc định</option>
+              <option value="price_desc">Giá từ cao đến thấp</option>
+              <option value="price_asc">Giá từ thấp đến cao</option>
+              <option value="low_stock">Sách gần hết hàng</option>
+            </select>
+
             <select
               value={selectedGenre}
               onChange={e => setSelectedGenre(e.target.value)}
-              className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 cursor-pointer"
+              className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none select-none focus:border-indigo-400 cursor-pointer"
             >
               <option value="">Tất cả thể loại</option>
               {genres.map(g => <option key={g} value={g}>{g}</option>)}
@@ -152,12 +194,17 @@ const AdminBookList = () => {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* Thêm class table-fixed để cố định cấu trúc bảng */}
+          <table className="w-full text-sm table-fixed">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['No.', 'Sách', 'Thể loại', 'Giá', 'Tồn kho', 'Hành động'].map((h, i) => (
-                  <th key={h} className={`px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold ${i >= 4 ? 'text-center' : 'text-left'}`}>{h}</th>
-                ))}
+                {/* Chia % cho từng cột để bảng không bị giật ngang */}
+                <th className="w-[5%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-left">No.</th>
+                <th className="w-[35%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-left">Sách</th>
+                <th className="w-[15%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-left">Thể loại</th>
+                <th className="w-[15%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-left">Giá</th>
+                <th className="w-[10%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-center">Tồn kho</th>
+                <th className="w-[20%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-center">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -176,14 +223,15 @@ const AdminBookList = () => {
                           alt={book.title}
                           className="w-9 h-12 object-cover border border-gray-100 flex-shrink-0"
                         />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 leading-tight">{book.title}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{book.author}</p>
+                        {/* Thêm min-w-0 và flex-1 để cắt chữ (truncate) hoạt động tốt trong flexbox */}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 leading-tight truncate" title={book.title}>{book.title}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate" title={book.author}>{book.author}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-block px-2.5 py-0.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">
+                      <span className="inline-block px-2.5 py-0.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full truncate max-w-full" title={book.genre}>
                         {book.genre}
                       </span>
                     </td>
@@ -200,7 +248,7 @@ const AdminBookList = () => {
                     <td className="px-4 py-3 text-center">
                       {book.stock === 0
                         ? <span className="text-xs font-bold text-red-500 font-mono">Hết hàng</span>
-                        : <span className="text-sm font-semibold text-gray-700 font-mono">{book.stock}</span>
+                        : <span className={`text-sm font-semibold font-mono ${book.stock <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>{book.stock}</span>
                       }
                     </td>
                     <td className="px-4 py-3 text-center">

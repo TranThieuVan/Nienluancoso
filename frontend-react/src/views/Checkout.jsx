@@ -196,14 +196,14 @@ const Checkout = () => {
   };
 
   const inputClass = "w-full border border-gray-200 focus:border-black outline-none px-4 py-3 text-sm transition-colors bg-white";
-  const selectClass = "w-full border border-gray-200 focus:border-black outline-none px-4 py-3 text-sm bg-white transition-colors disabled:bg-stone-50 disabled:text-stone-400";
+  const selectClass = "w-full border border-gray-200 focus:border-black outline-none px-4 py-3 text-sm bg-white transition-colors disabled:bg-stone-50 disabled:text-stone-600";
 
   return (
     <div className="min-h-screen bg-stone-50">
       {/* ── HEADER ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Mua hàng</p>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-600 mb-1">Mua hàng</p>
           <h1 className="text-3xl font-bold text-black">Thanh Toán</h1>
         </div>
       </div>
@@ -215,12 +215,12 @@ const Checkout = () => {
           <div className="w-full md:w-[40%] flex flex-col gap-4">
             {/* Products */}
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-5 pb-4 border-b border-gray-100">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">
                 Sản phẩm đã chọn ({cart.length})
               </h2>
 
               {cart.length === 0 ? (
-                <p className="text-stone-400 text-sm italic">Không có sản phẩm nào.</p>
+                <p className="text-stone-600 text-sm italic">Không có sản phẩm nào.</p>
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => {
@@ -230,7 +230,7 @@ const Checkout = () => {
                         <img src={imgSrc} className="w-12 h-16 object-cover flex-shrink-0" alt={item.book.title} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-black line-clamp-2 leading-snug">{item.book.title}</p>
-                          <p className="text-xs text-stone-400 mt-0.5">x{item.quantity}</p>
+                          <p className="text-xs text-stone-600 mt-0.5">x{item.quantity}</p>
                         </div>
                         <p className="text-sm font-bold text-black flex-shrink-0 ml-2">
                           {formatPrice(item.book.price * item.quantity)}
@@ -244,19 +244,19 @@ const Checkout = () => {
 
             {/* Voucher */}
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">
                 Mã khuyến mãi
               </h2>
               <button
                 onClick={() => setShowVoucherModal(true)}
                 className={`w-full flex items-center justify-between p-3.5 border transition-colors duration-200 ${appliedVoucher ? 'border-black bg-black/5' : 'border-gray-200 hover:border-stone-400'}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 select-none">
                   <FontAwesomeIcon
                     icon={['fas', 'ticket-alt']}
                     className={appliedVoucher ? 'text-black' : 'text-stone-300'}
                   />
-                  <span className={`text-sm font-medium ${appliedVoucher ? 'text-black' : 'text-stone-400'}`}>
+                  <span className={`text-sm font-medium ${appliedVoucher ? 'text-black' : 'text-stone-600'}`}>
                     {appliedVoucher ? `Mã: ${appliedVoucher}` : 'Chọn mã khuyến mãi'}
                   </span>
                 </div>
@@ -264,7 +264,7 @@ const Checkout = () => {
                   {appliedVoucher && (
                     <span
                       onClick={handleRemoveVoucher}
-                      className="text-xs text-red-400 hover:text-red-600 font-medium"
+                      className="text-s text-red-800 hover:text-red-500 font-bold"
                     >
                       Bỏ
                     </span>
@@ -276,7 +276,7 @@ const Checkout = () => {
 
             {/* Price Summary */}
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-3 border-b border-gray-100">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4 pb-3 border-b border-gray-100">
                 Tổng cộng
               </h2>
               <div className="space-y-3">
@@ -306,7 +306,7 @@ const Checkout = () => {
           <div className="w-full md:w-[60%] flex flex-col gap-4">
             {/* Shipping Address */}
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-5 pb-4 border-b border-gray-100">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">
                 Địa chỉ giao hàng
               </h2>
 
@@ -322,14 +322,14 @@ const Checkout = () => {
                   </div>
                   <button
                     onClick={() => setShowAddressModal(true)}
-                    className="flex-shrink-0 text-xs border border-gray-200 px-4 py-2 hover:border-black transition-colors text-stone-600 hover:text-black"
+                    className="flex-shrink-0 text-xs px-4 py-2 hover-flip-btn select-none"
                   >
                     Thay đổi
                   </button>
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <p className="text-stone-400 text-sm mb-4">Bạn chưa có địa chỉ giao hàng</p>
+                  <p className="text-stone-600 text-sm mb-4">Bạn chưa có địa chỉ giao hàng</p>
                   <button
                     onClick={() => { setShowAddressModal(true); setShowNewAddressForm(true); }}
                     className="px-8 py-2.5 hover-flip-btn"
@@ -342,11 +342,11 @@ const Checkout = () => {
 
             {/* Payment Method */}
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-5 pb-4 border-b border-gray-100">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">
                 Phương thức thanh toán
               </h2>
 
-              <div className="space-y-3">
+              <div className="space-y-3 select-none ">
                 {[
                   {
                     value: 'vnpay',
@@ -382,7 +382,7 @@ const Checkout = () => {
                     />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-black">{method.label}</p>
-                      <p className="text-xs text-stone-400 mt-0.5">{method.sub}</p>
+                      <p className="text-xs text-stone-600 mt-0.5">{method.sub}</p>
                     </div>
                     {method.imgSrc && (
                       <img src={method.imgSrc} alt="VNPAY" className="h-5 object-contain" />
@@ -398,7 +398,7 @@ const Checkout = () => {
             {/* Submit */}
             <button
               onClick={submitOrder}
-              className="w-full py-4 hover-flip-btn uppercase tracking-widest font-bold text-sm"
+              className="w-full py-4 hover-flip-btn uppercase tracking-widest font-bold text-sm select-none"
             >
               {paymentMethod === 'cod' ? 'Xác nhận đặt hàng' : `Thanh toán · ${formatPrice(totalAmount)}`}
             </button>
@@ -413,19 +413,19 @@ const Checkout = () => {
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-widest text-black">Mã khuyến mãi</h3>
-                <p className="text-xs text-stone-400 mt-0.5">{vouchers.length} mã khả dụng</p>
+                <p className="text-xs text-stone-600 mt-0.5">{vouchers.length} mã khả dụng</p>
               </div>
               <button
                 onClick={() => setShowVoucherModal(false)}
-                className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-black transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-stone-600 hover:text-black transition-colors"
               >
                 <FontAwesomeIcon icon={['fas', 'xmark']} />
               </button>
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-3">
+            <div className="p-4 overflow-y-auto space-y-3 select-none">
               {vouchers.length === 0 ? (
-                <div className="text-center py-12 text-stone-400">
+                <div className="text-center py-12 text-stone-600">
                   <FontAwesomeIcon icon={['fas', 'ticket-alt']} className="text-3xl text-stone-200 mb-3" />
                   <p className="text-sm">Hiện không có mã giảm giá nào.</p>
                 </div>
@@ -439,7 +439,7 @@ const Checkout = () => {
                       className={`border p-4 flex items-center gap-4 transition-all duration-200 relative ${isEligible ? 'cursor-pointer hover:border-black border-gray-200' : 'opacity-50 cursor-not-allowed border-gray-100 bg-stone-50'}`}
                     >
                       {/* Voucher Icon */}
-                      <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 ${isEligible ? 'bg-black text-white' : 'bg-stone-200 text-stone-400'}`}>
+                      <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 ${isEligible ? 'bg-black text-white' : 'bg-stone-200 text-stone-600'}`}>
                         <FontAwesomeIcon icon={['fas', 'ticket-alt']} />
                       </div>
 
@@ -447,8 +447,10 @@ const Checkout = () => {
                         <p className="font-bold text-sm text-black tracking-wide">{v.code}</p>
                         <p className="text-sm font-semibold text-stone-600 mt-0.5">
                           Giảm {v.discountType === 'fixed' ? formatPrice(v.discountValue) : `${v.discountValue}%`}
+                          {/* Thêm phần hiển thị giảm tối đa ở đây */}
+                          {v.discountType === 'percent' && v.maxDiscountAmount ? ` (Tối đa ${formatPrice(v.maxDiscountAmount)})` : ''}
                         </p>
-                        <p className="text-xs text-stone-400 mt-1">
+                        <p className="text-xs text-stone-600 mt-1">
                           Đơn tối thiểu {formatPrice(v.minOrderValue)}
                         </p>
                       </div>
@@ -481,13 +483,13 @@ const Checkout = () => {
           <div className="bg-white w-full max-w-sm shadow-2xl relative">
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-sm font-bold uppercase tracking-widest text-black">Quét mã VietQR</h3>
-              <button onClick={() => setShowQRModal(false)} className="text-stone-400 hover:text-black transition-colors">
+              <button onClick={() => setShowQRModal(false)} className="text-stone-600 hover:text-black transition-colors">
                 <FontAwesomeIcon icon={['fas', 'xmark']} />
               </button>
             </div>
 
             <div className="p-6 space-y-4 text-center">
-              <p className="text-xs text-stone-400">Dùng App ngân hàng để quét mã và thanh toán tự động</p>
+              <p className="text-xs text-stone-600">Dùng App ngân hàng để quét mã và thanh toán tự động</p>
 
               <div className="bg-stone-50 p-3 border border-gray-100">
                 <img src={qrUrl} alt="VietQR" className="w-full h-auto mx-auto" />
@@ -495,10 +497,10 @@ const Checkout = () => {
 
               <div className="bg-stone-50 p-4 text-left space-y-2 text-sm border border-gray-100">
                 <div className="flex justify-between">
-                  <span className="text-stone-400">Số tiền</span>
+                  <span className="text-stone-600">Số tiền</span>
                   <span className="font-bold text-black">{formatPrice(totalAmount)}</span>
                 </div>
-                <p className="text-xs text-stone-400">Nội dung chuyển khoản đã tích hợp trong mã QR.</p>
+                <p className="text-xs text-stone-600">Nội dung chuyển khoản đã tích hợp trong mã QR.</p>
               </div>
 
               {/* ✅ FIX BUG 2: Gọi API cập nhật paymentStatus = 'Đã thanh toán' trước khi navigate */}
@@ -534,7 +536,7 @@ const Checkout = () => {
               <h3 className="text-sm font-bold uppercase tracking-widest text-black">Địa chỉ giao hàng</h3>
               <button
                 onClick={() => { setShowAddressModal(false); setShowNewAddressForm(false); }}
-                className="text-stone-400 hover:text-black transition-colors"
+                className="text-stone-600 hover:text-black transition-colors"
               >
                 <FontAwesomeIcon icon={['fas', 'xmark']} />
               </button>
@@ -543,7 +545,7 @@ const Checkout = () => {
             <div className="p-5 space-y-4">
               {/* Existing Addresses */}
               {addresses.length > 0 && (
-                <div className="space-y-2 max-h-[220px] overflow-y-auto">
+                <div className="space-y-2 max-h-[220px] overflow-y-auto select-none">
                   {addresses.map(addr => (
                     <div
                       key={addr._id}
@@ -570,7 +572,7 @@ const Checkout = () => {
               {!showNewAddressForm && (
                 <button
                   onClick={() => setShowNewAddressForm(true)}
-                  className="text-sm text-black font-semibold hover:underline flex items-center gap-2"
+                  className="text-sm text-black font-semibold hover:underline flex items-center gap-2 select-none"
                 >
                   <FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" />
                   Thêm địa chỉ mới
@@ -579,12 +581,12 @@ const Checkout = () => {
 
               {/* New Address Form */}
               {showNewAddressForm && (
-                <div className="border border-gray-100 p-4 bg-stone-50 space-y-3 relative">
+                <div className="border border-gray-100 p-4 bg-stone-50 space-y-3 relative select-none">
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400">Địa chỉ mới</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-stone-600">Địa chỉ mới</h4>
                     <button
                       onClick={() => setShowNewAddressForm(false)}
-                      className="text-stone-400 hover:text-black transition-colors"
+                      className="text-stone-600 hover:text-black transition-colors"
                     >
                       <FontAwesomeIcon icon={['fas', 'xmark']} />
                     </button>
@@ -640,7 +642,7 @@ const Checkout = () => {
               )}
 
               {/* Modal Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 select-none">
                 <button
                   onClick={() => { setShowAddressModal(false); setShowNewAddressForm(false); }}
                   className="px-5 py-2.5 border border-gray-200 text-sm text-stone-600 hover:border-stone-400 transition-colors"

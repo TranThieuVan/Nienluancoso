@@ -24,7 +24,7 @@ const Login = () => {
   }, []);
 
   const handleLogin = async (e) => {
-    e.preventDefault(); // Thay thế cho @submit.prevent
+    e.preventDefault();
 
     if (!email || !password) {
       setErrorMessage('Vui lòng nhập đầy đủ thông tin.');
@@ -32,6 +32,7 @@ const Login = () => {
     }
 
     setLoading(true);
+    setErrorMessage(''); // Clear lỗi cũ
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', {
         email,
@@ -48,7 +49,7 @@ const Login = () => {
         navigate('/');
       }
     } catch (err) {
-      setErrorMessage(err.response?.data?.msg || 'Đăng nhập thất bại');
+      setErrorMessage(err.response?.data?.msg || 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -62,41 +63,47 @@ const Login = () => {
       </div>
 
       {/* Login form */}
-      <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white">
+      <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white select-none">
         <div className="max-w-lg w-full p-8 rounded">
           <img src={logoImg} alt="Logo" className="mx-auto mb-8 w-60" />
           <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Đăng Nhập</h2>
 
+          {/* VỪA SỬA: Cải thiện UI hiển thị lỗi (đặc biệt cho lỗi bị khóa tài khoản) */}
           {errorMessage && (
-            <p className="text-red-600 text-center mb-4">{errorMessage}</p>
+            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded text-red-700 flex items-start gap-3 text-sm select-none shadow-sm">
+              <i className="fas fa-exclamation-circle mt-0.5 text-red-500 text-lg"></i>
+              <div className="font-medium leading-relaxed">
+                {errorMessage}
+              </div>
+            </div>
           )}
 
           <form onSubmit={handleLogin}>
-            <div className="mb-5">
-              <label className="block font-medium text-lg">Email</label>
+            <div className="mb-5 select-none">
+              <label className="block font-medium text-lg mb-2">Email</label>
               <input
                 ref={emailInputRef}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
                 required
-                className="w-full p-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full p-2.5 border-2 border-gray-300 rounded focus:outline-none focus:border-stone-800  transition-colors"
               />
             </div>
 
-            <div className="mb-5 relative">
-              <label className="block font-medium text-lg">Mật khẩu</label>
+            <div className="mb-6 relative select-none">
+              <label className="block font-medium text-lg mb-2">Mật khẩu</label>
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type={showPassword ? 'text' : 'password'}
                 required
-                className="w-full p-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 pr-10"
+                className="w-full p-2.5 border-2 border-gray-300 rounded focus:outline-none focus:border-stone-800  pr-10 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-9 text-gray-500"
+                className="absolute right-3 top-11 text-gray-500 hover:text-gray-700 transition-colors"
               >
                 <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
               </button>
@@ -104,7 +111,7 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full p-2 rounded hover-flip-btn text-lg font-semibold flex items-center justify-center"
+              className="w-full py-2 rounded hover-flip-btn text-lg font-bold flex items-center justify-center"
               disabled={loading}
             >
               {loading && <span className="animate-spin mr-2"><i className="fas fa-spinner"></i></span>}
@@ -112,10 +119,10 @@ const Login = () => {
             </button>
           </form>
 
-          <p className="text-center mt-5 text-lg">
+          <p className="text-center mt-6 text-base text-gray-600">
             Chưa có tài khoản?{' '}
-            <Link to="/register" className="text-blue-600 font-semibold hover:underline">
-              Đăng ký
+            <Link to="/register" className="text-blue-600 font-bold hover:underline transition-all">
+              Đăng ký ngay
             </Link>
           </p>
         </div>

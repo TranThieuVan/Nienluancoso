@@ -130,9 +130,7 @@ const AdminRevenue = () => {
       {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
         <div>
-          <p className="text-[10px] tracking-[.18em] uppercase text-indigo-600 font-bold mb-1">
-            Admin · Bookstore
-          </p>
+
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 m-0">
             Thống kê Doanh thu
           </h1>
