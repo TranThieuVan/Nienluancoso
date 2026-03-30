@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -11,8 +11,12 @@ const ViewAllBooks = () => {
   const navigate = useNavigate();
   const genreFromUrl = searchParams.get('genre') || '';
 
-  const [allBooks, setAllBooks] = useState([]);
+  // Thay đổi state để lưu metadata từ backend
+  const [books, setBooks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBooksCount, setTotalBooksCount] = useState(0);
+
   const [title, setTitle] = useState('Tất cả sách');
   const [isLoading, setIsLoading] = useState(true);
   const booksPerPage = 21;
@@ -24,19 +28,26 @@ const ViewAllBooks = () => {
     fetchFavorites();
   }, [fetchFavorites]);
 
+  // Gọi API mỗi khi trang hiện tại hoặc thể loại thay đổi
   useEffect(() => {
     const fetchBooks = async () => {
       setIsLoading(true);
       try {
+        let apiUrl = `http://localhost:5000/api/books?page=${currentPage}&limit=${booksPerPage}`;
         if (genreFromUrl) {
-          const { data } = await axios.get(`http://localhost:5000/api/books?genre=${genreFromUrl}`);
-          setAllBooks(data);
+          apiUrl += `&genre=${genreFromUrl}`;
           setTitle(genreFromUrl);
         } else {
-          const { data } = await axios.get(`http://localhost:5000/api/books`);
-          setAllBooks(data);
           setTitle('Tất cả sách');
         }
+
+        const { data } = await axios.get(apiUrl);
+
+        // Cập nhật state với cấu trúc dữ liệu mới từ backend
+        setBooks(data.books);
+        setTotalPages(data.totalPages);
+        setTotalBooksCount(data.totalBooks);
+
       } catch (error) {
         console.error('Lỗi khi tải sách:', error);
       } finally {
@@ -44,14 +55,12 @@ const ViewAllBooks = () => {
       }
     };
     fetchBooks();
+  }, [genreFromUrl, currentPage]); // Thêm currentPage vào dependency array
+
+  // Reset về trang 1 nếu đổi thể loại
+  useEffect(() => {
     setCurrentPage(1);
   }, [genreFromUrl]);
-
-  const totalPages = Math.ceil(allBooks.length / booksPerPage);
-  const paginatedBooks = useMemo(() => {
-    const start = (currentPage - 1) * booksPerPage;
-    return allBooks.slice(start, start + booksPerPage);
-  }, [allBooks, currentPage]);
 
   const changePage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -71,7 +80,7 @@ const ViewAllBooks = () => {
           <div className="flex items-end justify-between">
             <h1 className="text-3xl font-bold text-black">{title}</h1>
             {!isLoading && (
-              <p className="text-sm text-stone-400 pb-1">{allBooks.length} đầu sách</p>
+              <p className="text-sm text-stone-400 pb-1">{totalBooksCount} đầu sách</p>
             )}
           </div>
         </div>
@@ -84,7 +93,7 @@ const ViewAllBooks = () => {
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
             <p className="text-xs tracking-widest uppercase text-stone-400">Đang tải...</p>
           </div>
-        ) : paginatedBooks.length === 0 ? (
+        ) : books.length === 0 ? (
           <div className="text-center py-24">
             <FontAwesomeIcon icon={['far', 'folder-open']} className="text-4xl text-stone-200 mb-4" />
             <p className="text-stone-400 text-sm">Không có sách nào trong thể loại này.</p>
@@ -92,7 +101,7 @@ const ViewAllBooks = () => {
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-5">
-              {paginatedBooks.map((book, i) => (
+              {books.map((book, i) => (
                 <BookGridCard
                   key={book._id}
                   book={book}
@@ -119,8 +128,9 @@ const ViewAllBooks = () => {
   );
 };
 
-/* ── Extracted Book Card Component ── */
+/* ── Extracted Book Card Component (Giữ nguyên không đổi) ── */
 const BookGridCard = ({ book, isFavorite, toggleFavorite, addToCart, navigate, index }) => {
+  // ... Nội dung Component này giữ nguyên như code cũ của bạn
   const [hovered, setHovered] = useState(false);
   const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
 
@@ -131,7 +141,6 @@ const BookGridCard = ({ book, isFavorite, toggleFavorite, addToCart, navigate, i
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Image Container */}
       <div className="relative overflow-hidden bg-stone-50 aspect-[2/3]">
         <img
           src={imgSrc}
@@ -139,8 +148,6 @@ const BookGridCard = ({ book, isFavorite, toggleFavorite, addToCart, navigate, i
           className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
           onClick={() => navigate(`/books/${book._id}`)}
         />
-
-        {/* Hover Overlay */}
         <div className={`absolute inset-0 bg-black/40 flex items-end justify-center pb-4 gap-3 transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
           <button
             onClick={(e) => { e.stopPropagation(); toggleFavorite(book); }}
@@ -161,8 +168,6 @@ const BookGridCard = ({ book, isFavorite, toggleFavorite, addToCart, navigate, i
           </button>
         </div>
       </div>
-
-      {/* Info */}
       <div
         className="py-3 cursor-pointer flex-1 flex flex-col"
         onClick={() => navigate(`/books/${book._id}`)}

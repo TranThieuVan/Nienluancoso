@@ -6,10 +6,8 @@ import { useFavorites } from '../composables/useFavorites';
 import { useCart } from '../composables/useCart';
 import BookCard from './BookCard';
 
-const EMPTY_ARRAY = [];
-
-// ✨ Thêm prop isFlashSale để thay đổi UI nếu cần
-const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '', isFlashSale = false }) => {
+// ✨ Thêm prop isFlashSale để thay đổi UI nếu cần. Bỏ gán EMPTY_ARRAY mặc định
+const BookSlider = ({ books: initialBooks, genre, title = '', isFlashSale = false }) => {
     const navigate = useNavigate();
     const scrollContainer = useRef(null);
     const [books, setBooks] = useState([]);
@@ -21,14 +19,17 @@ const BookSlider = ({ books: initialBooks = EMPTY_ARRAY, genre, title = '', isFl
 
     useEffect(() => {
         const loadBooks = async () => {
-            if (!initialBooks || initialBooks.length === 0) {
+            // ✨ Chỉ tự gọi API khi cha chưa truyền prop books (undefined)
+            if (initialBooks === undefined) {
                 try {
-                    const res = await axios.get('/api/books');
-                    setBooks(genre ? res.data.filter(b => b.genre === genre) : res.data);
+                    const res = await axios.get('/api/books?limit=1000');
+                    const dataArray = res.data.books || res.data;
+                    setBooks(genre ? dataArray.filter(b => b.genre === genre) : dataArray);
                 } catch (err) {
                     console.error('Lỗi tải sách cho slider:', err);
                 }
             } else {
+                // Nếu cha đã truyền, cứ lấy trực tiếp (chặn việc tự ý ghi đè API chạy ngầm)
                 setBooks(initialBooks);
             }
         };

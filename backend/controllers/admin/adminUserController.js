@@ -1,16 +1,35 @@
 const User = require('../../models/User');
 
-// Lấy danh sách user thường
+// Thay thế hàm getAllUsers hiện tại bằng hàm này:
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({ role: 'user' }).select('-password');
-        res.json(users);
+        // --- BẮT ĐẦU TỐI ƯU PHÂN TRANG ---
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10; // Admin thường load 10-20 dòng 1 trang
+        const skip = (page - 1) * limit;
+
+        const query = { role: 'user' };
+
+        const totalUsers = await User.countDocuments(query);
+        const totalPages = Math.ceil(totalUsers / limit);
+
+        const users = await User.find(query)
+            .select('-password')
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            users,
+            currentPage: page,
+            totalPages,
+            totalUsers
+        });
+        // --- KẾT THÚC TỐI ƯU ---
     } catch (err) {
         console.error('Lỗi lấy danh sách user:', err);
         res.status(500).json({ message: 'Không thể lấy danh sách người dùng' });
     }
 };
-
 // VỪA SỬA: Khoá / mở khoá user có thêm thời hạn
 exports.toggleUserLock = async (req, res) => {
     try {

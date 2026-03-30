@@ -40,9 +40,13 @@ const BookList = () => {
       } else if (sortBy === 'sold') {
         response = await axios.get('/api/books/top-selling');
       } else {
-        response = await axios.get('/api/books');
+        // ✨ SỬA Ở ĐÂY: Thêm limit=1000 để lấy đủ data cho các bộ lọc phức tạp (Sale, Giá...) hoạt động
+        response = await axios.get('/api/books?limit=1000');
       }
-      setBooks(response.data);
+
+      // ✨ SỬA Ở ĐÂY: Hứng đúng mảng dữ liệu trả về từ API mới
+      setBooks(response.data.books || response.data);
+
     } catch (err) {
       console.error('Lỗi khi tải sách:', err);
     } finally {

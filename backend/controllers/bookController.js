@@ -76,6 +76,7 @@ exports.createBook = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi tạo sách', err });
     }
 };
+// Thay thế hàm getAllBooks hiện tại bằng hàm này:
 exports.getAllBooks = async (req, res) => {
     try {
         const filter = {};
@@ -86,8 +87,30 @@ exports.getAllBooks = async (req, res) => {
             filter.title = { $regex: req.query.search, $options: 'i' };
         }
 
-        const books = await Book.find(filter).sort({ createdAt: -1 });
-        res.json(books);
+        // --- BẮT ĐẦU TỐI ƯU PHÂN TRANG ---
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 21; // Mặc định 21 cuốn 1 trang (giống frontend)
+        const skip = (page - 1) * limit;
+
+        // Đếm tổng số sách thỏa mãn điều kiện để tính tổng số trang
+        const totalBooks = await Book.countDocuments(filter);
+        const totalPages = Math.ceil(totalBooks / limit);
+
+        // Chỉ lấy đúng số lượng sách của trang hiện tại
+        const books = await Book.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        // Trả về object chứa dữ liệu và metadata phân trang
+        res.json({
+            books, // Danh sách sách của trang hiện tại
+            currentPage: page,
+            totalPages,
+            totalBooks
+        });
+        // --- KẾT THÚC TỐI ƯU ---
+
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi lấy sách', err });
     }

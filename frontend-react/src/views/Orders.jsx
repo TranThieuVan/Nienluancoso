@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Swal from 'sweetalert2';
+import Pagination from '../components/Pagination'; // Bổ sung import Pagination
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -9,10 +10,9 @@ const Orders = () => {
   const [selectedReason, setSelectedReason] = useState('');
   const [cancelOrderId, setCancelOrderId] = useState(null);
 
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // States phân trang
   const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 3;
+  const [totalPages, setTotalPages] = useState(1);
 
   const token = localStorage.getItem('token');
   const reasons = ['Thay đổi ý định', 'Đặt nhầm sản phẩm', 'Tìm thấy giá tốt hơn', 'Thời gian giao quá lâu', 'Lý do khác'];
@@ -21,12 +21,6 @@ const Orders = () => {
   const formatAddress = (a) => `${a.street}, ${a.ward || ''}, ${a.district}, ${a.city}`;
   const formatDate = (isoString) => new Date(isoString).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' });
   const formatDateTime = (isoString) => new Date(isoString).toLocaleString('vi-VN');
-
-  const getLocalYYYYMMDD = (date) => {
-    const d = new Date(date);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().split('T')[0];
-  };
 
   const translateStatus = (status) => {
     switch (status) {
@@ -50,23 +44,18 @@ const Orders = () => {
 
   const loadOrders = async () => {
     try {
-      const { data } = await axios.get('/api/orders', { headers: { Authorization: `Bearer ${token}` } });
-      setOrders(data);
-
-      if (data.length > 0 && !startDate && !endDate) {
-        const timestamps = data.map(o => new Date(o.createdAt).getTime());
-        const minDate = new Date(Math.min(...timestamps));
-        const maxDate = new Date(Math.max(...timestamps));
-        setStartDate(getLocalYYYYMMDD(minDate));
-        setEndDate(getLocalYYYYMMDD(maxDate));
-      }
+      // ✨ SỬA Ở ĐÂY: Xóa chữ /my-orders đi, vì route backend chỉ là /api/orders
+      const { data } = await axios.get(`/api/orders?page=${currentPage}&limit=5`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrders(data.orders || []);
+      setTotalPages(data.totalPages || 1);
     } catch (err) {
       console.error(err);
     }
   };
 
-  useEffect(() => { loadOrders(); }, []);
-  useEffect(() => { setCurrentPage(1); }, [startDate, endDate]);
+  useEffect(() => { loadOrders(); }, [currentPage]);
 
   const openCancelModal = (orderId) => {
     setCancelOrderId(orderId);
@@ -95,21 +84,6 @@ const Orders = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const orderDate = new Date(order.createdAt);
-    orderDate.setHours(0, 0, 0, 0);
-    const start = startDate ? new Date(startDate) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-    const end = endDate ? new Date(endDate) : null;
-    if (end) end.setHours(23, 59, 59, 999);
-    if (start && orderDate < start) return false;
-    if (end && orderDate > end) return false;
-    return true;
-  });
-
-  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
-  const currentOrders = filteredOrders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
-
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -123,31 +97,6 @@ const Orders = () => {
           <p className="text-[10px] tracking-[0.4em] uppercase text-stone-700 mb-1">Của tôi</p>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <h1 className="text-3xl font-bold text-black">Lịch sử đơn hàng</h1>
-
-            {/* Date Filter */}
-            {orders.length > 0 && (
-              <div className="flex items-center gap-3 text-sm">
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase tracking-widest text-stone-700 mb-1">Từ ngày</span>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="text-sm font-medium outline-none border border-gray-200 focus:border-black px-3 py-2 bg-white transition-colors cursor-pointer"
-                  />
-                </div>
-                <span className="text-stone-300 mt-5">—</span>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase tracking-widest text-stone-700 mb-1">Đến ngày</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="text-sm font-medium outline-none border border-gray-200 focus:border-black px-3 py-2 bg-white transition-colors cursor-pointer"
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -164,15 +113,10 @@ const Orders = () => {
               <p className="text-stone-700 text-sm">Hãy mua sắm và đặt hàng để xem lịch sử ở đây.</p>
             </div>
           </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <FontAwesomeIcon icon={['fas', 'calendar-xmark']} className="text-3xl text-stone-200" />
-            <p className="text-stone-700 text-sm">Không tìm thấy đơn hàng nào trong khoảng thời gian này.</p>
-          </div>
         ) : (
           <>
             <div className="flex flex-col gap-5">
-              {currentOrders.map(order => {
+              {orders.map(order => {
                 const sc = statusConfig(order.status);
                 return (
                   <div key={order._id} className="border border-gray-100 bg-white hover:border-stone-300 transition-colors duration-200">
@@ -343,35 +287,12 @@ const Orders = () => {
 
             {/* ── PAGINATION ── */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-1 mt-10">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-500 hover:border-black hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <FontAwesomeIcon icon={['fas', 'angle-left']} className="text-xs" />
-                </button>
-
-                {[...Array(totalPages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    onClick={() => handlePageChange(index + 1)}
-                    className={`w-9 h-9 flex items-center justify-center text-sm border transition-all ${currentPage === index + 1
-                      ? 'bg-black text-white border-black font-semibold'
-                      : 'border-gray-200 text-stone-600 hover:border-black hover:text-black'
-                      }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-500 hover:border-black hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <FontAwesomeIcon icon={['fas', 'angle-right']} className="text-xs" />
-                </button>
+              <div className="mt-10">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
               </div>
             )}
           </>

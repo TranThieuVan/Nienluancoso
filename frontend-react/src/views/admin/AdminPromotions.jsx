@@ -178,12 +178,19 @@ const AdminPromotions = () => {
         try {
             const [pRes, bRes] = await Promise.all([
                 axios.get(`${API_URL}/admin/promotions`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_URL}/books`),
+                // ✨ SỬA Ở ĐÂY: Ép tải hết sách
+                axios.get(`${API_URL}/books?limit=1000`),
             ]);
             setPromotions(pRes.data);
-            setBooks(bRes.data);
-            setGenres([...new Set(bRes.data.map(b => b.genre).filter(Boolean))]);
-        } catch (err) { console.error(err); Swal.fire('Lỗi', 'Không thể kết nối Backend', 'error'); }
+
+            // ✨ SỬA Ở ĐÂY: Hứng đúng mảng dữ liệu sách
+            const booksArray = bRes.data.books || bRes.data || [];
+            setBooks(booksArray);
+            setGenres([...new Set(booksArray.map(b => b.genre).filter(Boolean))]);
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Lỗi', 'Không thể kết nối Backend', 'error');
+        }
     };
     useEffect(() => { fetchData(); }, []);
 

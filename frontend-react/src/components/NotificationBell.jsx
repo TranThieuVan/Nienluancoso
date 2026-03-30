@@ -3,16 +3,26 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 
+// Khởi tạo socket ở BÊN NGOÀI component
+const socket = io('http://localhost:5000', {
+    transports: ['websocket'],
+    reconnection: true
+});
+
 const NotificationBell = () => {
     const [notifications, setNotifications] = useState([]);
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [toastNoti, setToastNoti] = useState(null);
     const [readIds, setReadIds] = useState([]);
+
+    // ✨ ĐÂY RỒI: Khôi phục lại biến deletedIds bị mất tích!
     const [deletedIds, setDeletedIds] = useState([]);
+
     const dropdownRef = useRef(null);
 
     useEffect(() => {
+        // Khôi phục trạng thái "đã đọc" và "đã xoá" từ localStorage
         const localReadIds = JSON.parse(localStorage.getItem('readNotifications')) || [];
         const localDeletedIds = JSON.parse(localStorage.getItem('deletedNotifications')) || [];
         setReadIds(localReadIds);
@@ -28,23 +38,24 @@ const NotificationBell = () => {
         };
         fetchNotifications();
 
-        // ✨ FIX 1: Ép dùng WebSocket để dập tắt việc gọi API chạy ngầm liên tục
-        const socket = io('http://localhost:5000', {
-            transports: ['websocket']
-        });
-
-        socket.on('new_notification', (newNoti) => {
-            setNotifications(prev => [newNoti, ...prev]);
+        const handleNewNotification = (newNoti) => {
+            setNotifications(prev => [newNoti, ...prev].slice(0, 50));
             setToastNoti(newNoti);
             setTimeout(() => setToastNoti(null), 5000);
-        });
+        };
 
-        return () => socket.disconnect();
+        socket.on('new_notification', handleNewNotification);
+
+        return () => {
+            socket.off('new_notification', handleNewNotification);
+        };
     }, []);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -65,7 +76,6 @@ const NotificationBell = () => {
         localStorage.setItem('deletedNotifications', JSON.stringify(newDeletedIds));
     };
 
-    // ✨ FIX 2: Tối ưu hiệu suất INP bằng useMemo và giới hạn số lượng render
     const { visibleNotifications, unreadCount } = useMemo(() => {
         const visible = notifications.filter(n => !deletedIds.includes(n._id));
         const unread = visible.filter(n => !readIds.includes(n._id)).length;
@@ -109,7 +119,6 @@ const NotificationBell = () => {
                         </div>
 
                         <ul className="max-h-80 overflow-y-auto">
-                            {/* ✨ Áp dụng danh sách đã cắt ngắn */}
                             {displayNotifications.length > 0 ? (
                                 displayNotifications.map(noti => {
                                     const isRead = readIds.includes(noti._id);

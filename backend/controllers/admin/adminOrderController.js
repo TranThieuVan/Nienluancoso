@@ -5,18 +5,49 @@ const axios = require('axios');
 const moment = require('moment');
 const crypto = require('crypto');
 
-// Lấy tất cả đơn hàng (admin)
+// Lấy tất cả đơn hàng (admin) - ĐÃ TỐI ƯU PHÂN TRANG & FILTER
 exports.getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find()
-            .populate('user', 'name email') // chỉ lấy name & email user
-            .populate('items.book', 'title price image') // lấy title & price sách
-            .sort({ createdAt: -1 })
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10; // 10 đơn hàng mỗi trang
+        const skip = (page - 1) * limit;
+        const statusFilter = req.query.status || 'all';
 
-        res.json(orders)
+        // 1. Build Query điều kiện lọc từ URL
+        let query = {};
+        if (statusFilter !== 'all') {
+            if (statusFilter === 'pending_refund') {
+                query = { status: 'cancelled', paymentStatus: 'Hoàn tiền' };
+            } else if (statusFilter === 'done_refund') {
+                query = { status: 'cancelled', paymentStatus: 'Đã hoàn tiền' };
+            } else if (statusFilter === 'cod_cancelled') {
+                query = { status: 'cancelled', paymentStatus: { $nin: ['Hoàn tiền', 'Đã hoàn tiền'] } };
+            } else {
+                query = { status: statusFilter };
+            }
+        }
+
+        // 2. Đếm tổng số đơn thỏa mãn điều kiện
+        const totalOrders = await Order.countDocuments(query);
+        const totalPages = Math.ceil(totalOrders / limit);
+
+        // 3. Chỉ lấy đơn hàng của trang hiện tại
+        const orders = await Order.find(query)
+            .populate('user', 'name email')
+            .populate('items.book', 'title price image')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            orders,
+            currentPage: page,
+            totalPages,
+            totalOrders
+        });
     } catch (err) {
-        console.error('Lỗi lấy đơn hàng:', err)
-        res.status(500).json({ message: 'Không thể lấy danh sách đơn hàng' })
+        console.error('Lỗi lấy đơn hàng:', err);
+        res.status(500).json({ message: 'Không thể lấy danh sách đơn hàng' });
     }
 }
 

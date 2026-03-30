@@ -5,7 +5,7 @@ const Book = require('../models/Book');
 const Promotion = require('../models/Promotion');
 const Voucher = require('../models/Voucher'); // ✅ THÊM MODEL VOUCHER CHO AI ĐỌC
 const OpenAI = require('openai');
-
+const Order = require('../models/Order'); // ✅ THÊM MODEL ORDER
 // ✅ KHỞI TẠO ĐỘNG ĐỂ CHẮC CHẮN LUÔN ĐỌC ĐƯỢC API KEY TỪ .ENV
 const getOpenAI = () => {
     return new OpenAI({
@@ -89,6 +89,20 @@ const tools = [
             parameters: {
                 type: 'object',
                 properties: {},
+                required: [],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'get_active_orders',
+            description:
+                'Lấy danh sách các đơn hàng ĐANG XỬ LÝ (pending) hoặc ĐANG VẬN CHUYỂN (shipping) của khách hàng đang chat. ' +
+                'DÙNG KHI khách hỏi "đơn hàng của tôi", "tình trạng đơn hàng", "khi nào nhận được sách", "kiểm tra đơn".',
+            parameters: {
+                type: 'object',
+                properties: {}, // Không cần AI truyền param gì vì ta sẽ lấy userId từ req.user
                 required: [],
             },
         },
@@ -240,6 +254,42 @@ const executeGetPromotions = async () => {
     }
 };
 
+
+const executeGetActiveOrders = async (userId) => {
+    try {
+        // Tìm các đơn hàng của user có trạng thái pending hoặc shipping
+        const orders = await Order.find({
+            user: userId,
+            status: { $in: ['pending', 'shipping'] }
+        })
+            .sort({ createdAt: -1 })
+            .populate('items.book', 'title') // Lấy tên sách để AI đọc
+            .lean();
+
+        if (orders.length === 0) {
+            return JSON.stringify({ message: 'Hiện tại bạn không có đơn hàng nào đang xử lý hoặc đang vận chuyển.' });
+        }
+
+        // Format lại dữ liệu cho AI dễ hiểu và tiết kiệm token
+        const formattedOrders = orders.map(o => ({
+            orderId: o._id.toString().slice(-6), // Lấy 6 số cuối cho gọn
+            status: o.status === 'pending' ? 'Đang xử lý' : 'Đang vận chuyển',
+            paymentMethod: o.paymentMethod,
+            paymentStatus: o.paymentStatus,
+            totalPrice: o.totalPrice,
+            items: o.items.map(i => `- ${i.book?.title || 'Sách không xác định'} (x${i.quantity})`).join('\n')
+        }));
+
+        return JSON.stringify({
+            message: "Danh sách đơn hàng đang hoạt động của khách",
+            orders: formattedOrders
+        });
+    } catch (error) {
+        console.error('Lỗi get_active_orders:', error);
+        return JSON.stringify({ message: 'Lỗi hệ thống khi lấy thông tin đơn hàng.' });
+    }
+};
+
 /* ─────────────────────────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────────────────────────── */
@@ -287,8 +337,12 @@ XỬ LÝ TỒN KHO:
 
 THÔNG TIN CỬA HÀNG:
 - Phí ship: 40.000₫ toàn quốc. Thanh toán: COD hoặc VietQR.
-- Cam kết: sách thật 100%, đóng gói cẩn thận.`;
+- Cam kết: sách thật 100%, đóng gói cẩn thận.
 
+KIỂM TRA ĐƠN HÀNG:
+- Khách hỏi về tình trạng đơn hàng, "đơn của tôi đâu" → BẮT BUỘC dùng get_active_orders.
+- Khi trả lời, liệt kê rõ: Mã đơn(6 số cuối), Trạng thái, Tổng tiền, và Danh sách sách đã đặt.
+- Nếu khách thắc mắc về thanh toán(như VNPAY bị lỗi hay chưa xác nhận), hãy báo trạng thái thanh toán hiện tại của đơn hàng`;
 /* ─────────────────────────────────────────────────────────────────
    EXPORTS
 ───────────────────────────────────────────────────────────────── */
@@ -412,6 +466,9 @@ exports.sendMessage = async (req, res) => {
                             dbResult = await executeGetBooksByPrice(args.price_type, args.sort, args.limit);
                         } else if (toolCall.function.name === 'get_promotions') {
                             dbResult = await executeGetPromotions();
+                        } else if (toolCall.function.name === 'get_active_orders') {
+                            // ✅ GỌI HÀM VÀ TRUYỀN ID NGƯỜI DÙNG ĐANG CHAT
+                            dbResult = await executeGetActiveOrders(sender);
                         }
 
                         messages.push({
@@ -595,3 +652,4 @@ exports.markMessagesAsRead = async (req, res) => {
         res.status(500).json({ message: 'Không thể cập nhật trạng thái đọc', error: err.message });
     }
 };
+

@@ -2,11 +2,11 @@ const Order = require('../models/Order')
 const Cart = require('../models/Cart')
 const Book = require('../models/Book')
 const User = require('../models/User');
-// Tạo đơn hàng mới từ giỏ hàng
+
 // Tạo đơn hàng mới từ giỏ hàng
 exports.createOrder = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user._id || req.user.id;
         const { items, shippingAddress, paymentMethod, totalAmount } = req.body;
 
         const { fullName, phone, street, ward, district, city } = shippingAddress || {};
@@ -62,13 +62,10 @@ exports.createOrder = async (req, res) => {
             ]
         });
 
-        // 1. LƯU ĐƠN HÀNG VÀO DATABASE
         await order.save();
 
-        // ==========================================
-        // 2. ✅ LOGIC THĂNG HẠNG ĐẶT VÀO TRONG NÀY 
-        // ==========================================
-        const user = await User.findById(req.user.id);
+        // LOGIC THĂNG HẠNG
+        const user = await User.findById(userId);
         if (user) {
             user.lastPurchaseDate = new Date();
             let newRank = user.rank;
@@ -87,34 +84,51 @@ exports.createOrder = async (req, res) => {
             user.rank = newRank;
             await user.save();
         }
-        // ==========================================
 
-        // 3. TRẢ VỀ KẾT QUẢ THÀNH CÔNG CHO FRONTEND
         res.status(201).json({ msg: 'Đặt hàng thành công', order });
     } catch (err) {
         console.error(err);
         res.status(500).json({ msg: 'Lỗi server khi tạo đơn hàng' });
     }
 };
-// Lấy đơn hàng của người dùng
+
+// Lấy đơn hàng của người dùng (ĐÃ CÓ PHÂN TRANG)
 exports.getMyOrders = async (req, res) => {
     try {
-        const userId = req.user.id
-        const orders = await Order.find({ user: userId }).sort({ createdAt: -1 }).populate('items.book')
-        res.json(orders)
+        const userId = req.user._id || req.user.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 5;
+        const skip = (page - 1) * limit;
+
+        const totalOrders = await Order.countDocuments({ user: userId });
+        const totalPages = Math.ceil(totalOrders / limit) || 1;
+
+        const orders = await Order.find({ user: userId })
+            .sort({ createdAt: -1 })
+            .populate('items.book')
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            orders,
+            currentPage: page,
+            totalPages,
+            totalOrders
+        });
     } catch (err) {
-        res.status(500).json({ msg: 'Lỗi khi lấy danh sách đơn hàng' })
+        console.error("Lỗi getMyOrders:", err);
+        res.status(500).json({ msg: 'Lỗi khi lấy danh sách đơn hàng' });
     }
 }
 
 // Lấy chi tiết đơn hàng
 exports.getOrderById = async (req, res) => {
     try {
+        const userId = req.user._id || req.user.id;
         const order = await Order.findById(req.params.id).populate('items.book')
         if (!order) return res.status(404).json({ msg: 'Không tìm thấy đơn hàng' })
 
-        // Nếu không phải admin, chỉ cho xem đơn của mình
-        if (String(order.user) !== String(req.user.id) && req.user.role !== 'admin') {
+        if (String(order.user) !== String(userId) && req.user.role !== 'admin') {
             return res.status(403).json({ msg: 'Không có quyền truy cập' })
         }
 
@@ -125,25 +139,21 @@ exports.getOrderById = async (req, res) => {
 }
 
 // Hủy đơn hàng
-// Hủy đơn hàng
 exports.cancelOrder = async (req, res) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
-        // Bọc thép: Lấy id hoặc _id tuỳ thuộc vào payload của JWT
-        const userId = req.user.id || req.user._id;
+        const userId = req.user._id || req.user.id;
 
         const order = await Order.findById(id);
         if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
 
-        // Bọc thép: Ép về String an toàn tuyệt đối
         if (String(order.user) !== String(userId))
             return res.status(403).json({ message: 'Không có quyền hủy đơn' });
 
         if (order.status !== 'pending')
             return res.status(400).json({ message: 'Chỉ có thể hủy đơn khi đang chờ xử lý' });
 
-        // Cập nhật trạng thái
         order.status = 'cancelled';
         order.cancelReason = reason;
 
@@ -151,7 +161,6 @@ exports.cancelOrder = async (req, res) => {
             order.paymentStatus = 'Hoàn tiền';
         }
 
-        // Bọc thép: Khởi tạo mảng nếu trong DB bị rỗng
         if (!order.statusHistory) order.statusHistory = [];
         order.statusHistory.push({
             status: 'cancelled',
@@ -166,19 +175,16 @@ exports.cancelOrder = async (req, res) => {
     }
 };
 
-// ✅ API: Cập nhật trạng thái đơn hàng thành "Đã thanh toán" (Gọi từ VNPAY)
+// Cập nhật trạng thái đơn hàng thành "Đã thanh toán" (Gọi từ VNPAY)
 exports.updateOrderToPaid = async (req, res) => {
     try {
         const orderId = req.params.id;
-
-        // 1. Nhận thêm 2 thông số từ Frontend gửi lên
         const { vnpayTransactionNo, vnpayPayDate } = req.body;
 
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
             {
                 paymentStatus: 'Đã thanh toán',
-                // 2. Lưu vào Database
                 vnpayTransactionNo: vnpayTransactionNo,
                 vnpayPayDate: vnpayPayDate
             },

@@ -29,12 +29,16 @@ const AdminNavbar = () => {
 
             // 1. Đếm đơn hàng đang chờ xử lý (pending)
             const ordersRes = await axios.get('/api/admin/orders', config);
-            const pendingCount = ordersRes.data.filter(o => o.status === 'pending').length;
+            // ✨ SỬA Ở ĐÂY: Hứng đúng mảng orders từ object
+            const ordersArray = ordersRes.data.orders || ordersRes.data || [];
+            const pendingCount = ordersArray.filter(o => o.status === 'pending').length;
             setPendingOrdersCount(pendingCount);
 
             // 2. Đếm tin nhắn chưa đọc
             const msgsRes = await axios.get('/api/messages/admin/all', config);
-            const unreadCount = msgsRes.data.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+            // ✨ Bọc an toàn cho tin nhắn
+            const msgsArray = msgsRes.data.conversations || msgsRes.data || [];
+            const unreadCount = msgsArray.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
             setUnreadMessagesCount(unreadCount);
 
         } catch (err) {

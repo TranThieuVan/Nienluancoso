@@ -20,9 +20,12 @@ const AdminBookList = () => {
   const fetchBooks = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/books');
-      setBooks(res.data);
-      setGenres([...new Set(res.data.map(b => b.genre))]);
+      // ✨ SỬA Ở ĐÂY: Thêm limit=1000 để quản lý sách tải được hết
+      const res = await axios.get('http://localhost:5000/api/books?limit=1000');
+      // ✨ SỬA Ở ĐÂY: Hứng đúng mảng dữ liệu
+      const booksArray = res.data.books || res.data || [];
+      setBooks(booksArray);
+      setGenres([...new Set(booksArray.map(b => b.genre))]);
     } catch (err) {
       console.error('Lỗi khi lấy danh sách sách:', err);
     } finally {

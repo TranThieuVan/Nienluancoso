@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -12,23 +12,21 @@ const SearchResults = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const booksPerPage = 21;
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const fetchAndFilterBooks = async () => {
-      if (!query) { setFilteredBooks([]); return; }
+      if (!query) {
+        setFilteredBooks([]);
+        return;
+      }
 
       setIsLoading(true);
       try {
-        const res = await axios.get('/api/books');
-        const q = query.trim().toLowerCase();
-        const filtered = res.data.filter(book =>
-          book.title?.toLowerCase().includes(q) ||
-          book.author?.toLowerCase().includes(q) ||
-          book.genre?.toLowerCase().includes(q)
-        );
-        setFilteredBooks(filtered);
-        setCurrentPage(1);
+        // Đã sửa biến q thành biến query
+        const res = await axios.get(`/api/books?search=${query}&page=${currentPage}`);
+        setFilteredBooks(res.data.books || []);
+        setTotalPages(res.data.totalPages || 1);
       } catch (err) {
         console.error('Lỗi khi tìm kiếm:', err);
       } finally {
@@ -37,14 +35,12 @@ const SearchResults = () => {
     };
 
     fetchAndFilterBooks();
+  }, [query, currentPage]);
+
+  // Reset về trang 1 khi đổi từ khóa tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
   }, [query]);
-
-  const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
-
-  const paginatedBooks = useMemo(() => {
-    const start = (currentPage - 1) * booksPerPage;
-    return filteredBooks.slice(start, start + booksPerPage);
-  }, [filteredBooks, currentPage]);
 
   const changePage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -63,11 +59,6 @@ const SearchResults = () => {
             <h1 className="text-3xl font-bold text-black">
               "{query}"
             </h1>
-            {!isLoading && filteredBooks.length > 0 && (
-              <p className="text-sm text-stone-400 pb-1">
-                {filteredBooks.length} kết quả
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -82,7 +73,7 @@ const SearchResults = () => {
         ) : filteredBooks.length > 0 ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-5">
-              {paginatedBooks.map((book) => (
+              {filteredBooks.map((book) => (
                 <BookCard key={book._id} book={book} />
               ))}
             </div>
