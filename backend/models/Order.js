@@ -34,7 +34,7 @@ const orderSchema = new mongoose.Schema({
         city: { type: String, required: true },
     },
 
-    // ✅ THÊM THÔNG TIN THANH TOÁN
+    // ✅ THÔNG TIN THANH TOÁN
     paymentMethod: {
         type: String,
         enum: ['cod', 'transfer', 'vnpay'],
@@ -49,20 +49,30 @@ const orderSchema = new mongoose.Schema({
 
     vnpayTransactionNo: { type: String }, // Mã giao dịch độc nhất của VNPAY
     vnpayPayDate: { type: String },
+
+    // ✅ CẬP NHẬT BUSINESS LOGIC: Thêm failed_delivery và returned
     status: {
         type: String,
-        enum: ['pending', 'shipping', 'delivered', 'cancelled'],
+        enum: ['pending', 'shipping', 'delivered', 'failed_delivery', 'returned', 'cancelled'],
         default: 'pending'
     },
     statusHistory: [
         {
-            status: { type: String, enum: ['pending', 'shipping', 'delivered', 'cancelled'] },
+            status: {
+                type: String,
+                enum: ['pending', 'shipping', 'delivered', 'failed_delivery', 'returned', 'cancelled']
+            },
             date: { type: Date, default: Date.now }
         }
     ],
+
     shippingFee: { type: Number, default: 40000 },
     cancelReason: { type: String, default: null },
-    deliveredAt: { type: Date }
+
+    // ✅ THÊM CÁC CỘT TIMESTAMPS PHỤC VỤ TÍNH TOÁN LOGISTICS & RATE METRICS
+    deliveredAt: { type: Date }, // Để tính thời gian giao hàng trung bình
+    cancelledAt: { type: Date }, // Để vẽ biểu đồ số đơn hủy theo ngày (nếu cần)
+    returnedAt: { type: Date }   // Để track xem khách trả hàng bao lâu sau khi mua
 
 }, {
     timestamps: true

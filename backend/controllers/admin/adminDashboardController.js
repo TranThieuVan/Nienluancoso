@@ -23,7 +23,7 @@ exports.getDashboardOverview = async (req, res) => {
         const [
             totalUsers, lockedUsers, totalBooks, outOfStockBooks,
             allOrders, monthlyRevenueData,
-            topBooks, recentOrders, lowStock, rankStats,
+            recentOrders, lowStock, rankStats, // ✅ Đã xóa topBooks khỏi đây
             promotions, vouchers
         ] = await Promise.all([
             User.countDocuments(),
@@ -35,7 +35,7 @@ exports.getDashboardOverview = async (req, res) => {
                 { $match: { status: 'delivered', createdAt: { $gte: new Date(`${year}-01-01`), $lte: new Date(`${year}-12-31T23:59:59.999Z`) } } },
                 { $group: { _id: { $month: "$createdAt" }, revenue: { $sum: "$totalPrice" } } }
             ]),
-            Book.find().sort({ sold: -1 }).limit(5).select('title author genre sold price discountedPrice image'),
+            // ✅ Đã xóa Book.find().sort({ sold: -1 })...
             Order.find().sort({ createdAt: -1 }).limit(6).populate('user', 'name').select('totalPrice paymentStatus status createdAt shippingAddress'),
             Book.find({ stock: { $lte: 5 } }).sort({ stock: 1 }).limit(6).select('title author stock image'),
             User.aggregate([{ $group: { _id: "$rank", count: { $sum: 1 } } }]),
@@ -63,7 +63,7 @@ exports.getDashboardOverview = async (req, res) => {
                 totalUsers, lockedUsers, totalBooks, outOfStockBooks,
                 orderCounts, monthlyRevenue, rankDist
             },
-            topBooks, recentOrders, lowStock, promotions, vouchers
+            recentOrders, lowStock, promotions, vouchers // ✅ Cập nhật object trả về
         });
 
     } catch (err) {
@@ -152,9 +152,7 @@ exports.getDashboardAnalytics = async (req, res) => {
             };
         }
         else if (tab === 'trend') {
-            // Đơn giản hóa Trend: Backend trả về dữ liệu thô, frontend tự xử lý hoặc backend tính luôn.
-            // Để giữ tính chính xác cho Component LineChart của bạn, mình giả lập data cơ bản:
-            result = { labels: ['Kỳ này'], current: [0], previous: [0] }; // Bạn có thể phát triển thêm logic so sánh ngày ở đây
+            result = { labels: ['Kỳ này'], current: [0], previous: [0] };
         }
         else if (tab === 'voucher') {
             const v = await Voucher.find({ isActive: true });

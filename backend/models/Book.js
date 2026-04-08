@@ -1,3 +1,4 @@
+// models/Book.js
 const mongoose = require('mongoose');
 
 const bookSchema = new mongoose.Schema({
@@ -5,15 +6,16 @@ const bookSchema = new mongoose.Schema({
     author: String,
     description: String,
     price: { type: Number, required: true },
+    importPrice: {
+        type: Number,
+        default: function () {
+            return this.price ? Math.round(this.price * 0.6) : 0;
+        }
+    },
     image: String,
     genre: String,
     stock: { type: Number, required: true },
     sold: { type: Number, default: 0 },
-    discountedPrice: {
-        type: Number,
-        default: null
-    },
-    // ✅ THÊM DÒNG NÀY: Mảng chứa 1536 con số của AI
     embedding: { type: [Number], select: false }
 }, { timestamps: true });
 

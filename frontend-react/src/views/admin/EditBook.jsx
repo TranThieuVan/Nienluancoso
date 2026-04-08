@@ -68,6 +68,7 @@ const EditBook = () => {
     try {
       const formData = new FormData();
       ['title', 'author', 'genre', 'description'].forEach(k => formData.append(k, book[k] || ''));
+      formData.append('importPrice', Number(book.importPrice)); // ✅ Gửi thêm importPrice
       formData.append('price', Number(book.price));
       formData.append('stock', Number(book.stock));
       if (imageFile) formData.append('image', imageFile);
@@ -94,37 +95,25 @@ const EditBook = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 font-sans">
-
-      {/* ── Header ── */}
-      <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-6 max-w-4xl mx-auto">
         <div>
-          <p className="text-[10px] tracking-[.18em] uppercase text-indigo-600 font-semibold mb-1">Admin · Bookstore</p>
           <h1 className="text-3xl font-bold text-gray-900">Chỉnh Sửa Sách</h1>
         </div>
-        <button
-          onClick={() => navigate('/admin/books')}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-          </svg>
+        <button onClick={() => navigate('/admin/books')} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
           Quay lại
         </button>
       </div>
 
-      {/* ── Form Card ── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm max-w-2xl">
+      {/* ✅ Thêm mx-auto để căn giữa Div */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm max-w-4xl mx-auto">
         {!book ? (
           <div className="py-16 flex flex-col items-center gap-3 text-gray-400">
-            <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
+            <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
             <p className="text-sm">Đang tải dữ liệu...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-
-            {/* Section: Thông tin */}
             <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-2 border-b border-gray-100 mb-5">Thông tin sách</p>
 
             <div className="mb-4">
@@ -143,82 +132,57 @@ const EditBook = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* ✅ Chia làm 3 cột: Giá nhập - Giá bán - Tồn kho */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá bán *</label>
+                <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá gốc (Nhập) *</label>
                 <div className="relative">
-                  <input
-                    required value={book.price !== '' ? Number(book.price).toLocaleString('vi-VN') : ''}
-                    onChange={e => handleCurrencyChange('price', e.target.value)}
-                    onKeyDown={e => handleCurrencyKeyDown(e, 'price')}
-                    className={`${inputCls} pr-7 font-mono font-semibold`}
-                  />
+                  <input required value={book.importPrice !== undefined && book.importPrice !== '' ? Number(book.importPrice).toLocaleString('vi-VN') : ''} onChange={e => handleCurrencyChange('importPrice', e.target.value)} onKeyDown={e => handleCurrencyKeyDown(e, 'importPrice')} className={`${inputCls} pr-7 font-mono font-semibold`} />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₫</span>
                 </div>
-                <p className="text-[10px] text-gray-400 italic mt-1">↑↓ để ±1.000₫</p>
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá bán (Bìa) *</label>
+                <div className="relative">
+                  <input required value={book.price !== '' ? Number(book.price).toLocaleString('vi-VN') : ''} onChange={e => handleCurrencyChange('price', e.target.value)} onKeyDown={e => handleCurrencyKeyDown(e, 'price')} className={`${inputCls} pr-7 font-mono font-semibold`} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₫</span>
+                </div>
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Tồn kho *</label>
                 <input name="stock" type="number" min="0" value={book.stock} onChange={handleChange} required className={`${inputCls} font-mono font-semibold`} />
               </div>
             </div>
+            <p className="text-[10px] text-gray-400 italic mb-4">Mẹo: Chọn ô Giá và bấm ↑↓ để tăng giảm ±1.000₫</p>
 
             <div className="mb-6">
               <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Mô tả</label>
-              <textarea name="description" value={book.description} onChange={handleChange} rows={4}
-                className={`${inputCls} resize-y`} />
+              <textarea name="description" value={book.description} onChange={handleChange} rows={4} className={`${inputCls} resize-y`} />
             </div>
 
-            {/* Section: Ảnh bìa */}
             <div className="mb-6">
               <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-2 border-b border-gray-100 mb-5">Ảnh bìa</p>
-
-              {/* Preview ảnh hiện tại / mới */}
               {(imagePreview || currentImg) && (
                 <div className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-xl mb-3">
-                  <img
-                    src={imagePreview || currentImg}
-                    alt="Preview"
-                    className="w-12 h-16 object-cover border border-gray-200 rounded flex-shrink-0 shadow-sm"
-                  />
+                  <img src={imagePreview || currentImg} alt="Preview" className="w-12 h-16 object-cover border border-gray-200 rounded flex-shrink-0 shadow-sm" />
                   <div>
                     <p className="text-sm font-semibold text-gray-700">{imageFile ? imageFile.name : 'Ảnh hiện tại'}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{imageFile ? 'Ảnh mới đã chọn' : 'Kéo thả hoặc nhấp bên dưới để thay thế'}</p>
                   </div>
                 </div>
               )}
-
-              {/* Drop zone */}
-              <label
-                className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 py-8 ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/50'}`}
-                onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-              >
+              <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 py-8 ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/50'}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>
                 <input type="file" onChange={handleFileChange} accept="image/*" className="hidden" />
-                <svg className="w-8 h-8 text-indigo-300 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
                 <p className="text-sm font-semibold text-indigo-600">{imageFile ? 'Đổi ảnh khác' : 'Tải ảnh mới lên'}</p>
                 <p className="text-xs text-gray-400 mt-1">PNG, JPG tối đa 5MB</p>
               </label>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-3 mt-8 pt-6 border-t border-gray-100">
-              <button type="submit"
-                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                  <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-                </svg>
+              <button type="submit" className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
                 Lưu thay đổi
               </button>
-              <button type="button" onClick={() => navigate('/admin/books')}
-                className="px-6 py-3 text-sm font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <button type="button" onClick={() => navigate('/admin/books')} className="px-6 py-3 text-sm font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 Hủy
               </button>
             </div>

@@ -14,10 +14,12 @@ const BookList = () => {
 
   const [books, setBooks] = useState([]);
   const [genres, setGenres] = useState([]);
+  const [promotions, setPromotions] = useState([]);
+
   const [searchTitle, setSearchTitle] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedPromoId, setSelectedPromoId] = useState('');
 
-  // ✨ State mới cho bộ lọc Giảm giá
   const [isSaleFilter, setIsSaleFilter] = useState(filterParam === 'sale');
 
   const [sortBy, setSortBy] = useState('title');
@@ -26,7 +28,6 @@ const BookList = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const perPage = 20;
 
-  // ✨ Đồng bộ checkbox với URL (nếu user đi từ Home sang thì checkbox tự động bật)
   useEffect(() => {
     setIsSaleFilter(filterParam === 'sale');
   }, [filterParam]);
@@ -40,13 +41,9 @@ const BookList = () => {
       } else if (sortBy === 'sold') {
         response = await axios.get('/api/books/top-selling');
       } else {
-        // ✨ SỬA Ở ĐÂY: Thêm limit=1000 để lấy đủ data cho các bộ lọc phức tạp (Sale, Giá...) hoạt động
         response = await axios.get('/api/books?limit=1000');
       }
-
-      // ✨ SỬA Ở ĐÂY: Hứng đúng mảng dữ liệu trả về từ API mới
       setBooks(response.data.books || response.data);
-
     } catch (err) {
       console.error('Lỗi khi tải sách:', err);
     } finally {
@@ -54,27 +51,48 @@ const BookList = () => {
     }
   };
 
+  const fetchPromotions = async () => {
+    try {
+      const res = await axios.get('/api/promotions');
+      const active = res.data.filter(p => p.isActive && new Date(p.endDate) >= Date.now());
+      setPromotions(active);
+    } catch (err) {
+      console.error('Lỗi tải khuyến mãi:', err);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
-      await fetchBooks();
+      await Promise.all([fetchBooks(), fetchPromotions()]);
       const genreRes = await axios.get('/api/books/genres');
       setGenres(genreRes.data);
     };
     init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     fetchBooks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 
   const filteredBooks = useMemo(() => {
     let result = [...books];
 
-    // ✨ Lọc sách ĐANG GIẢM GIÁ (Dựa vào checkbox ở sidebar)
     if (isSaleFilter) {
       result = result.filter(book => book.discountedPrice && book.discountedPrice < book.price);
+    }
+
+    if (isSaleFilter && selectedPromoId) {
+      const currentPromo = promotions.find(p => p._id === selectedPromoId);
+      if (currentPromo) {
+        if (currentPromo.targetType === 'genre') {
+          result = result.filter(book => book.genre === currentPromo.targetValue);
+        } else if (currentPromo.targetType === 'book') {
+          try {
+            const allowedIds = JSON.parse(currentPromo.targetValue).map(item => item.bookId);
+            result = result.filter(book => allowedIds.includes(book._id));
+          } catch (e) { console.error("Lỗi lọc promo", e); }
+        }
+      }
     }
 
     if (searchTitle) {
@@ -100,7 +118,7 @@ const BookList = () => {
       }
     }
     return result;
-  }, [books, searchTitle, selectedGenre, sortBy, isSaleFilter]);
+  }, [books, searchTitle, selectedGenre, sortBy, isSaleFilter, selectedPromoId, promotions]);
 
   const paginatedBooks = useMemo(() => {
     const start = (page - 1) * perPage;
@@ -109,80 +127,53 @@ const BookList = () => {
 
   const totalPages = Math.ceil(filteredBooks.length / perPage);
 
-  const sortOptions = [
-    { value: 'title', label: 'Tên A → Z' },
-    { value: 'sold', label: 'Bán chạy nhất' },
-    { value: 'priceHigh', label: 'Giá cao → thấp' },
-    { value: 'priceLow', label: 'Giá thấp → cao' },
-  ];
-
   const getPageTitle = () => {
     if (isSaleFilter) {
+      if (selectedPromoId) {
+        const pName = promotions.find(p => p._id === selectedPromoId)?.name;
+        return pName ? pName.toUpperCase() : 'KHUYẾN MÃI';
+      }
       return selectedGenre ? `${selectedGenre} GIẢM GIÁ` : 'Tất cả sách GIẢM GIÁ';
     }
     return selectedGenre || 'Tất cả sách';
   };
 
   const filterContent = (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {/* Search */}
       <div>
-        <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-3">Tìm kiếm</p>
+        <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400 mb-3 font-bold">Tìm kiếm</p>
         <div className="relative select-none">
           <input
             value={searchTitle}
             onChange={(e) => { setSearchTitle(e.target.value); setPage(1); }}
             type="text"
             placeholder="Nhập tên sách..."
-            className="w-full pl-4 pr-9 py-2.5 text-sm border border-gray-200 focus:border-black outline-none transition-colors bg-white placeholder:text-stone-400"
+            className="w-full pl-4 pr-9 py-2.5 text-sm border border-gray-200 focus:border-black outline-none transition-colors bg-white placeholder:text-stone-300"
           />
-          <FontAwesomeIcon
-            icon={['fas', 'magnifying-glass']}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 text-xs"
-          />
+          <FontAwesomeIcon icon={['fas', 'magnifying-glass']} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 text-xs" />
         </div>
       </div>
 
-      {/* ✨ Thêm mục Khuyến Mãi (Checkbox Giảm Giá) */}
+      {/* Khuyến mãi Checkbox */}
       <div>
-        <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-3">Khuyến mãi</p>
+        <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400 mb-3 font-bold">Trạng thái</p>
         <label className="flex items-center select-none gap-3 cursor-pointer group">
-          <div className={`w-5 h-5 border flex items-center justify-center transition-colors ${isSaleFilter
-            ? 'bg-rose-500 border-rose-500 text-white'
-            : 'border-gray-300 bg-white group-hover:border-rose-400'
-            }`}
-          >
+          <div className={`w-5 h-5 border flex items-center justify-center transition-all ${isSaleFilter ? 'bg-rose-500 border-rose-500 text-white' : 'border-gray-300 bg-white group-hover:border-rose-400'}`}>
             {isSaleFilter && <FontAwesomeIcon icon={['fas', 'check']} className="text-xs" />}
           </div>
-          <span className={`text-sm select-none transition-colors ${isSaleFilter ? 'text-rose-500 font-medium' : 'text-stone-600 group-hover:text-black'
-            }`}
-          >
-            Đang giảm giá
-          </span>
-          <input
-            type="checkbox"
-            className="hidden"
-            checked={isSaleFilter}
-            onChange={(e) => {
-              setIsSaleFilter(e.target.checked);
-              setPage(1);
-              // Gỡ params trên URL nếu bỏ check để sạch link
-              if (!e.target.checked && filterParam === 'sale') navigate('/books');
-            }}
-          />
+          <span className={`text-sm transition-colors ${isSaleFilter ? 'text-rose-500 font-bold' : 'text-stone-600 group-hover:text-black'}`}>Đang giảm giá</span>
+          <input type="checkbox" className="hidden" checked={isSaleFilter} onChange={(e) => { setIsSaleFilter(e.target.checked); if (!e.target.checked) setSelectedPromoId(''); setPage(1); if (!e.target.checked && filterParam === 'sale') navigate('/books'); }} />
         </label>
       </div>
 
-      {/* Genre */}
+      {/* Thể loại (Có Scroll) */}
       <div>
-        <p className="text-[10px] tracking-[0.35em] uppercase text-stone-400 mb-3">Thể loại</p>
-        <div className="flex flex-col gap-1">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400 mb-3 font-bold">Thể loại</p>
+        <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
           <button
             onClick={() => { setSelectedGenre(''); setPage(1); setSidebarOpen(false); }}
-            className={`text-left px-3 py-2 text-sm transition-colors duration-150 ${selectedGenre === ''
-              ? 'bg-black text-white font-medium'
-              : 'text-stone-600 hover:text-black hover:bg-stone-50'
-              }`}
+            className={`text-left px-3 py-2 text-sm transition-all ${selectedGenre === '' ? 'bg-black text-white font-bold' : 'text-stone-600 hover:bg-stone-50'}`}
           >
             Tất cả
           </button>
@@ -190,10 +181,7 @@ const BookList = () => {
             <button
               key={genre}
               onClick={() => { setSelectedGenre(genre); setPage(1); setSidebarOpen(false); }}
-              className={`text-left px-3 py-2 text-sm transition-colors duration-150 ${selectedGenre === genre
-                ? 'bg-black text-white font-medium'
-                : 'text-stone-600 hover:text-black hover:bg-stone-50'
-                }`}
+              className={`text-left px-3 py-2 text-sm transition-all ${selectedGenre === genre ? 'bg-black text-white font-bold' : 'text-stone-600 hover:bg-stone-50'}`}
             >
               {genre}
             </button>
@@ -205,139 +193,94 @@ const BookList = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* ── PAGE HEADER ── */}
       <div className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">
-            {isSaleFilter ? 'Ưu đãi cực sốc' : 'Thư viện'}
-          </p>
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <p className="text-[10px] tracking-[0.5em] uppercase text-stone-400 mb-2 font-bold">{isSaleFilter ? 'Ưu đãi đặc biệt' : 'Bộ sưu tập'}</p>
           <div className="flex items-end justify-between">
-            <h1 className="text-3xl font-bold text-black uppercase">
-              {getPageTitle()}
-            </h1>
-            {!isLoading && (
-              <p className="text-sm text-stone-400 pb-1">{filteredBooks.length} đầu sách</p>
-            )}
+            <h1 className="text-4xl font-bold text-black tracking-tight uppercase">{getPageTitle()}</h1>
+            {!isLoading && <p className="text-sm text-stone-400 font-medium">{filteredBooks.length} sản phẩm</p>}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
-
-          {/* ── SIDEBAR (desktop) ── */}
-          <aside className="hidden md:block w-56 flex-shrink-0">
-            <div className="sticky top-24">
-              {filterContent}
-            </div>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="flex gap-12">
+          <aside className="hidden md:block w-60 flex-shrink-0 border-r border-gray-50 pr-8">
+            <div className="sticky top-28">{filterContent}</div>
           </aside>
 
-          {/* ── MAIN CONTENT ── */}
           <div className="flex-1 min-w-0">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between mb-6 gap-3">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="md:hidden flex items-center gap-2 text-sm border border-gray-200 px-4 py-2 text-stone-600 hover:border-black hover:text-black transition-colors"
-              >
-                <FontAwesomeIcon icon={['fas', 'sliders']} className="text-xs" />
-                Bộ lọc
-                {(selectedGenre || isSaleFilter) && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-black ml-1" />
-                )}
+            <div className="flex items-center justify-between mb-10 gap-4">
+              <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 text-xs font-bold border border-gray-200 px-4 py-2 uppercase tracking-widest hover:border-black transition-all">
+                <FontAwesomeIcon icon={['fas', 'sliders']} /> Lọc
               </button>
 
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-4">
+                {/* ✨ Dropdown Promotion chi tiết */}
+                {isSaleFilter && promotions.length > 0 && (
+                  <select
+                    value={selectedPromoId}
+                    onChange={(e) => { setSelectedPromoId(e.target.value); setPage(1); }}
+                    className="text-[11px] font-bold border-2 border-rose-100 px-4 py-2 bg-rose-50 text-rose-600 outline-none focus:border-rose-500 transition-all cursor-pointer uppercase tracking-wider"
+                  >
+                    <option value="">Tất cả ưu đãi</option>
+                    {promotions.map(promo => (
+                      <option key={promo._id} value={promo._id}>{promo.name}</option>
+                    ))}
+                  </select>
+                )}
+
                 <select
                   value={sortBy}
                   onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-                  className="text-sm border border-gray-200 focus:border-black outline-none px-4 py-2 bg-white text-stone-600 focus:text-black transition-colors cursor-pointer"
+                  className="text-[11px] font-bold border border-gray-200 px-4 py-2 bg-white text-stone-600 outline-none focus:border-black transition-all cursor-pointer uppercase tracking-wider"
                 >
-                  {sortOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
+                  <option value="title">Tên A → Z</option>
+                  <option value="sold">Bán chạy nhất</option>
+                  <option value="priceHigh">Giá Cao → Thấp</option>
+                  <option value="priceLow">Giá Thấp → Cao</option>
                 </select>
               </div>
             </div>
 
-            {/* Book Grid */}
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs tracking-widest uppercase text-stone-400">Đang tải...</p>
+              <div className="flex flex-col items-center justify-center py-40">
+                <div className="w-10 h-10 border-4 border-stone-100 border-t-black rounded-full animate-spin mb-4" />
+                <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400">Đang tải...</p>
               </div>
             ) : paginatedBooks.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-12">
                 {paginatedBooks.map((book) => (
                   <BookCard key={book._id} book={book} />
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <FontAwesomeIcon icon={['far', 'folder-open']} className="text-4xl text-stone-200" />
-                <p className="text-stone-400 text-sm">Không tìm thấy cuốn sách nào phù hợp.</p>
-                {(searchTitle || selectedGenre || isSaleFilter) && (
-                  <button
-                    onClick={() => {
-                      setSearchTitle('');
-                      setSelectedGenre('');
-                      setIsSaleFilter(false); // ✨ Reset cả nút sale
-                      setPage(1);
-                      navigate('/books');
-                    }}
-                    className="text-xs underline text-stone-500 hover:text-black transition-colors"
-                  >
-                    Xoá tất cả bộ lọc
-                  </button>
-                )}
+              <div className="flex flex-col items-center justify-center py-40 border border-dashed border-stone-100 rounded-lg">
+                <FontAwesomeIcon icon={['far', 'folder-open']} className="text-5xl text-stone-100 mb-4" />
+                <p className="text-stone-400 text-sm font-medium mb-4">Không tìm thấy kết quả phù hợp</p>
+                <button onClick={() => { setSearchTitle(''); setSelectedGenre(''); setIsSaleFilter(false); setSelectedPromoId(''); setPage(1); navigate('/books'); }} className="text-[10px] font-bold uppercase tracking-widest text-black border-b-2 border-black pb-1 hover:text-stone-500 hover:border-stone-500 transition-all">Xoá bộ lọc</button>
               </div>
             )}
 
-            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-12">
-                <Pagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  onPageChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                />
+              <div className="mt-20 border-t border-stone-50 pt-10">
+                <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── MOBILE FILTER DRAWER ── */}
+      {/* MOBILE DRAWER */}
       {sidebarOpen && (
         <>
-          <div
-            className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 w-72 bg-white z-50 shadow-xl flex flex-col md:hidden transition-transform duration-300">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <p className="text-sm font-bold uppercase tracking-widest text-black">Bộ lọc</p>
-              <button onClick={() => setSidebarOpen(false)} className="text-stone-400 hover:text-black transition-colors">
-                <FontAwesomeIcon icon={['fas', 'xmark']} />
-              </button>
+          <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm transition-opacity md:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-y-0 left-0 w-80 bg-white z-50 shadow-2xl flex flex-col md:hidden animate-in slide-in-from-left duration-300">
+            <div className="flex items-center justify-between px-8 py-6 border-b border-stone-50">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-black">Bộ lọc</p>
+              <button onClick={() => setSidebarOpen(false)} className="text-stone-400 hover:text-black"><FontAwesomeIcon icon={['fas', 'xmark']} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-              {filterContent}
-
-              {/* Nút hủy Sale nổi bật trên Mobile */}
-              {isSaleFilter && (
-                <button
-                  onClick={() => {
-                    setIsSaleFilter(false);
-                    if (filterParam === 'sale') navigate('/books');
-                    setSidebarOpen(false);
-                  }}
-                  className="mt-6 w-full text-center py-2 text-sm text-rose-500 font-medium border border-rose-200 bg-rose-50 rounded-md"
-                >
-                  Bỏ lọc giảm giá
-                </button>
-              )}
-            </div>
+            <div className="flex-1 overflow-y-auto px-8 py-8">{filterContent}</div>
           </div>
         </>
       )}

@@ -4,17 +4,18 @@ const bookController = require('../controllers/bookController');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 
-// Công khai
 router.get('/genres', bookController.getAllGenres);
-router.get('/top-selling', bookController.getTopSellingBooks)// ✅ Đưa lên trước
-router.get('/low-stock', bookController.getLowStockBooks);
-// router.get('/sync-ai', bookController.syncAIVectors);
-router.get('/:id/recommend', bookController.getRecommendations);
+router.get('/top-selling', bookController.getTopSellingBooks);
+router.get('/low-stock', verifyToken, verifyAdmin, bookController.getLowStockBooks);
+router.get('/analytics', verifyToken, verifyAdmin, bookController.getBookManagementAnalytics);
+
 router.get('/', bookController.getAllBooks);
+
+router.get('/:id/recommend', bookController.getRecommendations);
 router.get('/:id', bookController.getBookById);
-// Admin – có upload ảnh
-router.post('/', upload.single('image'), bookController.createBook);
-router.put('/:id', upload.single('image'), bookController.updateBook);
-router.delete('/:id', bookController.deleteBook);
+
+router.post('/', verifyToken, verifyAdmin, upload.single('image'), bookController.createBook);
+router.put('/:id', verifyToken, verifyAdmin, upload.single('image'), bookController.updateBook);
+router.delete('/:id', verifyToken, verifyAdmin, bookController.deleteBook);
 
 module.exports = router;

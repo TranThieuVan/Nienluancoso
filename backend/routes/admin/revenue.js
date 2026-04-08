@@ -7,6 +7,7 @@ const { verifyToken, verifyAdmin } = require('../../middleware/authMiddleware');
 router.use(verifyToken, verifyAdmin);
 
 // GET /api/admin/revenue/monthly?year=2025
+router.get('/comparison', adminRevenueController.getRevenueComparison);
 router.get('/monthly', adminRevenueController.getMonthlyRevenue);
 router.get('/weekly', adminRevenueController.getWeeklyRevenue);
 module.exports = router;

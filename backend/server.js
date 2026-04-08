@@ -1,7 +1,7 @@
 const dotenv = require('dotenv');
 const express = require('express');
 const mongoose = require('mongoose');
-
+const PricingService = require('./services/pricingService'); // Sửa lại đường dẫn cho đúng với thư mục của bạn
 const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
@@ -56,6 +56,7 @@ app.use('/api/rating', require('./routes/rating'));
 app.use('/api/comments', require('./routes/comment'));
 app.use('/api/vnpay', vnpayRoutes);
 app.use('/api/vouchers', require('./routes/voucher'));
+app.use('/api/promotions', require('./routes/admin/adminPromotions'));
 
 // --- Các route admin ---
 app.use('/api/admin', require('./routes/admin/admin'));
@@ -76,6 +77,7 @@ mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('MongoDB connected');
 
+        PricingService.refreshCache();
         server.listen(process.env.PORT, () => {
             console.log(`Server running at http://localhost:${process.env.PORT}`);
         });

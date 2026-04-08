@@ -37,29 +37,33 @@ const AdminOrderDetail = () => {
   const getImageUrl = (path) => path?.startsWith('http') ? path : `http://localhost:5000${path}`;
   const formatPrice = (num) => (num || 0).toLocaleString('vi-VN') + 'đ';
 
+  // ✅ BỔ SUNG DỊCH TÊN 2 TRẠNG THÁI MỚI
   const translateStatus = (s) => {
     switch (s) {
       case 'pending': return 'Đang xử lý';
       case 'shipping': return 'Đang giao';
       case 'delivered': return 'Đã giao';
+      case 'failed_delivery': return 'Giao thất bại';
+      case 'returned': return 'Trả hàng';
       case 'cancelled': return 'Đã hủy';
       default: return s;
     }
   };
 
+  // ✅ NÂNG CẤP LUỒNG TRẠNG THÁI (State Machine)
   const allowedStatusTransitions = {
     pending: ['shipping', 'cancelled'],
-    shipping: ['delivered', 'cancelled'],
-    delivered: [],
-    cancelled: []
+    shipping: ['delivered', 'failed_delivery', 'cancelled'], // Thêm failed_delivery
+    delivered: ['returned'], // Đã giao thì chỉ có thể Trả hàng
+    failed_delivery: [], // Trạng thái đóng
+    returned: [], // Trạng thái đóng
+    cancelled: [] // Trạng thái đóng
   };
 
   const subTotal = useMemo(() => {
     return order.items?.reduce((sum, item) => sum + item.quantity * item.book.price, 0) || 0;
   }, [order.items]);
 
-  // ✅ Dùng order.totalPrice làm tổng thật — đã bao gồm ship và trừ discount
-  // Tính ngược discountAmount = subTotal + shippingFee - totalPrice
   const discountAmount = useMemo(() => {
     const raw = subTotal + (order.shippingFee || 0) - (order.totalPrice || 0);
     return raw > 0 ? raw : 0;
@@ -78,16 +82,19 @@ const AdminOrderDetail = () => {
 
     let cancelReason = '';
 
-    if (newStatus === 'cancelled') {
+    // ✅ BẮT LÝ DO CHO CẢ 3 TRẠNG THÁI: Hủy, Giao thất bại, Trả hàng
+    const isFailureState = ['cancelled', 'failed_delivery', 'returned'].includes(newStatus);
+
+    if (isFailureState) {
       const { value: text, isConfirmed } = await Swal.fire({
-        title: 'Nhập lý do hủy đơn',
+        title: `Nhập lý do ${translateStatus(newStatus).toLowerCase()}`,
         input: 'textarea',
-        inputPlaceholder: 'Ví dụ: Khách boom hàng, Đặt trùng, Hết sách...',
+        inputPlaceholder: 'Ví dụ: Khách boom hàng, Đặt trùng, Hàng bị rách...',
         showCancelButton: true,
-        confirmButtonText: 'Xác nhận hủy',
+        confirmButtonText: 'Xác nhận',
         cancelButtonText: 'Quay lại',
         inputValidator: (value) => {
-          if (!value) return 'Bạn cần nhập lý do để hủy đơn!';
+          if (!value) return 'Bạn cần nhập lý do để lưu lại hệ thống!';
         }
       });
 
@@ -119,7 +126,8 @@ const AdminOrderDetail = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const updatedPaymentStatus = (newStatus === 'cancelled' && order.paymentStatus === 'Đã thanh toán')
+      // ✅ NẾU KHÁCH ĐÃ TRẢ TIỀN MÀ ĐƠN GẶP SỰ CỐ -> ĐẨY SANG CẦN HOÀN TIỀN
+      const updatedPaymentStatus = (isFailureState && order.paymentStatus === 'Đã thanh toán')
         ? 'Hoàn tiền'
         : order.paymentStatus;
 
@@ -166,7 +174,6 @@ const AdminOrderDetail = () => {
     }
   };
 
-  // ✅ HÀM MỚI: Admin xác nhận đã nhận được tiền chuyển khoản QR
   const handleConfirmTransferReceived = async () => {
     const confirm = await Swal.fire({
       title: 'Xác nhận đã nhận tiền?',
@@ -217,8 +224,8 @@ const AdminOrderDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        <button onClick={() => navigate('/admin/orders')} className="mb-4 text-sm text-gray-500 hover:text-black">
-          ← Quay lại
+        <button onClick={() => navigate('/admin/orders')} className="mb-4 text-sm text-gray-500 hover:text-black font-medium">
+          ← Quay lại danh sách
         </button>
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Chi tiết đơn hàng #{order._id?.slice(-6).toUpperCase()}</h1>
 
@@ -252,9 +259,9 @@ const AdminOrderDetail = () => {
               <p className="text-sm">Tổng giá sản phẩm: <span className="font-normal">{formatPrice(subTotal)}</span></p>
               <p className="text-sm">Phí vận chuyển: <span className="font-normal">{formatPrice(order.shippingFee || 0)}</span></p>
               {discountAmount > 0 && (
-                <p className="text-sm">Voucher giảm giá: <span className="font-normal text-green-600">-{formatPrice(discountAmount)}</span></p>
+                <p className="text-sm">Voucher giảm giá: <span className="font-normal text-emerald-600">-{formatPrice(discountAmount)}</span></p>
               )}
-              <p className="text-lg mt-1 border-t pt-2 inline-block w-64">
+              <p className="text-lg mt-1 border-t border-gray-100 pt-2 inline-block w-64">
                 Tổng cộng: <span className="text-red-600 font-bold ml-2">{formatPrice(order.totalPrice || 0)}</span>
               </p>
             </div>
@@ -262,8 +269,8 @@ const AdminOrderDetail = () => {
 
           {/* Right: Info & Status */}
           <div className="md:col-span-1">
-            <div className="bg-gray-50 p-5 rounded border shadow-sm flex flex-col h-full text-sm text-gray-700">
-              <h3 className="font-bold text-gray-800 border-b border-gray-200 pb-2 mb-3 text-base">Thông tin nhận hàng</h3>
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col h-full text-sm text-gray-700">
+              <h3 className="font-bold text-gray-800 border-b border-gray-100 pb-2 mb-3 text-base">Thông tin nhận hàng</h3>
 
               <div className="space-y-2 mb-4">
                 <p><strong>Người nhận:</strong> {order.shippingAddress?.fullName || 'Ẩn danh'}</p>
@@ -271,101 +278,88 @@ const AdminOrderDetail = () => {
                 <p><strong>Địa chỉ:</strong> {formatAddress(order.shippingAddress)}</p>
               </div>
 
-              <div className="mt-2 pt-4 border-t border-gray-200 space-y-3">
-                <label className="block font-semibold text-gray-800">Trạng thái đơn hàng</label>
+              <div className="mt-2 pt-4 border-t border-gray-100 space-y-3">
+                <label className="block font-semibold text-gray-800">Trạng thái vận hành</label>
 
                 <div className="flex flex-col gap-3">
                   <select
                     value={order.status}
                     onChange={confirmStatusChange}
-                    disabled={order.status === 'cancelled' || order.status === 'delivered'}
-                    className="w-full border-2 border-blue-200 rounded px-3 py-2 bg-white disabled:bg-gray-100 font-semibold focus:outline-none focus:border-blue-500"
+                    // ✅ Khóa Dropdown nếu đã vào 3 trạng thái đóng (Hủy, Giao thất bại, Trả hàng)
+                    disabled={['cancelled', 'failed_delivery', 'returned'].includes(order.status)}
+                    className="w-full border-2 border-indigo-200 rounded-lg px-3 py-2 bg-white disabled:bg-gray-50 disabled:text-gray-500 font-semibold focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                   >
                     <option value="pending">⏳ Đang xử lý</option>
                     <option value="shipping">🚚 Đang giao hàng</option>
                     <option value="delivered">✅ Đã giao hàng</option>
+                    <option value="failed_delivery">🚫 Giao thất bại</option>
+                    <option value="returned">🔙 Khách trả hàng</option>
                     <option value="cancelled">❌ Đã hủy</option>
                   </select>
 
-                  {/* ✅ BOX: Đã thanh toán Online (VNPAY hoặc transfer đã xác nhận) */}
+                  {/* Payment Info Boxes */}
                   {order.status !== 'cancelled' && order.paymentStatus === 'Đã thanh toán' && (
-                    <div className="bg-green-100 border-l-4 border-green-500 p-3 rounded shadow-sm">
-                      <div className="flex items-center gap-2 text-green-700 mb-1">
+                    <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded shadow-sm">
+                      <div className="flex items-center gap-2 text-emerald-700 mb-1">
                         <FaCheckCircle className="text-base" />
                         <h3 className="font-bold text-sm">Đã thanh toán Online</h3>
                       </div>
-                      <p className="text-xs text-green-800 font-medium">
-                        Qua <span className="uppercase">{order.paymentMethod}</span>.{' '}
-                        <span className="text-red-600 font-bold uppercase">Tuyệt đối không thu COD.</span>
+                      <p className="text-xs text-emerald-800 font-medium">
+                        Qua <span className="uppercase">{order.paymentMethod}</span>. <span className="text-red-600 font-bold uppercase">Không thu COD.</span>
                       </p>
                     </div>
                   )}
 
-                  {/* ✅ FIX BUG 1: BOX COD — chỉ hiện khi paymentMethod thực sự là 'cod' */}
-                  {order.status !== 'cancelled' && order.paymentMethod === 'cod' && order.paymentStatus !== 'Đã thanh toán' && (
-                    <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded shadow-sm">
-                      <div className="flex items-center gap-2 text-yellow-700 mb-1">
+                  {!['cancelled', 'failed_delivery', 'returned'].includes(order.status) && order.paymentMethod === 'cod' && order.paymentStatus !== 'Đã thanh toán' && (
+                    <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded shadow-sm">
+                      <div className="flex items-center gap-2 text-amber-700 mb-1">
                         <FaMoneyBillWave className="text-base" />
                         <h3 className="font-bold text-sm">Thanh toán (COD)</h3>
                       </div>
-                      <p className="text-xs text-yellow-800">Thu tiền khách hàng lúc giao.</p>
+                      <p className="text-xs text-amber-800">Thu tiền khách hàng lúc giao.</p>
                     </div>
                   )}
 
-                  {/* ✅ FIX BUG 1: BOX TRANSFER — chỉ hiện khi paymentMethod là 'transfer' và chưa xác nhận */}
-                  {order.status !== 'cancelled' && order.paymentMethod === 'transfer' && order.paymentStatus !== 'Đã thanh toán' && (
+                  {!['cancelled', 'failed_delivery', 'returned'].includes(order.status) && order.paymentMethod === 'transfer' && order.paymentStatus !== 'Đã thanh toán' && (
                     <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded shadow-sm">
                       <div className="flex items-center gap-2 text-blue-700 mb-2">
                         <FaQrcode className="text-base" />
-                        <h3 className="font-bold text-sm">Chờ xác nhận chuyển khoản</h3>
+                        <h3 className="font-bold text-sm">Chờ chuyển khoản</h3>
                       </div>
-                      <p className="text-xs text-blue-800 mb-3">
-                        Khách thanh toán qua <strong>VietQR</strong>. Kiểm tra tài khoản ngân hàng rồi xác nhận bên dưới.
-                      </p>
-                      <button
-                        onClick={handleConfirmTransferReceived}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded shadow transition text-xs"
-                      >
+                      <button onClick={handleConfirmTransferReceived} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded shadow transition text-xs">
                         ✅ Đã nhận tiền chuyển khoản
                       </button>
                     </div>
                   )}
 
-                  {/* BOX HOÀN TIỀN */}
-                  {order.status === 'cancelled' && order.paymentStatus === 'Hoàn tiền' && (
+                  {/* ✅ BOX HOÀN TIỀN: Bật cho cả 3 trạng thái lỗi */}
+                  {['cancelled', 'failed_delivery', 'returned'].includes(order.status) && order.paymentStatus === 'Hoàn tiền' && (
                     <>
                       {order.paymentMethod === 'vnpay' ? (
-                        <div className="bg-indigo-50 border-l-4 border-indigo-600 p-4 rounded shadow-md mt-2">
+                        <div className="bg-indigo-50 border-l-4 border-indigo-600 p-4 rounded shadow-sm mt-2">
                           <div className="flex items-center gap-2 text-indigo-700 mb-2">
                             <FaClock className="text-xl animate-pulse" />
-                            <h3 className="font-bold text-base uppercase">Chờ hoàn tiền tự động</h3>
+                            <h3 className="font-bold text-sm uppercase">Chờ hoàn tự động</h3>
                           </div>
                           <p className="text-xs text-indigo-800 font-medium mb-3">
-                            Hệ thống Bot đang theo dõi đơn hàng này. Lệnh hoàn tiền <strong>{formatPrice(order.totalPrice || 0)}</strong> sẽ được tự động gửi sang VNPAY sau <strong>24 giờ</strong>.
+                            Lệnh hoàn tiền <strong>{formatPrice(order.totalPrice || 0)}</strong> sẽ tự động gửi qua VNPAY.
                           </p>
-                          <div className="text-center mt-3 border-t border-indigo-200 pt-3">
-                            <button
-                              onClick={handleConfirmRefund}
-                              className="text-indigo-500 hover:text-indigo-800 underline text-[11px] font-semibold transition-colors"
-                            >
-                              ⚠ Đã chuyển khoản tay cho khách? Bấm vào đây để xác nhận
+                          <div className="text-center border-t border-indigo-200 pt-3">
+                            <button onClick={handleConfirmRefund} className="text-indigo-600 hover:text-indigo-800 underline text-[10px] font-bold transition-colors">
+                              Đã chuyển tay? Xác nhận tại đây
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-red-100 border-l-4 border-red-600 p-4 rounded shadow-md mt-2 ">
-                          <div className="flex items-center gap-2 text-red-700 mb-2">
+                        <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded shadow-sm mt-2">
+                          <div className="flex items-center gap-2 text-rose-700 mb-2">
                             <FaExclamationTriangle className="text-xl" />
-                            <h3 className="font-bold text-base uppercase">Hoàn tiền thủ công</h3>
+                            <h3 className="font-bold text-sm uppercase">Hoàn tiền thủ công</h3>
                           </div>
-                          <p className="text-xs text-red-800 font-medium mb-3">
-                            Khách hàng đã thanh toán <strong>{formatPrice(order.totalPrice || 0)}</strong> qua VietQR.
-                            Vui lòng chuyển trả lại tiền, sau đó nhấn xác nhận.
+                          <p className="text-xs text-rose-800 font-medium mb-3">
+                            Khách đã thanh toán <strong>{formatPrice(order.totalPrice || 0)}</strong>. Vui lòng chuyển trả lại tiền.
                           </p>
-                          <button
-                            onClick={handleConfirmRefund}
-                            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded shadow transition"
-                          >
+                          <button onClick={handleConfirmRefund} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded shadow transition text-xs">
                             Đã chuyển khoản hoàn tiền
                           </button>
                         </div>
@@ -373,11 +367,10 @@ const AdminOrderDetail = () => {
                     </>
                   )}
 
-                  {/* BOX ĐÃ HOÀN TIỀN XONG */}
                   {order.paymentStatus === 'Đã hoàn tiền' && (
-                    <div className="bg-blue-100 border-l-4 border-blue-600 p-4 rounded shadow-sm mt-2">
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded shadow-sm mt-2">
                       <div className="flex items-center gap-2 text-blue-700">
-                        <FaCheckCircle className="text-lg" />
+                        <FaCheckCircle className="text-base" />
                         <h3 className="font-bold text-sm uppercase">Đã hoàn tiền xong</h3>
                       </div>
                     </div>
@@ -385,32 +378,30 @@ const AdminOrderDetail = () => {
                 </div>
               </div>
 
-              {/* Lý do hủy */}
-              {order.status === 'cancelled' && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm shadow-sm">
-                  <p className="font-bold text-red-600 uppercase mb-1">Lý do hủy:</p>
-                  <p className="text-red-700 italic">"{order.cancelReason || 'Không có lý do'}"</p>
+              {/* ✅ HIỂN THỊ LÝ DO CHO CẢ 3 TRẠNG THÁI LỖI */}
+              {['cancelled', 'failed_delivery', 'returned'].includes(order.status) && order.cancelReason && (
+                <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-sm shadow-sm">
+                  <p className="font-bold text-rose-700 uppercase mb-1 text-[11px] tracking-wider">Lý do xử lý:</p>
+                  <p className="text-rose-800 font-medium italic">"{order.cancelReason}"</p>
                 </div>
               )}
 
-              {order.status === 'cancelled' && (
-                <button
-                  onClick={deleteOrder}
-                  className="mt-4 w-full bg-red-600 text-white font-bold py-2 px-4 rounded hover:bg-red-700 transition shadow"
-                >
-                  Xóa đơn hàng
+              {/* Xóa đơn hàng */}
+              {['cancelled', 'failed_delivery', 'returned'].includes(order.status) && (
+                <button onClick={deleteOrder} className="mt-5 w-full bg-white border-2 border-red-100 text-red-500 font-bold py-2 px-4 rounded-lg hover:bg-red-50 hover:border-red-200 transition shadow-sm text-sm">
+                  Xóa vĩnh viễn đơn hàng
                 </button>
               )}
 
               {/* Lịch sử trạng thái */}
-              <div className="mt-6 border-t border-gray-200 pt-4">
-                <h3 className="font-semibold text-gray-800 mb-3 text-center">Lịch sử trạng thái</h3>
-                <ul className="space-y-3 text-sm text-gray-600 relative border-l-2 border-gray-200 ml-2 pl-4">
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <h3 className="font-bold text-gray-800 mb-4 text-xs uppercase tracking-widest text-center">Lịch sử cập nhật</h3>
+                <ul className="space-y-4 text-sm text-gray-600 relative border-l-2 border-indigo-100 ml-3 pl-5">
                   {order.statusHistory?.map((entry, index) => (
                     <li key={index} className="relative">
-                      <span className="absolute -left-6 top-1.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></span>
-                      <span className="font-bold text-gray-700">{translateStatus(entry.status)}</span>
-                      <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(entry.date)}</p>
+                      <span className="absolute -left-[27px] top-1 w-3 h-3 bg-indigo-500 rounded-full ring-4 ring-white"></span>
+                      <p className="font-bold text-gray-800 text-[13px]">{translateStatus(entry.status)}</p>
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">{formatDateTime(entry.date)}</p>
                     </li>
                   ))}
                 </ul>

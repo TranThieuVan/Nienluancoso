@@ -1,7 +1,8 @@
 const Book = require('../models/Book');
 const Order = require('../models/Order')
 const Rating = require('../models/Rating');
-
+const Promotion = require('../models/Promotion');
+const PricingService = require('../services/pricingService');
 const OpenAI = require("openai");
 
 // Khởi tạo OpenAI (Nếu model embedding bị lỗi với OpenRouter, bạn hãy dùng base URL gốc của OpenAI nhé)
@@ -76,55 +77,98 @@ exports.createBook = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi tạo sách', err });
     }
 };
-// Thay thế hàm getAllBooks hiện tại bằng hàm này:
 exports.getAllBooks = async (req, res) => {
     try {
         const filter = {};
-        if (req.query.genre) {
-            filter.genre = req.query.genre;
+        const now = new Date();
+
+        // 1. Lọc Genre & Search
+        if (req.query.genre) filter.genre = req.query.genre;
+        if (req.query.search) filter.title = { $regex: req.query.search, $options: 'i' };
+
+        // 2. Lọc theo Promotion
+        if (req.query.promo) {
+            const promo = await Promotion.findById(req.query.promo);
+            if (promo && promo.isActive && new Date(promo.startDate) <= now && new Date(promo.endDate) >= now) {
+                if (promo.targetType === 'genre') {
+                    filter.genre = promo.targetValue;
+                } else if (promo.targetType === 'book') {
+                    try {
+                        const configs = JSON.parse(promo.targetValue);
+                        filter._id = { $in: configs.map(c => c.bookId) };
+                    } catch (e) { }
+                }
+            } else { filter._id = null; }
         }
-        if (req.query.search) {
-            filter.title = { $regex: req.query.search, $options: 'i' };
+        else if (req.query.filter === 'sale') {
+            const activePromos = await Promotion.find({
+                isActive: true, startDate: { $lte: now }, endDate: { $gte: now }
+            });
+
+            if (activePromos.length === 0) {
+                filter._id = null;
+            } else {
+                let isAllShopSale = false;
+                const saleGenres = [];
+                const saleBookIds = [];
+
+                activePromos.forEach(p => {
+                    if (p.targetType === 'all') isAllShopSale = true;
+                    else if (p.targetType === 'genre') saleGenres.push(p.targetValue);
+                    else if (p.targetType === 'book') {
+                        try { JSON.parse(p.targetValue).forEach(c => saleBookIds.push(c.bookId)); } catch (e) { }
+                    }
+                });
+
+                if (!isAllShopSale) {
+                    const conditions = [];
+                    if (saleGenres.length > 0) conditions.push({ genre: { $in: saleGenres } });
+                    if (saleBookIds.length > 0) conditions.push({ _id: { $in: saleBookIds } });
+                    filter.$or = conditions.length > 0 ? conditions : [{ _id: null }];
+                }
+            }
         }
 
-        // --- BẮT ĐẦU TỐI ƯU PHÂN TRANG ---
+        // 3. Logic Sắp xếp (Sort)
+        let sortQuery = { createdAt: -1 };
+        if (req.query.sort === 'price_asc') sortQuery = { price: 1 };
+        if (req.query.sort === 'price_desc') sortQuery = { price: -1 };
+        if (req.query.sort === 'name_asc') sortQuery = { title: 1 };
+        if (req.query.sort === 'name_desc') sortQuery = { title: -1 }; // Bổ sung Z -> A
+
+        // 4. Phân trang
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 21; // Mặc định 21 cuốn 1 trang (giống frontend)
+        const limit = parseInt(req.query.limit) || 21;
         const skip = (page - 1) * limit;
 
-        // Đếm tổng số sách thỏa mãn điều kiện để tính tổng số trang
         const totalBooks = await Book.countDocuments(filter);
-        const totalPages = Math.ceil(totalBooks / limit);
+        const books = await Book.find(filter).sort(sortQuery).skip(skip).limit(limit);
 
-        // Chỉ lấy đúng số lượng sách của trang hiện tại
-        const books = await Book.find(filter)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        // Áp dụng Giá Động (Pricing Engine)
+        const booksWithPrice = PricingService.applyPricing(books);
 
-        // Trả về object chứa dữ liệu và metadata phân trang
         res.json({
-            books, // Danh sách sách của trang hiện tại
+            books: booksWithPrice,
             currentPage: page,
-            totalPages,
+            totalPages: Math.ceil(totalBooks / limit),
             totalBooks
         });
-        // --- KẾT THÚC TỐI ƯU ---
-
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi lấy sách', err });
     }
 };
+
 exports.getBookById = async (req, res) => {
     try {
         const book = await Book.findById(req.params.id);
         if (!book) return res.status(404).json({ msg: 'Không tìm thấy sách' });
-        res.json(book);
+
+        const bookWithPrice = PricingService.applyPricing(book);
+        res.json(bookWithPrice);
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi server', err });
     }
 };
-
 exports.updateBook = async (req, res) => {
     try {
         const cleanBody = {};
@@ -214,14 +258,24 @@ exports.getAllGenres = async (req, res) => {
     }
 };
 
+// Thay thế hàm cũ trong controllers/bookController.js
 exports.getTopSellingBooks = async (req, res) => {
     try {
+        const { startDate, endDate } = req.query;
+
+        // Điều kiện mặc định: Chỉ lấy đơn hàng giao thành công
+        const matchStage = { status: "delivered" };
+
+        // Nếu client truyền ngày tháng lên, thêm bộ lọc ngày vào query
+        if (startDate && endDate) {
+            matchStage.createdAt = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate)
+            };
+        }
+
         const result = await Order.aggregate([
-            {
-                $match: {
-                    status: "delivered"
-                }
-            },
+            { $match: matchStage },
             { $unwind: "$items" },
             {
                 $group: {
@@ -230,7 +284,7 @@ exports.getTopSellingBooks = async (req, res) => {
                 }
             },
             { $sort: { totalSold: -1 } },
-            { $limit: 5 },
+            { $limit: 5 }, // Lấy Top 5
             {
                 $lookup: {
                     from: "books",
@@ -245,11 +299,9 @@ exports.getTopSellingBooks = async (req, res) => {
                     _id: "$book._id",
                     title: "$book.title",
                     author: "$book.author",
-                    price: "$book.price",
-                    genre: "$book.genre",
                     image: "$book.image",
+                    price: "$book.price",
                     stock: "$book.stock",
-                    description: "$book.description",
                     totalSold: 1
                 }
             }
@@ -257,11 +309,10 @@ exports.getTopSellingBooks = async (req, res) => {
 
         res.json(result);
     } catch (err) {
-        console.error(err);
+        console.error("Lỗi getTopSellingBooks:", err);
         res.status(500).json({ message: 'Lỗi khi lấy top sách bán chạy' });
     }
 };
-
 
 exports.getLowStockBooks = async (req, res) => {
     try {
@@ -385,6 +436,84 @@ exports.getRecommendations = async (req, res) => {
         res.status(500).json({ error: 'Lỗi server khi tìm sách đề xuất' });
     }
 };
+
+exports.getBookManagementAnalytics = async (req, res) => {
+    try {
+        const [allBooks, topByRevenue] = await Promise.all([
+            Book.find().select('title stock sold price importPrice discountedPrice genre createdAt'),
+
+            // Tối ưu lại Query Doanh thu
+            Order.aggregate([
+                { $match: { status: "delivered" } },
+                { $unwind: "$items" },
+                // Join thẳng với bảng books để lấy giá lúc tính
+                { $lookup: { from: 'books', localField: 'items.book', foreignField: '_id', as: 'bookData' } },
+                { $unwind: "$bookData" },
+                {
+                    $group: {
+                        _id: "$bookData._id",
+                        title: { $first: "$bookData.title" },
+                        unitsSold: { $sum: "$items.quantity" },
+                        totalRevenue: {
+                            $sum: {
+                                $multiply: [
+                                    { $ifNull: ["$bookData.discountedPrice", "$bookData.price"] },
+                                    "$items.quantity"
+                                ]
+                            }
+                        }
+                    }
+                },
+                { $sort: { totalRevenue: -1 } },
+                { $limit: 5 }
+            ])
+        ]);
+
+        let totalInventoryValue = 0;
+        let potentialProfit = 0;
+
+        allBooks.forEach(book => {
+            const currentPrice = book.discountedPrice || book.price || 0;
+            // 🛡️ Bọc chống lỗi NaN: Nếu chưa kịp chạy migrate, lấy tạm 60%
+            const costPrice = book.importPrice || (book.price * 0.6);
+            const profitPerUnit = currentPrice - costPrice;
+
+            totalInventoryValue += (book.stock * costPrice);
+            potentialProfit += (book.stock * profitPerUnit);
+        });
+
+        const inventory = {
+            lowStock: allBooks.filter(b => b.stock > 0 && b.stock <= 5).length,
+            outOfStock: allBooks.filter(b => b.stock === 0).length,
+            deadStock: allBooks.filter(b => b.sold === 0 && (new Date() - b.createdAt) > 30 * 24 * 60 * 60 * 1000).length,
+        };
+
+        const promotions = {
+            discountedCount: allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price).length,
+            poorPromoPerformance: allBooks.filter(b => b.discountedPrice && b.sold < 2).length
+        };
+
+        res.json({
+            summary: {
+                totalInventoryValue: Math.round(totalInventoryValue),
+                potentialProfit: Math.round(potentialProfit),
+                inventory,
+                promotions
+            },
+            topRevenueBooks: topByRevenue.map(item => ({
+                title: item.title,
+                revenue: item.totalRevenue,
+                sold: item.unitsSold
+            })),
+            deadStockList: allBooks.filter(b => b.sold === 0).slice(0, 5)
+        });
+
+    } catch (err) {
+        console.error("🔥 Lỗi API Analytics:", err);
+        res.status(500).json({ message: "Lỗi tính toán báo cáo sách", error: err.message });
+    }
+};
+
 // ✅ API ĐỒNG BỘ AI: Tự động tạo Vector cho TẤT CẢ sách cũ chưa có
 
 // exports.syncAIVectors = async (req, res) => {

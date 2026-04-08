@@ -16,9 +16,7 @@ const NotificationBell = () => {
     const [toastNoti, setToastNoti] = useState(null);
     const [readIds, setReadIds] = useState([]);
 
-    // ✨ ĐÂY RỒI: Khôi phục lại biến deletedIds bị mất tích!
     const [deletedIds, setDeletedIds] = useState([]);
-
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -77,7 +75,23 @@ const NotificationBell = () => {
     };
 
     const { visibleNotifications, unreadCount } = useMemo(() => {
-        const visible = notifications.filter(n => !deletedIds.includes(n._id));
+        const now = new Date();
+        const visible = notifications.filter(n => {
+            // 1. Ẩn nếu nằm trong danh sách đã người dùng chủ động xóa
+            if (deletedIds.includes(n._id)) return false;
+
+            // 2. TỰ ĐỘNG ẨN: Nếu là promotion và đã qua ngày kết thúc
+            // (Lưu ý: Đảm bảo Backend trả về field endDate hoặc expiresAt cho thông báo loại này)
+            if (n.type === 'promotion') {
+                const expiryDate = n.endDate || n.expiresAt || (n.relatedData && n.relatedData.endDate);
+                if (expiryDate && new Date(expiryDate) < now) {
+                    return false; // Hết hạn -> tự ẩn
+                }
+            }
+
+            return true;
+        });
+
         const unread = visible.filter(n => !readIds.includes(n._id)).length;
         return { visibleNotifications: visible, unreadCount: unread };
     }, [notifications, deletedIds, readIds]);
@@ -100,7 +114,7 @@ const NotificationBell = () => {
             )}
 
             <div className="relative flex items-center" ref={dropdownRef}>
-                <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-gray-600 hover:text-blue-600 transition focus:outline-none">
+                <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-gray-600 hover:text-black transition focus:outline-none">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
@@ -127,9 +141,27 @@ const NotificationBell = () => {
                                             key={noti._id}
                                             onClick={() => {
                                                 handleMarkAsRead(noti._id);
+
+                                                // CHUYỂN HƯỚNG TÙY THEO LOẠI THÔNG BÁO
                                                 if (noti.type === 'voucher') {
                                                     setIsOpen(false);
                                                     navigate('/profile', { state: { tab: 'vouchers' } });
+                                                } else if (noti.type === 'promotion') {
+                                                    setIsOpen(false);
+
+                                                    // Nếu chưa ở trang chủ thì điều hướng về trang chủ trước
+                                                    if (window.location.pathname !== '/') {
+                                                        navigate('/');
+                                                    }
+
+                                                    // Dùng timeout nhỏ để đảm bảo trang (và section) đã kịp render 
+                                                    setTimeout(() => {
+                                                        const flashSaleSection = document.getElementById('flash-sale');
+                                                        if (flashSaleSection) {
+                                                            // Cuộn mượt mà đến khu vực giảm giá
+                                                            flashSaleSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        }
+                                                    }, 300);
                                                 }
                                             }}
                                             className={`relative px-4 py-3 border-b border-gray-50 cursor-pointer transition group

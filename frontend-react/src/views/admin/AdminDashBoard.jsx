@@ -141,7 +141,12 @@ const AdminDashBoard = () => {
   const [overview, setOverview] = useState(null);
   const year = new Date().getFullYear();
 
-  // 1. Fetch Overview Data
+  // Các State hỗ trợ bộ lọc Báo cáo sách bán chạy
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [filteredTopBooks, setFilteredTopBooks] = useState([]);
+  const [topLoading, setTopLoading] = useState(false);
+
+  // 1. Fetch Overview Data (Dữ liệu tổng quan)
   useEffect(() => {
     const fetchOverview = async () => {
       try {
@@ -159,6 +164,54 @@ const AdminDashBoard = () => {
     fetchOverview();
   }, []);
 
+  // 2. Helper lấy ngày tháng lọc sách
+  const getDateRange = (filterType) => {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (filterType === 'today') {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (filterType === 'week') {
+      const first = now.getDate() - now.getDay() + 1;
+      start = new Date(now.setDate(first));
+      start.setHours(0, 0, 0, 0);
+      end = new Date();
+    } else if (filterType === 'month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      end = new Date();
+    } else {
+      return { startDate: null, endDate: null };
+    }
+    return { startDate: start.toISOString(), endDate: end.toISOString() };
+  };
+
+  // 3. Fetch dữ liệu Top sách mỗi khi timeFilter thay đổi
+  useEffect(() => {
+    const fetchTopBooks = async () => {
+      setTopLoading(true);
+      try {
+        const { startDate, endDate } = getDateRange(timeFilter);
+        // Lưu ý: Đảm bảo đường dẫn này khớp với route API của bạn (ví dụ http://localhost:5000/...)
+        let url = 'http://localhost:5000/api/books/top-selling';
+
+        if (startDate && endDate) {
+          url += `?startDate=${startDate}&endDate=${endDate}`;
+        }
+
+        const res = await axios.get(url);
+        setFilteredTopBooks(res.data);
+      } catch (error) {
+        console.error('Lỗi lấy sách bán chạy:', error);
+      } finally {
+        setTopLoading(false);
+      }
+    };
+    fetchTopBooks();
+  }, [timeFilter]);
+
   if (loading || !overview) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-gray-400">
@@ -168,18 +221,13 @@ const AdminDashBoard = () => {
     </div>
   );
 
-  const { kpi, topBooks, recentOrders, lowStock, promotions, vouchers } = overview;
+  const { kpi, recentOrders, lowStock, promotions, vouchers } = overview;
   const totalRevenue = kpi.monthlyRevenue.reduce((s, v) => s + v, 0);
   const maxMonthVal = Math.max(...kpi.monthlyRevenue);
   const topMonth = maxMonthVal > 0 ? MONTH_LABELS[kpi.monthlyRevenue.indexOf(maxMonthVal)] : '—';
 
-  // ── LỌC KHUYẾN MÃI VÀ VOUCHER CÒN HOẠT ĐỘNG ──
   const now = new Date();
-
-  // Lọc Khuyến mãi: còn hạn và đang bật
   const activePromotions = (promotions || []).filter(p => new Date(p.endDate) >= now && p.isActive !== false);
-
-  // Lọc Voucher: còn hạn, đang bật và số lượt dùng chưa vượt giới hạn
   const activeVouchers = (vouchers || []).filter(v =>
     v.isActive !== false &&
     new Date(v.expirationDate) >= now &&
@@ -215,29 +263,73 @@ const AdminDashBoard = () => {
       {/* ── Khối 1: Top Books + Recent Orders ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
 
-        {/* Top 5 sách bán chạy */}
-        <div className="bg-amber-50/40 border border-amber-200 rounded-2xl overflow-hidden shadow-sm">
+        {/* Top 5 sách bán chạy (Đã được nâng cấp bộ lọc thời gian) */}
+        <div className="bg-amber-50/40 border border-amber-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
           <div className="px-6 py-4 border-b border-amber-200/60">
-            <SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-trophy text-amber-600" />Top 5 sách bán chạy</span></SectionTitle>
+            <SectionTitle
+              action={
+                <div className="flex bg-amber-100/50 p-1 rounded-lg border border-amber-200/50">
+                  {['today', 'week', 'month', 'all'].map((filter) => {
+                    const labels = { today: 'Hôm nay', week: 'Tuần này', month: 'Tháng này', all: 'Tất cả' };
+                    return (
+                      <button
+                        key={filter}
+                        onClick={() => setTimeFilter(filter)}
+                        disabled={topLoading}
+                        className={`px-2.5 py-1 text-[10px] sm:text-xs font-semibold rounded-md transition-all ${timeFilter === filter
+                          ? 'bg-white text-amber-700 shadow-sm border border-amber-200'
+                          : 'text-amber-600/70 hover:text-amber-800 hover:bg-amber-100/50'
+                          } ${topLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {labels[filter]}
+                      </button>
+                    );
+                  })}
+                </div>
+              }
+            >
+              <span className="flex items-center gap-2"><i className="fa-solid fa-trophy text-amber-600" />Top 5 sách bán chạy</span>
+            </SectionTitle>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-amber-100/50 border-b border-amber-200/60">
-              <tr>{['#', 'Sách', 'Sold', 'Giá'].map((h, i) => (
+              <tr>{['#', 'Sách', 'Đã Bán', 'Giá'].map((h, i) => (
                 <th key={h} className={`px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold ${i >= 2 ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-amber-200/40">
-              {topBooks.length === 0
-                ? <tr><td colSpan="4" className="py-12 text-center text-gray-400 text-sm">Chưa có dữ liệu</td></tr>
-                : topBooks.map((book, i) => (
-                  <tr key={book._id} className="hover:bg-amber-100/30 transition-colors">
-                    <td className="px-5 py-3.5"><span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${i === 0 ? 'bg-amber-200 text-amber-800' : i === 1 ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-amber-600'}`}>{i + 1}</span></td>
-                    <td className="px-5 py-3.5"><div className="flex items-center gap-3"><img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt={book.title} className="w-8 h-11 object-cover border border-amber-100 rounded flex-shrink-0" /><div><p className="font-semibold text-gray-800 text-sm leading-tight line-clamp-1">{book.title}</p><p className="text-xs text-gray-500 mt-0.5">{book.author}</p></div></div></td>
-                    <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold}</td>
-                    <td className="px-5 py-3.5 text-right font-mono text-gray-700 text-sm">{(book.discountedPrice || book.price)?.toLocaleString('vi-VN')}₫</td>
-                  </tr>
-                ))
-              }
+              {topLoading ? (
+                <tr>
+                  <td colSpan="4" className="py-12 text-center text-amber-600/80 text-sm">
+                    <i className="fa-solid fa-circle-notch fa-spin mr-2" />Đang lọc dữ liệu...
+                  </td>
+                </tr>
+              ) : filteredTopBooks.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="py-12 text-center text-gray-400 text-sm">
+                    Không có dữ liệu bán hàng trong thời gian này
+                  </td>
+                </tr>
+              ) : filteredTopBooks.map((book, i) => (
+                <tr key={book._id} className="hover:bg-amber-100/30 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${i === 0 ? 'bg-amber-200 text-amber-800' : i === 1 ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-amber-600'}`}>
+                      {i + 1}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt={book.title} className="w-8 h-11 object-cover border border-amber-100 rounded flex-shrink-0" />
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm leading-tight line-clamp-1" title={book.title}>{book.title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5" title={book.author}>{book.author}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold}</td>
+                  <td className="px-5 py-3.5 text-right font-mono text-gray-700 text-sm">{(book.discountedPrice || book.price)?.toLocaleString('vi-VN')}₫</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

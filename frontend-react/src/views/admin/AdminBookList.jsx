@@ -16,7 +16,8 @@ const AdminBookList = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const booksPerPage = 20;
-
+  const [analytics, setAnalytics] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const fetchBooks = async () => {
     setLoading(true);
     try {
@@ -32,7 +33,26 @@ const AdminBookList = () => {
       setLoading(false);
     }
   };
+  // Fetch dữ liệu báo cáo nâng cao cho Sách
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        // ✅ ĐỔI THÀNH adminToken CHO KHỚP VỚI HỆ THỐNG CỦA BẠN
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
 
+        const res = await axios.get('http://localhost:5000/api/books/analytics', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        setAnalytics(res.data);
+      } catch (err) {
+        console.error('Lỗi lấy Analytics:', err);
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    };
+    fetchAnalytics();
+  }, []);
   useEffect(() => { fetchBooks(); }, []);
 
   // Reset về trang 1 khi thay đổi bất kỳ bộ lọc nào
@@ -138,6 +158,75 @@ const AdminBookList = () => {
         </div>
       </div>
 
+      {/* ── Book Analytics Hub (Bento Grid) ── */}
+      {!loadingAnalytics && analytics && (
+        <div className="mb-8 grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {/* Cột 1: Hiệu suất Doanh thu (Chiếm 2 cột) */}
+          <div className="xl:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-chart-line text-indigo-500" /> Top Doanh Thu (Hiệu Suất)
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Box Tổng quan Tiền */}
+              <div className="bg-indigo-50/50 rounded-xl p-5 border border-indigo-100 flex flex-col justify-center">
+                <p className="text-xs text-indigo-600 font-bold uppercase tracking-widest mb-1">Dự phóng lợi nhuận</p>
+                <p className="text-3xl font-mono font-bold text-gray-900 mb-1">{analytics.summary.potentialProfit.toLocaleString('vi-VN')}₫</p>
+                <p className="text-xs text-gray-500">Giá trị kho hiện tại: <strong className="font-mono">{analytics.summary.totalInventoryValue.toLocaleString('vi-VN')}₫</strong></p>
+              </div>
+
+              {/* List Sách gánh doanh thu */}
+              <div className="space-y-3">
+                {analytics.topRevenueBooks.map((b, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{idx + 1}</span>
+                      <p className="text-sm font-semibold text-gray-700 truncate pr-2">{b.title}</p>
+                    </div>
+                    <span className="font-mono text-sm font-bold text-emerald-600">{b.revenue.toLocaleString('vi-VN')}₫</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Cột 2: Cảnh báo Tồn kho & Khuyến mãi */}
+          <div className="flex flex-col gap-4">
+            {/* Box Tồn kho */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex-1">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <i className="fa-solid fa-boxes-stacked text-amber-500" /> Quản lý Tồn kho
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold font-mono text-amber-600">{analytics.summary.inventory.lowStock}</p>
+                  <p className="text-[10px] uppercase text-amber-700 font-semibold mt-1">Sắp hết hàng</p>
+                </div>
+                <div className="bg-rose-50 border border-rose-100 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold font-mono text-rose-600">{analytics.summary.inventory.deadStock}</p>
+                  <p className="text-[10px] uppercase text-rose-700 font-semibold mt-1">Tồn kho chết</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Box Khuyến mãi */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex-1">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <i className="fa-solid fa-tags text-emerald-500" /> Hiệu quả Khuyến mãi
+              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-gray-500">Đang giảm giá</span>
+                <span className="font-mono font-bold text-sm text-gray-800">{analytics.summary.promotions.discountedCount} cuốn</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span> Giảm nhưng ế
+                </span>
+                <span className="font-mono font-bold text-sm text-rose-600">{analytics.summary.promotions.poorPromoPerformance} cuốn</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         {stats.map(s => (
