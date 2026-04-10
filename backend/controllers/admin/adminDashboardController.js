@@ -4,7 +4,6 @@ const Book = require('../../models/Book');
 const Promotion = require('../../models/Promotion');
 const Voucher = require('../../models/Voucher');
 
-// ─── HÀM HỖ TRỢ LỌC THỜI GIAN ───
 const getDateFilter = (period) => {
     if (period === 'all') return {};
     const now = new Date();
@@ -15,7 +14,6 @@ const getDateFilter = (period) => {
     return { createdAt: { $gte: from } };
 };
 
-// ─── API 1: LẤY DỮ LIỆU TỔNG QUAN (OVERVIEW) ───
 exports.getDashboardOverview = async (req, res) => {
     try {
         const year = new Date().getFullYear();
@@ -23,7 +21,7 @@ exports.getDashboardOverview = async (req, res) => {
         const [
             totalUsers, lockedUsers, totalBooks, outOfStockBooks,
             allOrders, monthlyRevenueData,
-            recentOrders, lowStock, rankStats, // ✅ Đã xóa topBooks khỏi đây
+            recentOrders, lowStock, rankStats,
             promotions, vouchers
         ] = await Promise.all([
             User.countDocuments(),
@@ -32,10 +30,10 @@ exports.getDashboardOverview = async (req, res) => {
             Book.countDocuments({ stock: 0 }),
             Order.find().select('status paymentStatus createdAt'),
             Order.aggregate([
-                { $match: { status: 'delivered', createdAt: { $gte: new Date(`${year}-01-01`), $lte: new Date(`${year}-12-31T23:59:59.999Z`) } } },
+                // ✅ ĐÃ SỬA: Doanh thu tháng chỉ tính khi completed
+                { $match: { status: 'completed', createdAt: { $gte: new Date(`${year}-01-01`), $lte: new Date(`${year}-12-31T23:59:59.999Z`) } } },
                 { $group: { _id: { $month: "$createdAt" }, revenue: { $sum: "$totalPrice" } } }
             ]),
-            // ✅ Đã xóa Book.find().sort({ sold: -1 })...
             Order.find().sort({ createdAt: -1 }).limit(6).populate('user', 'name').select('totalPrice paymentStatus status createdAt shippingAddress'),
             Book.find({ stock: { $lte: 5 } }).sort({ stock: 1 }).limit(6).select('title author stock image'),
             User.aggregate([{ $group: { _id: "$rank", count: { $sum: 1 } } }]),
@@ -43,48 +41,38 @@ exports.getDashboardOverview = async (req, res) => {
             Voucher.find({ isActive: true })
         ]);
 
-        // Đếm Order
-        const orderCounts = { pending: 0, shipping: 0, delivered: 0, cancelled: 0, needRefund: 0, total: allOrders.length };
+        const orderCounts = { pending: 0, delivering: 0, delivered: 0, completed: 0, cancelled: 0, needRefund: 0, total: allOrders.length };
         allOrders.forEach(o => {
             if (orderCounts[o.status] !== undefined) orderCounts[o.status]++;
             if (o.status === 'cancelled' && o.paymentStatus === 'Hoàn tiền') orderCounts.needRefund++;
         });
 
-        // Doanh thu tháng
         const monthlyRevenue = Array(12).fill(0);
         monthlyRevenueData.forEach(m => { monthlyRevenue[m._id - 1] = m.revenue; });
 
-        // Rank Dist
         const rankDist = { 'Khách hàng': 0, 'Bạc': 0, 'Vàng': 0, 'Bạch kim': 0, 'Kim cương': 0 };
         rankStats.forEach(r => { if (rankDist[r._id || 'Khách hàng'] !== undefined) rankDist[r._id || 'Khách hàng'] = r.count; });
 
         res.json({
-            kpi: {
-                totalUsers, lockedUsers, totalBooks, outOfStockBooks,
-                orderCounts, monthlyRevenue, rankDist
-            },
-            recentOrders, lowStock, promotions, vouchers // ✅ Cập nhật object trả về
+            kpi: { totalUsers, lockedUsers, totalBooks, outOfStockBooks, orderCounts, monthlyRevenue, rankDist },
+            recentOrders, lowStock, promotions, vouchers
         });
 
-    } catch (err) {
-        console.error("Lỗi Overview:", err);
-        res.status(500).json({ message: "Lỗi Server Overview" });
-    }
+    } catch (err) { res.status(500).json({ message: "Lỗi Server Overview" }); }
 };
 
-// ─── API 2: LẤY DỮ LIỆU PHÂN TÍCH CHUYÊN SÂU (ANALYTICS) ───
 exports.getDashboardAnalytics = async (req, res) => {
     try {
         const { tab, period } = req.query;
         const dateMatch = getDateFilter(period);
-        const validOrderMatch = { status: { $in: ['pending', 'shipping', 'delivered'] }, ...dateMatch };
 
         let result = {};
 
         if (tab === 'author' || tab === 'genre') {
             const groupBy = tab === 'author' ? "$bookData.author" : "$bookData.genre";
+            // ✅ ĐÃ SỬA: Chỉ tính doanh thu/lượt bán thật sự với những đơn completed
             const rawData = await Order.aggregate([
-                { $match: validOrderMatch },
+                { $match: { status: 'completed', ...dateMatch } },
                 { $unwind: "$items" },
                 { $lookup: { from: 'books', localField: 'items.book', foreignField: '_id', as: 'bookData' } },
                 { $unwind: "$bookData" },
@@ -101,8 +89,10 @@ exports.getDashboardAnalytics = async (req, res) => {
             result = rawData.map(d => ({ name: d._id || 'Không rõ', units: d.units, revenue: d.revenue }));
         }
         else if (tab === 'retention') {
+            // Lọc các đơn hàng hợp lệ (không tính hủy, giao thất bại)
+            const validOrderMatch = { status: { $nin: ['cancelled', 'failed_delivery', 'returned'] }, ...dateMatch };
             const userOrders = await Order.aggregate([
-                { $match: dateMatch },
+                { $match: validOrderMatch },
                 { $group: { _id: "$user", count: { $sum: 1 } } }
             ]);
             const total = userOrders.length;
@@ -132,13 +122,17 @@ exports.getDashboardAnalytics = async (req, res) => {
 
                     const rank = o.user?.rank || 'Khách hàng';
                     if (!rMap[rank]) rMap[rank] = { total: 0, count: 0 };
-                    rMap[rank].total += o.totalPrice || 0;
+
+                    // ✅ ĐÃ SỬA: Doanh thu theo Rank chỉ cộng khi completed
+                    if (o.status === 'completed') {
+                        rMap[rank].total += o.totalPrice || 0;
+                    }
                     rMap[rank].count++;
                 }
             });
 
             const rankAvgOrder = Object.entries(rMap)
-                .map(([rank, d]) => ({ rank, avg: Math.round(d.total / d.count), count: d.count }))
+                .map(([rank, d]) => ({ rank, avg: d.count > 0 ? Math.round(d.total / d.count) : 0, count: d.count }))
                 .sort((a, b) => b.avg - a.avg);
 
             result = {
@@ -164,8 +158,5 @@ exports.getDashboardAnalytics = async (req, res) => {
 
         res.json(result);
 
-    } catch (err) {
-        console.error("Lỗi Analytics:", err);
-        res.status(500).json({ message: "Lỗi Server Analytics" });
-    }
+    } catch (err) { res.status(500).json({ message: "Lỗi Server Analytics" }); }
 };

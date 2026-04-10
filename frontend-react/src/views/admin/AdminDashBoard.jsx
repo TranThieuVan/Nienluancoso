@@ -14,11 +14,15 @@ const fmtDate = (d) => new Date(d).toLocaleDateString('vi-VN');
 const MONTH_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
 const RANK_COLORS = { 'Khách hàng': '#94a3b8', 'Bạc': '#cbd5e1', 'Vàng': '#fbbf24', 'Bạch kim': '#818cf8', 'Kim cương': '#38bdf8' };
 
+// ✅ ĐÃ SỬA: Cập nhật toàn bộ các trạng thái mới
 const STATUS_MAP = {
   pending: { label: 'Đang xử lý', cls: 'bg-amber-100 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
-  shipping: { label: 'Đang giao', cls: 'bg-violet-100 text-violet-700 border border-violet-200', dot: 'bg-violet-500' },
-  delivered: { label: 'Đã giao', cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
+  delivering: { label: 'Đang giao', cls: 'bg-blue-100 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
+  delivered: { label: 'Đã giao (Chờ)', cls: 'bg-violet-100 text-violet-700 border border-violet-200', dot: 'bg-violet-500' },
+  completed: { label: 'Hoàn tất', cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
   cancelled: { label: 'Đã hủy', cls: 'bg-red-100 text-red-600 border border-red-200', dot: 'bg-red-500' },
+  failed_delivery: { label: 'Giao thất bại', cls: 'bg-orange-100 text-orange-700 border border-orange-200', dot: 'bg-orange-500' },
+  returned: { label: 'Đã trả hàng', cls: 'bg-stone-100 text-stone-700 border border-stone-300', dot: 'bg-stone-500' },
 };
 
 /* ── ATOMS ── */
@@ -83,7 +87,7 @@ const RevenueChart = ({ data, year }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-full">
       <SectionTitle action={<div className="flex items-center gap-3"><span className="font-mono text-sm font-bold text-indigo-600">{fmt(total)}</span><span className="text-xs text-gray-400">Tổng năm {year}</span></div>}>
-        <span className="flex items-center gap-2"><i className="fa-solid fa-chart-column text-indigo-500" />Doanh thu theo tháng — {year}</span>
+        <span className="flex items-center gap-2"><i className="fa-solid fa-chart-column text-indigo-500" />Doanh thu Thực Thu theo tháng — {year}</span>
       </SectionTitle>
       <div className="h-56"><canvas ref={ref} /></div>
     </div>
@@ -92,10 +96,16 @@ const RevenueChart = ({ data, year }) => {
 
 const OrderDonut = ({ counts }) => {
   const ref = useRef(null); const chartRef = useRef(null);
-  const labels = ['Đang xử lý', 'Đang giao', 'Đã giao', 'Đã hủy'];
-  const colors = ['#f59e0b', '#8b5cf6', '#10b981', '#f43f5e'];
-  const values = [counts.pending, counts.shipping, counts.delivered, counts.cancelled];
-  const total = values.reduce((a, b) => a + b, 0);
+  // ✅ ĐÃ SỬA: Gom nhóm chuẩn theo logic mới
+  const labels = ['Đang xử lý', 'Đang giao', 'Hoàn tất', 'Hủy/Thất bại'];
+  const colors = ['#f59e0b', '#3b82f6', '#10b981', '#f43f5e'];
+  const values = [
+    counts.pending || 0,
+    (counts.delivering || 0) + (counts.delivered || 0),
+    counts.completed || 0,
+    (counts.cancelled || 0) + (counts.failed_delivery || 0) + (counts.needRefund || 0)
+  ];
+  const total = counts.total || 0;
 
   useEffect(() => {
     if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
@@ -106,7 +116,7 @@ const OrderDonut = ({ counts }) => {
       options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  ${ctx.label}: ${ctx.raw} đơn` }, backgroundColor: '#1e293b', titleColor: '#94a3b8', bodyColor: '#f8fafc', padding: 10, cornerRadius: 8 } } },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [counts]);
+  }, [counts, values]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-full flex flex-col">
@@ -141,12 +151,10 @@ const AdminDashBoard = () => {
   const [overview, setOverview] = useState(null);
   const year = new Date().getFullYear();
 
-  // Các State hỗ trợ bộ lọc Báo cáo sách bán chạy
   const [timeFilter, setTimeFilter] = useState('all');
   const [filteredTopBooks, setFilteredTopBooks] = useState([]);
   const [topLoading, setTopLoading] = useState(false);
 
-  // 1. Fetch Overview Data (Dữ liệu tổng quan)
   useEffect(() => {
     const fetchOverview = async () => {
       try {
@@ -164,43 +172,31 @@ const AdminDashBoard = () => {
     fetchOverview();
   }, []);
 
-  // 2. Helper lấy ngày tháng lọc sách
   const getDateRange = (filterType) => {
     const now = new Date();
     let start = new Date();
     let end = new Date();
 
     if (filterType === 'today') {
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
+      start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999);
     } else if (filterType === 'week') {
       const first = now.getDate() - now.getDay() + 1;
-      start = new Date(now.setDate(first));
-      start.setHours(0, 0, 0, 0);
-      end = new Date();
+      start = new Date(now.setDate(first)); start.setHours(0, 0, 0, 0); end = new Date();
     } else if (filterType === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      start.setHours(0, 0, 0, 0);
-      end = new Date();
+      start = new Date(now.getFullYear(), now.getMonth(), 1); start.setHours(0, 0, 0, 0); end = new Date();
     } else {
       return { startDate: null, endDate: null };
     }
     return { startDate: start.toISOString(), endDate: end.toISOString() };
   };
 
-  // 3. Fetch dữ liệu Top sách mỗi khi timeFilter thay đổi
   useEffect(() => {
     const fetchTopBooks = async () => {
       setTopLoading(true);
       try {
         const { startDate, endDate } = getDateRange(timeFilter);
-        // Lưu ý: Đảm bảo đường dẫn này khớp với route API của bạn (ví dụ http://localhost:5000/...)
         let url = 'http://localhost:5000/api/books/top-selling';
-
-        if (startDate && endDate) {
-          url += `?startDate=${startDate}&endDate=${endDate}`;
-        }
-
+        if (startDate && endDate) url += `?startDate=${startDate}&endDate=${endDate}`;
         const res = await axios.get(url);
         setFilteredTopBooks(res.data);
       } catch (error) {
@@ -229,14 +225,11 @@ const AdminDashBoard = () => {
   const now = new Date();
   const activePromotions = (promotions || []).filter(p => new Date(p.endDate) >= now && p.isActive !== false);
   const activeVouchers = (vouchers || []).filter(v =>
-    v.isActive !== false &&
-    new Date(v.expirationDate) >= now &&
-    (v.usedCount || 0) < (v.usageLimit || 999999)
+    v.isActive !== false && new Date(v.expirationDate) >= now && (v.usedCount || 0) < (v.usageLimit || 999999)
   );
 
   return (
     <div className="min-h-screen bg-gray-50 p-7 font-sans">
-      {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-7">
         <div>
           <h1 className="text-4xl font-bold text-gray-900">Tổng quan</h1>
@@ -244,26 +237,22 @@ const AdminDashBoard = () => {
         </div>
       </div>
 
-      {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
-        <KpiCard label="Doanh thu năm" value={fmtShort(totalRevenue)} sub={`Tháng cao nhất: ${topMonth}`} dotCls="bg-indigo-500" icon="fa-solid fa-sack-dollar" highlight />
-        <KpiCard label="Tổng đơn hàng" value={kpi.orderCounts.total.toString()} sub={`${kpi.orderCounts.delivered} đã giao`} dotCls="bg-violet-500" icon="fa-solid fa-box" />
-        <KpiCard label="Đang xử lý" value={kpi.orderCounts.pending.toString()} sub={`${kpi.orderCounts.shipping} đơn đang giao`} dotCls="bg-amber-500" icon="fa-solid fa-clock" />
+        <KpiCard label="Thực thu năm" value={fmtShort(totalRevenue)} sub={`Tháng cao nhất: ${topMonth}`} dotCls="bg-indigo-500" icon="fa-solid fa-sack-dollar" highlight />
+        <KpiCard label="Tổng đơn hàng" value={kpi.orderCounts.total.toString()} sub={`${kpi.orderCounts.completed || 0} đã hoàn tất`} dotCls="bg-violet-500" icon="fa-solid fa-box" />
+        <KpiCard label="Đang xử lý" value={kpi.orderCounts.pending.toString()} sub={`${kpi.orderCounts.delivering || 0} đang giao`} dotCls="bg-amber-500" icon="fa-solid fa-clock" />
         <KpiCard label="Người dùng" value={kpi.totalUsers.toString()} sub={`${kpi.lockedUsers} bị khóa`} dotCls="bg-sky-500" icon="fa-solid fa-users" />
         <KpiCard label="Tổng đầu sách" value={kpi.totalBooks.toString()} sub={`${kpi.outOfStockBooks} hết hàng`} dotCls="bg-emerald-500" icon="fa-solid fa-book" />
         <KpiCard label="Cần hoàn tiền" value={kpi.orderCounts.needRefund.toString()} sub="Đơn huỷ chờ xử lý" dotCls="bg-rose-500" icon="fa-solid fa-rotate-left" />
       </div>
 
-      {/* Revenue + Donut */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
         <div className="xl:col-span-2"><RevenueChart data={kpi.monthlyRevenue} year={year} /></div>
         <OrderDonut counts={kpi.orderCounts} />
       </div>
 
-      {/* ── Khối 1: Top Books + Recent Orders ── */}
+      {/* Block Top Books & Recent Orders */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
-
-        {/* Top 5 sách bán chạy (Đã được nâng cấp bộ lọc thời gian) */}
         <div className="bg-amber-50/40 border border-amber-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
           <div className="px-6 py-4 border-b border-amber-200/60">
             <SectionTitle
@@ -273,13 +262,8 @@ const AdminDashBoard = () => {
                     const labels = { today: 'Hôm nay', week: 'Tuần này', month: 'Tháng này', all: 'Tất cả' };
                     return (
                       <button
-                        key={filter}
-                        onClick={() => setTimeFilter(filter)}
-                        disabled={topLoading}
-                        className={`px-2.5 py-1 text-[10px] sm:text-xs font-semibold rounded-md transition-all ${timeFilter === filter
-                          ? 'bg-white text-amber-700 shadow-sm border border-amber-200'
-                          : 'text-amber-600/70 hover:text-amber-800 hover:bg-amber-100/50'
-                          } ${topLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        key={filter} onClick={() => setTimeFilter(filter)} disabled={topLoading}
+                        className={`px-2.5 py-1 text-[10px] sm:text-xs font-semibold rounded-md transition-all ${timeFilter === filter ? 'bg-white text-amber-700 shadow-sm border border-amber-200' : 'text-amber-600/70 hover:text-amber-800 hover:bg-amber-100/50'} ${topLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {labels[filter]}
                       </button>
@@ -299,31 +283,16 @@ const AdminDashBoard = () => {
             </thead>
             <tbody className="divide-y divide-amber-200/40">
               {topLoading ? (
-                <tr>
-                  <td colSpan="4" className="py-12 text-center text-amber-600/80 text-sm">
-                    <i className="fa-solid fa-circle-notch fa-spin mr-2" />Đang lọc dữ liệu...
-                  </td>
-                </tr>
+                <tr><td colSpan="4" className="py-12 text-center text-amber-600/80 text-sm"><i className="fa-solid fa-circle-notch fa-spin mr-2" />Đang lọc dữ liệu...</td></tr>
               ) : filteredTopBooks.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="py-12 text-center text-gray-400 text-sm">
-                    Không có dữ liệu bán hàng trong thời gian này
-                  </td>
-                </tr>
+                <tr><td colSpan="4" className="py-12 text-center text-gray-400 text-sm">Không có dữ liệu bán hàng</td></tr>
               ) : filteredTopBooks.map((book, i) => (
                 <tr key={book._id} className="hover:bg-amber-100/30 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${i === 0 ? 'bg-amber-200 text-amber-800' : i === 1 ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-amber-600'}`}>
-                      {i + 1}
-                    </span>
-                  </td>
+                  <td className="px-5 py-3.5"><span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${i === 0 ? 'bg-amber-200 text-amber-800' : i === 1 ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-amber-600'}`}>{i + 1}</span></td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt={book.title} className="w-8 h-11 object-cover border border-amber-100 rounded flex-shrink-0" />
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm leading-tight line-clamp-1" title={book.title}>{book.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5" title={book.author}>{book.author}</p>
-                      </div>
+                      <div><p className="font-semibold text-gray-800 text-sm line-clamp-1">{book.title}</p><p className="text-xs text-gray-500 mt-0.5">{book.author}</p></div>
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold}</td>
@@ -334,7 +303,6 @@ const AdminDashBoard = () => {
           </table>
         </div>
 
-        {/* Đơn hàng gần đây */}
         <div className="bg-sky-50/40 border border-sky-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-sky-200/60">
             <SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-clock-rotate-left text-sky-600" />Đơn hàng gần đây</span></SectionTitle>
@@ -362,10 +330,8 @@ const AdminDashBoard = () => {
         </div>
       </div>
 
-      {/* ── Khối 2: Low Stock + Rank + Promo ── */}
+      {/* Block 3 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* Sắp hết hàng */}
         <div className="bg-rose-50/40 border border-rose-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-rose-200/60"><SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-rose-600" />Sắp hết hàng</span></SectionTitle></div>
           {lowStock.length === 0 ? <p className="px-6 py-10 text-center text-gray-400 text-sm">Không có sách nào sắp hết</p> : (
@@ -381,7 +347,6 @@ const AdminDashBoard = () => {
           )}
         </div>
 
-        {/* Phân hạng người dùng */}
         <div className="bg-purple-50/40 border border-purple-200 rounded-2xl p-6 shadow-sm">
           <SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-ranking-star text-purple-600" />Phân hạng người dùng</span></SectionTitle>
           <div className="flex flex-col gap-4">
@@ -397,34 +362,22 @@ const AdminDashBoard = () => {
                 </div>
               );
             })}
-            <p className="text-xs text-purple-500 text-right mt-1 font-semibold"><i className="fa-solid fa-users mr-1.5" />{kpi.totalUsers} tổng người dùng</p>
           </div>
         </div>
 
-        {/* Khuyến mãi đang chạy */}
         <div className="bg-emerald-50/40 border border-emerald-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
           <div className="px-6 py-4 border-b border-emerald-200/60">
-            <div className="flex items-center justify-between"><p className="text-base font-bold text-gray-700 flex items-center gap-2"><i className="fa-solid fa-bullhorn text-emerald-600" />Khuyến mãi đang chạy</p><span className="font-mono text-sm font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-emerald-200">{activePromotions.length}</span></div>
+            <div className="flex items-center justify-between"><p className="text-base font-bold text-gray-700 flex items-center gap-2"><i className="fa-solid fa-bullhorn text-emerald-600" />Khuyến mãi & Voucher</p></div>
           </div>
           <div className="divide-y divide-emerald-200/40 flex-1">
-            {activePromotions.length === 0 ? <p className="px-6 py-5 text-center text-gray-400 text-sm">Không có khuyến mãi nào</p>
-              : activePromotions.slice(0, 3).map(p => (
-                <div key={p._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-gray-800 line-clamp-1">{p.name}</p>
-                    <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">-{fmt(p.discountValue)}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1"><i className="fa-regular fa-calendar mr-1" />Đến {new Date(p.endDate).toLocaleDateString('vi-VN')}</p>
+            {activePromotions.slice(0, 3).map(p => (
+              <div key={p._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-800 line-clamp-1">{p.name}</p>
+                  <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">-{fmt(p.discountValue)}</span>
                 </div>
-              ))}
-          </div>
-          <div className="px-5 py-4 border-t border-emerald-200/60 bg-emerald-100/30">
-            <div className="flex items-center justify-between mb-3"><p className="text-sm font-bold text-emerald-800 flex items-center gap-2"><i className="fa-solid fa-ticket text-emerald-600" />Voucher đang hoạt động</p><span className="font-mono text-sm font-bold text-emerald-700">{activeVouchers.length}</span></div>
-            <div className="flex flex-wrap gap-2">
-              {activeVouchers.length === 0 ? <p className="text-xs text-emerald-600">Không có voucher nào</p>
-                : activeVouchers.slice(0, 5).map(v => (<span key={v._id} className="text-xs font-mono font-bold px-2.5 py-1 bg-white text-emerald-700 border border-emerald-300 rounded-full shadow-sm">{v.code}</span>))}
-              {activeVouchers.length > 5 && <span className="text-xs text-emerald-600 self-center font-medium">+{activeVouchers.length - 5} khác</span>}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

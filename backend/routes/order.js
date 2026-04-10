@@ -14,7 +14,8 @@ router.get('/:id', auth.verifyToken, orderController.getOrderById)
 
 // Hủy đơn hàng
 router.put('/cancel/:id', auth.verifyToken, orderController.cancelOrder)
-
+router.put('/:id/request-return', auth.verifyToken, orderController.requestReturn);
+router.put('/:id/submit-tracking', auth.verifyToken, orderController.submitReturnTracking);
 router.put('/:id/pay', orderController.updateOrderToPaid);
 
 module.exports = router

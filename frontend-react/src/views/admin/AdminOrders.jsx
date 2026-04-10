@@ -5,15 +5,17 @@ import Pagination from '../../components/Pagination';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 /* ─── Constants ─────────────────────────────────────────────────── */
+// ✅ ĐÃ SỬA: Cập nhật biến trạng thái mới
 const BADGES = {
   pending: { label: 'Đang xử lý', cls: 'bg-yellow-50 text-yellow-800 border border-yellow-200', dot: 'bg-yellow-500' },
-  shipping: { label: 'Đang giao', cls: 'bg-violet-50 text-violet-700 border border-violet-200', dot: 'bg-violet-500' },
-  delivered: { label: 'Thành công', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
+  delivering: { label: 'Đang giao', cls: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
+  delivered: { label: 'Đã giao (Chờ)', cls: 'bg-violet-50 text-violet-700 border border-violet-200', dot: 'bg-violet-500' },
+  completed: { label: 'Hoàn tất', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
   failed_delivery: { label: 'Giao thất bại', cls: 'bg-orange-50 text-orange-700 border border-orange-200', dot: 'bg-orange-500' },
-  returned: { label: 'Trả hàng', cls: 'bg-stone-100 text-stone-700 border border-stone-300', dot: 'bg-stone-500' },
+  returned: { label: 'Đã trả hàng', cls: 'bg-stone-100 text-stone-700 border border-stone-300', dot: 'bg-stone-500' },
   cancelled: { label: 'Đã hủy', cls: 'bg-red-50 text-red-700 border border-red-200', dot: 'bg-red-500' },
   pending_refund: { label: 'Cần hoàn tiền', cls: 'bg-rose-50 text-rose-700 border border-rose-200', dot: 'bg-rose-600' },
-  done_refund: { label: 'Đã hoàn tiền', cls: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
+  done_refund: { label: 'Đã hoàn tiền', cls: 'bg-cyan-50 text-cyan-700 border border-cyan-200', dot: 'bg-cyan-500' },
 };
 
 const getBadgeKey = (order) => {
@@ -23,12 +25,14 @@ const getBadgeKey = (order) => {
   return order.status;
 };
 
+// ✅ ĐÃ SỬA: Danh sách lọc
 const STATUS_FILTERS = [
   { key: 'all', label: 'Tất cả' },
   { key: 'pending', label: 'Đang xử lý' },
-  { key: 'shipping', label: 'Đang giao' },
-  { key: 'delivered', label: 'Thành công' },
-  { key: 'failed_delivery', label: 'Giao thất bại' },
+  { key: 'delivering', label: 'Đang giao' },
+  { key: 'delivered', label: 'Đã giao' },
+  { key: 'completed', label: 'Hoàn tất' },
+  { key: 'failed_delivery', label: 'Thất bại' },
   { key: 'returned', label: 'Trả hàng' },
   { key: 'cancelled', label: 'Đã hủy' },
 ];
@@ -53,7 +57,6 @@ const TABLE_COLUMNS = [
 const getImageUrl = (p) => `http://localhost:5000${p}`;
 const formatPrice = (n) => (n ?? 0).toLocaleString('vi-VN') + ' ₫';
 
-/* ─── Sub: StatCard (Focus vào Rate Metrics) ─────────────────────── */
 const StatCard = ({ icon, label, value, sub, colorClass }) => (
   <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col justify-center transition-all hover:border-gray-300">
     <div className="flex items-center gap-3 mb-2">
@@ -69,7 +72,6 @@ const StatCard = ({ icon, label, value, sub, colorClass }) => (
   </div>
 );
 
-/* ─── Main Component ─────────────────────────────────────────────── */
 const AdminOrders = () => {
   const navigate = useNavigate();
 
@@ -126,25 +128,21 @@ const AdminOrders = () => {
   const handleStatusClick = (key) => { if (filterStatus !== key) { setFilterStatus(key); setCurrentPage(1); } };
   const handleDatePresetClick = (key) => { if (datePreset !== key) { setDatePreset(key); setFromDate(''); setToDate(''); setCurrentPage(1); } };
 
-  // Format cho Tooltip biểu đồ
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white border border-gray-200 p-3 shadow-lg rounded-lg">
           <p className="text-xs font-bold text-gray-500 mb-2">{label}</p>
           <p className="text-sm font-black text-indigo-600 mb-1">Đơn hàng: {payload[0].value}</p>
-          <p className="text-sm font-black text-red-600">Doanh thu: {formatPrice(payload[1]?.value)}</p>
+          <p className="text-sm font-black text-emerald-600">Thực thu: {formatPrice(payload[1]?.value)}</p>
         </div>
       );
     }
     return null;
   };
 
-  /* ─── Render ──────────────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-8 font-sans overflow-y-scroll">
-
-      {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Hiệu suất kinh doanh</h1>
@@ -155,7 +153,6 @@ const AdminOrders = () => {
         </button>
       </div>
 
-      {/* ── KPI Overview (Rate Metrics) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           icon="fa-box-check" label="Giao thành công"
@@ -179,23 +176,19 @@ const AdminOrders = () => {
         />
       </div>
 
-      {/* ── Charts & Logistics Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-        {/* Biểu đồ Trend (Chiếm 2 phần) */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 lg:col-span-2 flex flex-col min-h-[350px]">
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-2">Biểu đồ tăng trưởng</p>
-              {/* ✨ CHÚ THÍCH (LEGEND) CUSTOM CHO 2 LINE */}
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm"></div>
                   <span className="text-[11px] font-bold text-gray-500">Đơn hàng (Trái)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></div>
-                  <span className="text-[11px] font-bold text-gray-500">Doanh thu (Phải)</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>
+                  <span className="text-[11px] font-bold text-gray-500">Doanh thu Thực Thu (Phải)</span>
                 </div>
               </div>
             </div>
@@ -214,29 +207,18 @@ const AdminOrders = () => {
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
-                    {/* ✨ GRADIENT ĐỎ CHO DOANH THU */}
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-
-                  {/* Trục Y trái cho Đơn hàng */}
                   <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-
-                  {/* Trục Y phải cho Doanh thu (Ẩn số đi cho đỡ rối, hoặc có thể bật lên nếu muốn) */}
                   <YAxis yAxisId="right" orientation="right" tick={false} axisLine={false} />
-
                   <Tooltip content={<CustomTooltip />} />
-
-                  {/* ✨ Line 1: Đơn hàng (Màu Tím/Indigo) */}
                   <Area yAxisId="left" type="monotone" dataKey="orders" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" />
-
-                  {/* ✨ Line 2: Doanh thu (Màu Đỏ) */}
-                  <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                  <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -245,14 +227,14 @@ const AdminOrders = () => {
           </div>
         </div>
 
-        {/* Phân bổ trạng thái & Logistics (Chiếm 1 phần) */}
+        {/* ✅ ĐÃ SỬA: Cập nhật tổng kết phân bổ trạng thái logic mới */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 lg:col-span-1 flex flex-col justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-4">Trạng thái vận hành</p>
             <div className="flex flex-col gap-4">
               {[
-                { label: 'Thành công', color: 'bg-emerald-500', val: stats?.byStatus?.delivered },
-                { label: 'Đang giao / Xử lý', color: 'bg-violet-500', val: (stats?.byStatus?.shipping ?? 0) + (stats?.byStatus?.pending ?? 0) },
+                { label: 'Hoàn tất (Thực thu)', color: 'bg-emerald-500', val: stats?.byStatus?.completed },
+                { label: 'Đang giao / Chờ KH', color: 'bg-violet-500', val: (stats?.byStatus?.delivering ?? 0) + (stats?.byStatus?.delivered ?? 0) },
                 { label: 'Giao thất bại / Trả hàng', color: 'bg-orange-500', val: (stats?.byStatus?.failed_delivery ?? 0) + (stats?.byStatus?.returned ?? 0) },
                 { label: 'Đã hủy', color: 'bg-red-500', val: stats?.byStatus?.cancelled },
               ].map(s => {
@@ -285,7 +267,6 @@ const AdminOrders = () => {
 
       </div>
 
-      {/* ── Bộ lọc & Bảng Data ── */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-3 mb-4 flex flex-wrap items-center gap-3">
         <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mr-2"><i className="fa-regular fa-calendar mr-1.5" />Thời gian</span>
         {DATE_PRESETS.map(p => (
@@ -384,7 +365,6 @@ const AdminOrders = () => {
           {totalPages > 1 && !loading && <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
         </div>
       </div>
-
     </div>
   );
 };

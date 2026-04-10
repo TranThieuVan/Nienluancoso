@@ -15,6 +15,7 @@ import Cart from '@/views/Cart';
 import BookDetail from '@/views/BookDetail';
 import Favorites from '@/views/Favorites';
 import Orders from '@/views/Orders';
+import OrderDetail from '@/views/OrderDetail';
 import Profile from '@/views/Profile';
 import Checkout from '@/views/Checkout';
 import SearchResults from '@/views/SearchResults';
@@ -82,6 +83,7 @@ const AppRoutes = () => {
                     <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                     <Route path="checkout" element={<PrivateRoute><Checkout /></PrivateRoute>} />
                     <Route path="orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
+                    <Route path="orders/:id" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
                     <Route path="/vnpay-return" element={<VnpayReturn />} />
                 </Route>
 

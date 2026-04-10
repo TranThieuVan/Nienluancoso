@@ -39,7 +39,9 @@ io.on('connection', (socket) => {
 
 app.use(cors());
 app.use(compression());
-app.use(express.json());
+// ✅ Tăng giới hạn payload lên 50MB để nhận file Base64 từ Frontend
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve ảnh
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -57,7 +59,7 @@ app.use('/api/comments', require('./routes/comment'));
 app.use('/api/vnpay', vnpayRoutes);
 app.use('/api/vouchers', require('./routes/voucher'));
 app.use('/api/promotions', require('./routes/admin/adminPromotions'));
-
+app.use('/api/webhooks', require('./routes/webhook'));
 // --- Các route admin ---
 app.use('/api/admin', require('./routes/admin/admin'));
 app.use('/api/admin/users', require('./routes/admin/adminUsers'));
@@ -71,7 +73,7 @@ app.use('/api/notifications', require('./routes/notification'));
 // ✅ GỌI BOT CHẠY NGẦM Ở ĐÂY 
 require('./services/refundCron');
 require('./services/rankCron');
-
+require('./services/orderCron')
 // Kết nối MongoDB và chạy server
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {

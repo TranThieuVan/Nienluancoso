@@ -1,81 +1,75 @@
 const mongoose = require('mongoose')
 
 const orderSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     items: [
         {
-            book: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Book',
-                required: true
-            },
-            quantity: {
-                type: Number,
-                required: true,
-                min: 1
-            }
+            book: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
+            quantity: { type: Number, required: true, min: 1 }
         }
     ],
-    // Dùng totalPrice cho tổng tiền (Bao gồm sách + ship)
-    totalPrice: {
-        type: Number,
-        required: true
-    },
+    totalPrice: { type: Number, required: true },
     shippingAddress: {
         fullName: { type: String, required: true },
         phone: { type: String, required: true },
         street: { type: String, required: true },
-        ward: { type: String, required: true }, // ✅ ĐÃ THÊM PHƯỜNG/XÃ
+        ward: { type: String, required: true },
         district: { type: String, required: true },
         city: { type: String, required: true },
     },
-
-    // ✅ THÔNG TIN THANH TOÁN
     paymentMethod: {
-        type: String,
-        enum: ['cod', 'transfer', 'vnpay'],
-        required: true,
-        default: 'cod'
+        type: String, enum: ['cod', 'transfer', 'vnpay'], required: true, default: 'cod'
     },
     paymentStatus: {
-        type: String,
-        enum: ['Chờ thanh toán', 'Đã thanh toán', 'Hoàn tiền', "Đã hoàn tiền"],
-        default: 'Chờ thanh toán'
+        type: String, enum: ['Chờ thanh toán', 'Đã thanh toán', 'Hoàn tiền', "Đã hoàn tiền"], default: 'Chờ thanh toán'
     },
-
-    vnpayTransactionNo: { type: String }, // Mã giao dịch độc nhất của VNPAY
+    vnpayTransactionNo: { type: String },
     vnpayPayDate: { type: String },
 
-    // ✅ CẬP NHẬT BUSINESS LOGIC: Thêm failed_delivery và returned
     status: {
         type: String,
-        enum: ['pending', 'shipping', 'delivered', 'failed_delivery', 'returned', 'cancelled'],
+        enum: [
+            'pending', 'confirmed', 'delivering', 'delivered', 'completed',
+            'failed_delivery', 'return_requested', 'return_approved',
+            'returning', 'returned', 'cancelled'
+        ],
         default: 'pending'
     },
     statusHistory: [
         {
-            status: {
-                type: String,
-                enum: ['pending', 'shipping', 'delivered', 'failed_delivery', 'returned', 'cancelled']
-            },
+            status: { type: String },
             date: { type: Date, default: Date.now }
         }
     ],
 
     shippingFee: { type: Number, default: 40000 },
+
+    // TRACKING GIAO HÀNG
+    shippingProvider: { type: String, default: null },
+    trackingLink: { type: String, default: null },
+
+    // THÔNG TIN HỦY / TRẢ HÀNG & HOÀN TIỀN
     cancelReason: { type: String, default: null },
+    returnReasonType: { type: String, default: null },
+    returnReasonDetail: { type: String, default: null },
+    returnMedia: [{ type: String }],
+    returnBankQR: { type: String, default: null },
+    returnBankDetails: { type: String, default: null },
 
-    // ✅ THÊM CÁC CỘT TIMESTAMPS PHỤC VỤ TÍNH TOÁN LOGISTICS & RATE METRICS
-    deliveredAt: { type: Date }, // Để tính thời gian giao hàng trung bình
-    cancelledAt: { type: Date }, // Để vẽ biểu đồ số đơn hủy theo ngày (nếu cần)
-    returnedAt: { type: Date }   // Để track xem khách trả hàng bao lâu sau khi mua
+    // ✅ THÔNG TIN VẬN ĐƠN KHÁCH GỬI TRẢ
+    returnShippingProvider: { type: String, default: null },
+    returnTrackingCode: { type: String, default: null },
+    returnReceipt: { type: String, default: null },
 
-}, {
-    timestamps: true
-})
+    // GHI CHÚ NỘI BỘ
+    adminNote: { type: String, default: "" },
+    callAttempts: { type: Number, default: 0 },
+
+    // TIMESTAMPS
+    deliveredAt: { type: Date },
+    cancelledAt: { type: Date },
+    returnedAt: { type: Date }
+
+}, { timestamps: true })
 
 module.exports = mongoose.model('Order', orderSchema)

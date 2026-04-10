@@ -5,7 +5,8 @@ const getRevenueAndProfit = async (startDate, endDate) => {
     const rows = await Order.aggregate([
         {
             $match: {
-                status: 'delivered',
+                // ✅ ĐÃ SỬA: Lọc chuẩn bằng "completed" thay vì "delivered"
+                status: 'completed',
                 deliveredAt: { $gte: startDate, $lte: endDate }
             }
         },
@@ -54,8 +55,7 @@ exports.getWeeklyRevenue = async (req, res) => {
         const month = parseInt(req.query.month);
         const year = parseInt(req.query.year);
 
-        if (!month || !year)
-            return res.status(400).json({ message: 'Thiếu tháng hoặc năm' });
+        if (!month || !year) return res.status(400).json({ message: 'Thiếu tháng hoặc năm' });
 
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59, 999);
@@ -79,11 +79,7 @@ exports.getWeeklyRevenue = async (req, res) => {
         });
 
         res.json({ weeklyRevenue, weeklyProfit });
-
-    } catch (err) {
-        console.error('❌ Lỗi doanh thu theo tuần:', err);
-        res.status(500).json({ message: 'Lỗi server khi lấy doanh thu theo tuần' });
-    }
+    } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 };
 
 /* ─── 2. Doanh thu tháng (có lợi nhuận) ─── */
@@ -114,11 +110,7 @@ exports.getMonthlyRevenue = async (req, res) => {
         const topMonth = max > 0 ? monthlyRevenue.findIndex(v => v === max) + 1 : null;
 
         res.json({ monthlyRevenue, monthlyProfit, totalRevenue, totalOrders, topMonth });
-
-    } catch (err) {
-        console.error('❌ Lỗi doanh thu:', err);
-        res.status(500).json({ message: 'Lỗi server khi lấy doanh thu' });
-    }
+    } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 };
 
 /* ─── 3. So sánh % tháng trước & năm trước ─── */
@@ -127,8 +119,7 @@ exports.getRevenueComparison = async (req, res) => {
         const month = parseInt(req.query.month);
         const year = parseInt(req.query.year);
 
-        if (!month || !year)
-            return res.status(400).json({ message: 'Thiếu tháng hoặc năm' });
+        if (!month || !year) return res.status(400).json({ message: 'Thiếu tháng hoặc năm' });
 
         const curStart = new Date(year, month - 1, 1);
         const curEnd = new Date(year, month, 0, 23, 59, 59, 999);
@@ -162,8 +153,7 @@ exports.getRevenueComparison = async (req, res) => {
             { revenue: 0, profit: 0 }
         );
 
-        const pct = (cur, prev) =>
-            prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
+        const pct = (cur, prev) => prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
 
         const cur = sum(curRows);
         const prevM = sum(prevMRows);
@@ -172,34 +162,16 @@ exports.getRevenueComparison = async (req, res) => {
         const buildMonthly = (rows) => {
             const arr = Array(12).fill(0);
             rows.forEach(o => {
-                if (o.deliveredAt)
-                    arr[new Date(o.deliveredAt).getMonth()] += o.totalPrice || 0;
+                if (o.deliveredAt) arr[new Date(o.deliveredAt).getMonth()] += o.totalPrice || 0;
             });
             return arr;
         };
 
         res.json({
             current: cur,
-            mom: {
-                revenuePct: pct(cur.revenue, prevM.revenue),
-                profitPct: pct(cur.profit, prevM.profit),
-                prevRevenue: prevM.revenue,
-                prevProfit: prevM.profit,
-            },
-            yoy: {
-                revenuePct: pct(cur.revenue, prevY.revenue),
-                profitPct: pct(cur.profit, prevY.profit),
-                prevRevenue: prevY.revenue,
-                prevProfit: prevY.profit,
-            },
-            trend: {
-                curYear: buildMonthly(curYearRows),
-                prevYear: buildMonthly(prevYearRows),
-            }
+            mom: { revenuePct: pct(cur.revenue, prevM.revenue), profitPct: pct(cur.profit, prevM.profit), prevRevenue: prevM.revenue, prevProfit: prevM.profit },
+            yoy: { revenuePct: pct(cur.revenue, prevY.revenue), profitPct: pct(cur.profit, prevY.profit), prevRevenue: prevY.revenue, prevProfit: prevY.profit },
+            trend: { curYear: buildMonthly(curYearRows), prevYear: buildMonthly(prevYearRows) }
         });
-
-    } catch (err) {
-        console.error('❌ Lỗi so sánh doanh thu:', err);
-        res.status(500).json({ message: 'Lỗi server khi so sánh doanh thu' });
-    }
+    } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 };
