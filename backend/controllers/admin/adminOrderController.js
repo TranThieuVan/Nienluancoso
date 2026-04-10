@@ -203,9 +203,40 @@ exports.updateOrderStatus = async (req, res) => {
                 for (const item of order.items) { await Book.findByIdAndUpdate(item.book, { $inc: { stock: item.quantity } }); }
             }
 
+            // =======================================================
+            // 🔥 KHI ĐƠN HÀNG CHUYỂN SANG HOÀN TẤT
+            // =======================================================
             if (status === 'completed') {
+                // 1. Tăng số lượng đã bán của sách
                 for (const item of order.items) { await Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } }); }
+
+                // 2. LOGIC REAL-TIME: TÍNH TỔNG TIỀN VÀ THĂNG HẠNG TỨC THÌ
+                const userId = order.user;
+                if (userId) {
+                    // Lấy tổng tiền các đơn ĐÃ hoàn tất trước đó (chưa tính đơn hiện tại vì chưa save)
+                    const userOrders = await Order.aggregate([
+                        { $match: { user: userId, status: 'completed' } },
+                        { $group: { _id: null, totalSpent: { $sum: '$totalPrice' } } }
+                    ]);
+
+                    const pastSpent = userOrders.length > 0 ? userOrders[0].totalSpent : 0;
+                    const totalSpent = pastSpent + order.totalPrice; // Cộng thêm tiền của đơn hiện tại
+
+                    // Xác định mốc thăng hạng
+                    let newRank = 'Khách hàng';
+                    if (totalSpent >= 20000000) newRank = 'Kim cương';      // Chi tiêu >= 20 triệu
+                    else if (totalSpent >= 10000000) newRank = 'Bạch kim';  // Chi tiêu >= 10 triệu
+                    else if (totalSpent >= 5000000) newRank = 'Vàng';       // Chi tiêu >= 5 triệu
+                    else if (totalSpent >= 2000000) newRank = 'Bạc';        // Chi tiêu >= 2 triệu
+
+                    // Cập nhật Rank và Reset lại thời gian mua hàng để không bị Cron giáng cấp
+                    await User.findByIdAndUpdate(userId, {
+                        rank: newRank,
+                        lastPurchaseDate: new Date()
+                    });
+                }
             }
+            // =======================================================
 
             if (status === 'failed_delivery') {
                 const userObj = await User.findById(order.user);

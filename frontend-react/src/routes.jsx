@@ -30,33 +30,43 @@ import AdminOrders from '@/views/admin/AdminOrders';
 import AdminCommentList from '@/views/admin/AdminCommentList';
 import AdminVouchers from '@/views/admin/AdminVouchers';
 import AdminPromotions from './views/admin/AdminPromotions';
-// --- LAZY LOAD VIEWS ---
+
 const ViewAllBooks = lazy(() => import('@/views/ViewAllBooks'));
 const AdminOrderDetail = lazy(() => import('@/views/admin/AdminOrderDetail'));
 const AdminRevenue = lazy(() => import('@/views/admin/AdminRevenue'));
 const AdminMessages = lazy(() => import('@/views/admin/AdminMessages'));
 
-// --- GUARDS (Bảo vệ Route) ---
+// --- GUARDS ---
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('token');
     return token ? children : <Navigate to="/login" replace />;
 };
 
-const AdminRoute = ({ children }) => {
+// ✅ ĐÃ SỬA: Guard kiểm tra quyền Super Admin
+const AdminRoute = ({ children, requireSuperAdmin = false }) => {
     const adminToken = localStorage.getItem('adminToken');
-    return adminToken ? children : <Navigate to="/login" replace />;
+    const userRole = localStorage.getItem('userRole');
+
+    if (!adminToken) return <Navigate to="/login" replace />;
+
+    // Chặn nhân viên truy cập trang quản trị tài chính
+    if (requireSuperAdmin && userRole !== 'admin') {
+        return <Navigate to="/admin/orders" replace />;
+    }
+
+    return children;
 };
 
 const AppRoutes = () => {
     const location = useLocation();
 
-    // Middleware xử lý Token
     useEffect(() => {
         const isAdminRoute = location.pathname.startsWith('/admin');
         if (isAdminRoute) {
             localStorage.removeItem('token');
         } else {
             localStorage.removeItem('adminToken');
+            localStorage.removeItem('userRole');
         }
     }, [location.pathname]);
 
@@ -87,23 +97,25 @@ const AppRoutes = () => {
                     <Route path="/vnpay-return" element={<VnpayReturn />} />
                 </Route>
 
-                {/* Admin */}
+                {/* Admin Area */}
                 <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="books" element={<AdminBookList />} />
-                    <Route path="add-book" element={<AddBook />} />
-                    <Route path="edit-book/:id" element={<EditBook />} />
-                    <Route path="orders" element={<AdminOrders />} />
-                    <Route path="users" element={<AdminUsers />} />
-                    <Route path="comments" element={<AdminCommentList />} />
-                    <Route path="orders/:id" element={<AdminOrderDetail />} />
-                    <Route path="revenue" element={<AdminRevenue />} />
-                    <Route path="messages" element={<AdminMessages />} />
-                    <Route path="/admin/vouchers" element={<AdminVouchers />} />
-                    <Route path="/admin/promotions" element={<AdminPromotions />} />
+                    {/* 👨‍💻 DÀNH CHO NHÂN VIÊN VÀ ADMIN */}
+                    <Route path="books" element={<AdminRoute><AdminBookList /></AdminRoute>} />
+                    <Route path="add-book" element={<AdminRoute><AddBook /></AdminRoute>} />
+                    <Route path="edit-book/:id" element={<AdminRoute><EditBook /></AdminRoute>} />
+                    <Route path="orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+                    <Route path="orders/:id" element={<AdminRoute><AdminOrderDetail /></AdminRoute>} />
+                    <Route path="comments" element={<AdminRoute><AdminCommentList /></AdminRoute>} />
+                    <Route path="messages" element={<AdminRoute><AdminMessages /></AdminRoute>} />
+
+                    {/* 🔒 CHỈ DÀNH CHO QUẢN TRỊ VIÊN (ADMIN TỐI CAO) */}
+                    <Route index element={<AdminRoute requireSuperAdmin={true}><AdminDashboard /></AdminRoute>} />
+                    <Route path="revenue" element={<AdminRoute requireSuperAdmin={true}><AdminRevenue /></AdminRoute>} />
+                    <Route path="users" element={<AdminRoute requireSuperAdmin={true}><AdminUsers /></AdminRoute>} />
+                    <Route path="vouchers" element={<AdminRoute requireSuperAdmin={true}><AdminVouchers /></AdminRoute>} />
+                    <Route path="promotions" element={<AdminRoute requireSuperAdmin={true}><AdminPromotions /></AdminRoute>} />
                 </Route>
 
-                {/* 404 */}
                 <Route path="*" element={<div className="p-20 text-center text-2xl font-bold">404 - Không tìm thấy trang</div>} />
             </Routes>
         </Suspense>

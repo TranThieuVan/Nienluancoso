@@ -68,13 +68,14 @@ const EditBook = () => {
     try {
       const formData = new FormData();
       ['title', 'author', 'genre', 'description'].forEach(k => formData.append(k, book[k] || ''));
-      formData.append('importPrice', Number(book.importPrice)); // ✅ Gửi thêm importPrice
+      formData.append('importPrice', Number(book.importPrice));
       formData.append('price', Number(book.price));
       formData.append('stock', Number(book.stock));
       if (imageFile) formData.append('image', imageFile);
 
       await axios.put(`http://localhost:5000/api/books/${bookId}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        // ✅ ĐÃ SỬA: Đổi 'token' thành 'adminToken'
+        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 
       await Swal.fire({
@@ -105,7 +106,6 @@ const EditBook = () => {
         </button>
       </div>
 
-      {/* ✅ Thêm mx-auto để căn giữa Div */}
       <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm max-w-4xl mx-auto">
         {!book ? (
           <div className="py-16 flex flex-col items-center gap-3 text-gray-400">
@@ -132,7 +132,6 @@ const EditBook = () => {
               </div>
             </div>
 
-            {/* ✅ Chia làm 3 cột: Giá nhập - Giá bán - Tồn kho */}
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá gốc (Nhập) *</label>

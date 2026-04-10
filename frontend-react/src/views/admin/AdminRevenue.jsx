@@ -103,12 +103,12 @@ const AdminRevenue = () => {
       insights.push({ icon: 'fa-chart-line', color: 'text-gray-500 bg-gray-100', title: 'Chưa có dữ liệu', desc: 'Không có biến động doanh thu đáng kể.' });
     }
 
-    // 3. Conversion / Trend Correlation
+    // 3. Conversion / Trend Correlation (✅ ĐÃ FIX LỖI Ở ĐÂY)
     const revPct = comparison.mom?.revenuePct || 0;
     const up = revPct >= 0;
     insights.push({
       icon: up ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down',
-      color: up ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100', // Đã bổ sung vế false ở đây
+      color: up ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100',
       title: 'Biến động Kỳ trước',
       desc: `Doanh thu **${up ? 'tăng' : 'giảm'} ${Math.abs(revPct).toFixed(1)}%** so với kỳ trước. Biên lợi nhuận đạt **${summary.totalRevenue > 0 ? Math.round((summary.totalProfit / summary.totalRevenue) * 100) : 0}%**.`
     });
@@ -134,7 +134,6 @@ const AdminRevenue = () => {
             borderColor: '#4f46e5', backgroundColor: gradient, borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#fff',
             tension: 0.4, fill: true
           }
-          // ĐÃ XÓA: Dataset cột Đơn hàng (orders)
         ]
       },
       options: {
@@ -147,7 +146,6 @@ const AdminRevenue = () => {
         },
         scales: {
           x: { grid: { display: false } },
-          // ĐÃ XÓA: Trục y1 dành cho Đơn hàng
           y: { type: 'linear', display: true, position: 'left', grid: { color: '#f3f4f6' }, ticks: { callback: v => formatShort(v) } }
         }
       }

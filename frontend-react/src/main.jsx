@@ -11,10 +11,10 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 // Import Icon Solid (fas)
 import {
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
-    faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft,
+    faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faChartPie, faUsers,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis,
     faMedal, faCrown, faGem, faCircleCheck, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
-    faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus,
+    faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus, faChevronRight,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket,
     faPhone
 } from '@fortawesome/free-solid-svg-icons'
@@ -34,9 +34,9 @@ library.add(
     // Solid Icons
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck,
-    faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis,
+    faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faChartPie, faUsers,
     faMedal, faCrown, faGem, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
-    faAngleLeft, faAngleRight, faChartLine, fasStar, faTruck, faShieldHalved, faMinus,
+    faAngleLeft, faAngleRight, faChartLine, fasStar, faTruck, faShieldHalved, faMinus, faChevronRight,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket, faPhone,
 
     // Regular Icons

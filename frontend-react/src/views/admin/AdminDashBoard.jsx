@@ -195,12 +195,19 @@ const AdminDashBoard = () => {
       setTopLoading(true);
       try {
         const { startDate, endDate } = getDateRange(timeFilter);
+        // ✅ Đổi về relative URL để dùng chung Proxy của dự án
         let url = 'http://localhost:5000/api/books/top-selling';
         if (startDate && endDate) url += `?startDate=${startDate}&endDate=${endDate}`;
+
         const res = await axios.get(url);
-        setFilteredTopBooks(res.data);
+
+        // ✅ Bóc tách mảng an toàn
+        const dataList = res.data.books || res.data.data || res.data;
+        setFilteredTopBooks(Array.isArray(dataList) ? dataList : []);
+
       } catch (error) {
         console.error('Lỗi lấy sách bán chạy:', error);
+        setFilteredTopBooks([]); // Nếu lỗi mạng, gán mảng rỗng để không bị sập web
       } finally {
         setTopLoading(false);
       }
@@ -295,7 +302,7 @@ const AdminDashBoard = () => {
                       <div><p className="font-semibold text-gray-800 text-sm line-clamp-1">{book.title}</p><p className="text-xs text-gray-500 mt-0.5">{book.author}</p></div>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold}</td>
+                  <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold ?? 0}</td>
                   <td className="px-5 py-3.5 text-right font-mono text-gray-700 text-sm">{(book.discountedPrice || book.price)?.toLocaleString('vi-VN')}₫</td>
                 </tr>
               ))}

@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 const AddBook = () => {
   const navigate = useNavigate();
-  // ✅ Thêm importPrice vào state khởi tạo
   const [form, setForm] = useState({ title: '', author: '', genre: '', importPrice: '', price: '', stock: '', description: '' });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -45,14 +44,14 @@ const AddBook = () => {
     e.preventDefault();
     try {
       const formData = new FormData();
-      // ✅ Cập nhật logic để ép kiểu Number cho importPrice
       Object.entries(form).forEach(([k, v]) => {
         formData.append(k, ['price', 'stock', 'importPrice'].includes(k) ? Number(v) : v);
       });
       if (imageFile) formData.append('image', imageFile);
 
       await axios.post('http://localhost:5000/api/books', formData, {
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        // ✅ ĐÃ SỬA: Đổi 'token' thành 'adminToken'
+        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
       Swal.fire('Thành công', 'Đã thêm sách mới', 'success');
       navigate('/admin/books');
@@ -65,7 +64,6 @@ const AddBook = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6 max-w-4xl mx-auto">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Thêm Sách Mới</h1>
@@ -76,8 +74,6 @@ const AddBook = () => {
         </button>
       </div>
 
-      {/* ── Form Card ── */}
-      {/* ✅ Thêm mx-auto để căn giữa Div */}
       <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm max-w-4xl mx-auto">
         <form onSubmit={handleSubmit}>
           <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-2 border-b border-gray-100 mb-5">Thông tin sách</p>
@@ -98,7 +94,6 @@ const AddBook = () => {
             </div>
           </div>
 
-          {/* ✅ Chia làm 3 cột: Giá nhập - Giá bán - Tồn kho */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá gốc (Nhập) *</label>
@@ -126,7 +121,6 @@ const AddBook = () => {
             <textarea name="description" value={form.description} onChange={handleChange} rows={4} placeholder="Mô tả nội dung sách..." className={`${inputCls} resize-y`} />
           </div>
 
-          {/* Section: Ảnh bìa */}
           <div className="mb-6">
             <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-2 border-b border-gray-100 mb-5">Ảnh bìa</p>
             <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/50'}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}>

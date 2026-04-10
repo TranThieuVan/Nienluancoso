@@ -5,7 +5,12 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     avatar: { type: String, default: '' },
     password: { type: String, required: true },
-    role: { type: String, default: 'user' },
+    // ✅ ĐÃ SỬA: Thêm 'employee' vào enum
+    role: {
+        type: String,
+        enum: ['user', 'admin', 'employee'],
+        default: 'user'
+    },
     rank: {
         type: String,
         enum: ['Khách hàng', 'Bạc', 'Vàng', 'Bạch kim', 'Kim cương'],
@@ -13,8 +18,8 @@ const userSchema = new mongoose.Schema({
     },
     lastPurchaseDate: { type: Date, default: null },
 
-    // ✅ HỆ THỐNG TRỪNG PHẠT
-    failedDeliveryCount: { type: Number, default: 0 }, // Đếm số lần boom hàng
+    // HỆ THỐNG TRỪNG PHẠT
+    failedDeliveryCount: { type: Number, default: 0 },
     isLocked: { type: Boolean, default: false },
     lockedUntil: { type: Date, default: null }
 }, { timestamps: true });

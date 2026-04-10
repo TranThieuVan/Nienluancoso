@@ -258,13 +258,12 @@ exports.getAllGenres = async (req, res) => {
     }
 };
 
-// Thay thế hàm cũ trong controllers/bookController.js
 exports.getTopSellingBooks = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        // Điều kiện mặc định: Chỉ lấy đơn hàng giao thành công
-        const matchStage = { status: "delivered" };
+        // ✅ ĐÃ SỬA: Lấy những đơn hàng đã 'completed' (hoàn tất)
+        const matchStage = { status: "completed" };
 
         // Nếu client truyền ngày tháng lên, thêm bộ lọc ngày vào query
         if (startDate && endDate) {
@@ -301,6 +300,7 @@ exports.getTopSellingBooks = async (req, res) => {
                     author: "$book.author",
                     image: "$book.image",
                     price: "$book.price",
+                    discountedPrice: "$book.discountedPrice", // Thêm dòng này để lỡ sách có giảm giá thì hiển thị đúng
                     stock: "$book.stock",
                     totalSold: 1
                 }
@@ -313,7 +313,6 @@ exports.getTopSellingBooks = async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi lấy top sách bán chạy' });
     }
 };
-
 exports.getLowStockBooks = async (req, res) => {
     try {
         const books = await Book.find({ stock: { $lte: 5 } })

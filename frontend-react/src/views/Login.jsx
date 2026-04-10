@@ -13,11 +13,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const loginAction = useAuthStore((state) => state.login); // Lấy hàm login từ Zustand
+  const loginAction = useAuthStore((state) => state.login);
   const emailInputRef = useRef(null);
 
   useEffect(() => {
-    // Focus vào ô email khi trang vừa tải (giống nextTick + onMounted)
     if (emailInputRef.current) {
       emailInputRef.current.focus();
     }
@@ -32,7 +31,7 @@ const Login = () => {
     }
 
     setLoading(true);
-    setErrorMessage(''); // Clear lỗi cũ
+    setErrorMessage('');
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', {
         email,
@@ -41,10 +40,20 @@ const Login = () => {
 
       const { token, user } = res.data;
 
-      if (user.role === 'admin') {
+      // ✅ ĐÃ SỬA: CẬP NHẬT LOGIC LƯU ROLE VÀ PHÂN LUỒNG ĐĂNG NHẬP
+      if (user.role === 'admin' || user.role === 'employee') {
+        // Lưu token và role dùng cho giao diện quản trị
         localStorage.setItem('adminToken', token);
-        navigate('/admin');
+        localStorage.setItem('userRole', user.role);
+
+        // Điều hướng thông minh: Admin -> Dashboard, Nhân viên -> Đơn hàng
+        if (user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/admin/orders');
+        }
       } else {
+        // Khách hàng bình thường
         loginAction(user, token);
         navigate('/');
       }
@@ -68,7 +77,6 @@ const Login = () => {
           <img src={logoImg} alt="Logo" className="mx-auto mb-8 w-60" />
           <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Đăng Nhập</h2>
 
-          {/* VỪA SỬA: Cải thiện UI hiển thị lỗi (đặc biệt cho lỗi bị khóa tài khoản) */}
           {errorMessage && (
             <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded text-red-700 flex items-start gap-3 text-sm select-none shadow-sm">
               <i className="fas fa-exclamation-circle mt-0.5 text-red-500 text-lg"></i>

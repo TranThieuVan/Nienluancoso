@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 exports.verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
-    // Check header dạng: Bearer <token>
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ msg: 'Không có token' });
     }
@@ -19,9 +18,18 @@ exports.verifyToken = (req, res, next) => {
     }
 };
 
+// 🔒 CHỈ DÀNH CHO ADMIN TỐI CAO (Doanh thu, Nhân sự, Phân quyền)
 exports.verifyAdmin = (req, res, next) => {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ msg: 'Chỉ admin mới được phép' });
+        return res.status(403).json({ msg: 'Chỉ Quản trị viên (Admin) mới được phép thực hiện hành động này.' });
+    }
+    next();
+};
+
+// 👨‍💻 DÀNH CHO NHÂN VIÊN VÀ ADMIN (Đơn hàng, Sách, CSKH)
+exports.verifyStaff = (req, res, next) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'employee') {
+        return res.status(403).json({ msg: 'Quyền truy cập bị từ chối. Chỉ dành cho nhân sự nội bộ.' });
     }
     next();
 };
