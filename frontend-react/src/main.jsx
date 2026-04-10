@@ -13,7 +13,7 @@ import {
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis,
-    faMedal, faCrown, faGem, faCircleCheck, faChevronUp,
+    faMedal, faCrown, faGem, faCircleCheck, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
     faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket,
     faPhone
@@ -35,7 +35,7 @@ library.add(
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis,
-    faMedal, faCrown, faGem, faChevronUp,
+    faMedal, faCrown, faGem, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
     faAngleLeft, faAngleRight, faChartLine, fasStar, faTruck, faShieldHalved, faMinus,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket, faPhone,
 

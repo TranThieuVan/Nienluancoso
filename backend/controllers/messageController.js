@@ -3,10 +3,10 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const Book = require('../models/Book');
 const Promotion = require('../models/Promotion');
-const Voucher = require('../models/Voucher'); // ✅ THÊM MODEL VOUCHER CHO AI ĐỌC
+const Voucher = require('../models/Voucher');
 const OpenAI = require('openai');
-const Order = require('../models/Order'); // ✅ THÊM MODEL ORDER
-// ✅ KHỞI TẠO ĐỘNG ĐỂ CHẮC CHẮN LUÔN ĐỌC ĐƯỢC API KEY TỪ .ENV
+const Order = require('../models/Order');
+
 const getOpenAI = () => {
     return new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
@@ -96,13 +96,13 @@ const tools = [
     {
         type: 'function',
         function: {
-            name: 'get_active_orders',
+            name: 'get_recent_orders', // ✅ ĐỔI TÊN TOOL
             description:
-                'Lấy danh sách các đơn hàng ĐANG XỬ LÝ (pending) hoặc ĐANG VẬN CHUYỂN (shipping) của khách hàng đang chat. ' +
-                'DÙNG KHI khách hỏi "đơn hàng của tôi", "tình trạng đơn hàng", "khi nào nhận được sách", "kiểm tra đơn".',
+                'Lấy danh sách 5 đơn hàng gần nhất của khách hàng đang chat. ' +
+                'DÙNG KHI khách hỏi "đơn hàng của tôi", "tình trạng đơn hàng", "khi nào nhận được sách", "đơn đã hủy chưa", "tiền hoàn chưa".',
             parameters: {
                 type: 'object',
-                properties: {}, // Không cần AI truyền param gì vì ta sẽ lấy userId từ req.user
+                properties: {},
                 required: [],
             },
         },
@@ -110,23 +110,16 @@ const tools = [
 ];
 
 /* ─────────────────────────────────────────────────────────────────
-   TOOL EXECUTOR: search_books
+   TOOL EXECUTORS
 ───────────────────────────────────────────────────────────────── */
 const executeSearchBooks = async (query) => {
     try {
-        if (!query?.trim()) {
-            return JSON.stringify({ message: 'Từ khóa tìm kiếm trống.' });
-        }
-
+        if (!query?.trim()) return JSON.stringify({ message: 'Từ khóa tìm kiếm trống.' });
         const original = query.trim();
         const noAccents = removeAccents(original);
-
-        const isSaleQuery = ['sale', 'giam gia', 'khuyen mai', 'uu dai'].some(kw =>
-            noAccents.toLowerCase().includes(kw)
-        );
+        const isSaleQuery = ['sale', 'giam gia', 'khuyen mai', 'uu dai'].some(kw => noAccents.toLowerCase().includes(kw));
 
         let filter = {};
-
         if (isSaleQuery) {
             filter = { discountedPrice: { $ne: null, $gt: 0 } };
         } else {
@@ -143,149 +136,91 @@ const executeSearchBooks = async (query) => {
         }
 
         const books = await Book.find(filter).limit(SEARCH_LIMIT).lean();
+        if (books.length === 0) return JSON.stringify({ message: isSaleQuery ? 'Hiện tại cửa hàng không có chương trình giảm giá nào.' : `Không tìm thấy sách nào khớp với từ khóa "${query}".` });
 
-        if (books.length === 0) {
-            return JSON.stringify({
-                message: isSaleQuery
-                    ? 'Hiện tại cửa hàng không có chương trình giảm giá nào.'
-                    : `Không tìm thấy sách nào khớp với từ khóa "${query}".`,
-            });
-        }
-
-        return JSON.stringify(
-            books.map((b) => ({
-                title: b.title,
-                author: b.author,
-                genre: b.genre,
-                price: b.price,
-                discountedPrice: b.discountedPrice ?? null,
-                stock: b.stock,
-                description: b.description?.slice(0, 150) ?? '',
-            }))
-        );
-    } catch (error) {
-        console.error('Lỗi search_books:', error);
-        return JSON.stringify({ message: 'Lỗi hệ thống khi tìm sách.' });
-    }
+        return JSON.stringify(books.map((b) => ({ title: b.title, author: b.author, genre: b.genre, price: b.price, discountedPrice: b.discountedPrice ?? null, stock: b.stock, description: b.description?.slice(0, 150) ?? '' })));
+    } catch (error) { return JSON.stringify({ message: 'Lỗi hệ thống khi tìm sách.' }); }
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   TOOL EXECUTOR: get_books_by_price 
-───────────────────────────────────────────────────────────────── */
 const executeGetBooksByPrice = async (price_type, sort = 'asc', limit = 1) => {
     try {
         const sortOrder = sort === 'desc' ? -1 : 1;
         let books;
-
         if (price_type === 'discounted') {
-            books = await Book.find({ discountedPrice: { $ne: null, $gt: 0 } })
-                .sort({ discountedPrice: sortOrder })
-                .limit(limit)
-                .lean();
-
-            if (books.length === 0) {
-                return JSON.stringify({ message: 'Hiện không có sách nào đang được khuyến mãi.' });
-            }
+            books = await Book.find({ discountedPrice: { $ne: null, $gt: 0 } }).sort({ discountedPrice: sortOrder }).limit(limit).lean();
+            if (books.length === 0) return JSON.stringify({ message: 'Hiện không có sách nào đang được khuyến mãi.' });
         } else {
-            books = await Book.find({ stock: { $gt: 0 } })
-                .sort({ price: sortOrder })
-                .limit(limit)
-                .lean();
-
-            if (books.length === 0) {
-                return JSON.stringify({ message: 'Không tìm thấy sách nào.' });
-            }
+            books = await Book.find({ stock: { $gt: 0 } }).sort({ price: sortOrder }).limit(limit).lean();
+            if (books.length === 0) return JSON.stringify({ message: 'Không tìm thấy sách nào.' });
         }
-
-        return JSON.stringify(
-            books.map((b) => ({
-                title: b.title,
-                author: b.author,
-                genre: b.genre,
-                price: b.price,
-                discountedPrice: b.discountedPrice ?? null,
-                stock: b.stock,
-            }))
-        );
-    } catch (error) {
-        console.error('Lỗi get_books_by_price:', error);
-        return JSON.stringify({ message: 'Lỗi hệ thống.' });
-    }
+        return JSON.stringify(books.map((b) => ({ title: b.title, author: b.author, genre: b.genre, price: b.price, discountedPrice: b.discountedPrice ?? null, stock: b.stock })));
+    } catch (error) { return JSON.stringify({ message: 'Lỗi hệ thống.' }); }
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   TOOL EXECUTOR: get_promotions ✅ CẬP NHẬT ĐỌC CẢ VOUCHER
-───────────────────────────────────────────────────────────────── */
 const executeGetPromotions = async () => {
     try {
         const now = new Date();
-        const promotions = await Promotion.find({
-            isActive: true,
-            startDate: { $lte: now },
-            endDate: { $gte: now },
-        }).lean();
-
+        const promotions = await Promotion.find({ isActive: true, startDate: { $lte: now }, endDate: { $gte: now } }).lean();
         const vouchers = await Voucher.find({ isActive: true }).lean();
 
-        if (promotions.length === 0 && vouchers.length === 0) {
-            return JSON.stringify({ message: 'Hiện không có chương trình khuyến mãi hay voucher nào đang hoạt động.' });
-        }
+        if (promotions.length === 0 && vouchers.length === 0) return JSON.stringify({ message: 'Hiện không có chương trình khuyến mãi hay voucher nào đang hoạt động.' });
 
         return JSON.stringify({
             message: "Danh sách khuyến mãi và Voucher hiện tại",
-            promotions: promotions.map((p) => ({
-                name: p.name,
-                description: p.description,
-                discountType: p.discountType,
-                discountValue: p.discountValue,
-                targetType: p.targetType,
-                endDate: p.endDate,
-            })),
-            vouchers: vouchers.map((v) => ({
-                code: v.code, // ĐÂY LÀ MÃ VOUCHER KHÁCH CẦN NHẬP
-                discountType: v.discountType,
-                discountValue: v.discountValue,
-                remaining_usage: v.usageLimit - (v.usedCount || 0)
-            }))
+            promotions: promotions.map((p) => ({ name: p.name, description: p.description, discountType: p.discountType, discountValue: p.discountValue, targetType: p.targetType, endDate: p.endDate })),
+            vouchers: vouchers.map((v) => ({ code: v.code, discountType: v.discountType, discountValue: v.discountValue, remaining_usage: v.usageLimit - (v.usedCount || 0) }))
         });
-    } catch (error) {
-        console.error('Lỗi get_promotions:', error);
-        return JSON.stringify({ message: 'Lỗi hệ thống khi lấy khuyến mãi.' });
-    }
+    } catch (error) { return JSON.stringify({ message: 'Lỗi hệ thống khi lấy khuyến mãi.' }); }
 };
 
-
-const executeGetActiveOrders = async (userId) => {
+// ✅ CẬP NHẬT LOGIC ĐỌC ĐƠN HÀNG CHI TIẾT
+const executeGetRecentOrders = async (userId) => {
     try {
-        // Tìm các đơn hàng của user có trạng thái pending hoặc shipping
-        const orders = await Order.find({
-            user: userId,
-            status: { $in: ['pending', 'shipping'] }
-        })
+        // Lấy 5 đơn gần nhất bất kể trạng thái
+        const orders = await Order.find({ user: userId })
             .sort({ createdAt: -1 })
-            .populate('items.book', 'title') // Lấy tên sách để AI đọc
+            .limit(5)
+            .populate('items.book', 'title')
             .lean();
 
         if (orders.length === 0) {
-            return JSON.stringify({ message: 'Hiện tại bạn không có đơn hàng nào đang xử lý hoặc đang vận chuyển.' });
+            return JSON.stringify({ message: 'Hiện tại bạn chưa có đơn hàng nào trong hệ thống.' });
         }
 
-        // Format lại dữ liệu cho AI dễ hiểu và tiết kiệm token
+        // Dịch trạng thái sang tiếng Việt cho AI hiểu
+        const translateStatus = (s) => {
+            const map = {
+                pending: 'Đang xử lý',
+                confirmed: 'Đã xác nhận',
+                delivering: 'Đang giao hàng',
+                delivered: 'Đã giao thành công (Chờ KH xác nhận)',
+                completed: 'Hoàn tất',
+                failed_delivery: 'Giao thất bại',
+                return_requested: 'Đang yêu cầu trả hàng/Hoàn tiền',
+                return_approved: 'Shop đã duyệt trả hàng',
+                returning: 'Đang hoàn về kho',
+                returned: 'Đã trả hàng',
+                cancelled: 'Đã hủy'
+            };
+            return map[s] || s;
+        };
+
         const formattedOrders = orders.map(o => ({
-            orderId: o._id.toString().slice(-6), // Lấy 6 số cuối cho gọn
-            status: o.status === 'pending' ? 'Đang xử lý' : 'Đang vận chuyển',
-            paymentMethod: o.paymentMethod,
-            paymentStatus: o.paymentStatus,
+            orderId: o._id.toString().slice(-6).toUpperCase(),
+            orderDate: new Date(o.createdAt).toLocaleDateString('vi-VN'),
+            status: translateStatus(o.status),
+            paymentMethod: o.paymentMethod === 'vnpay' ? 'VNPAY' : (o.paymentMethod === 'transfer' ? 'Chuyển khoản' : 'COD'),
+            paymentStatus: o.paymentStatus || 'Chưa thanh toán',
             totalPrice: o.totalPrice,
             items: o.items.map(i => `- ${i.book?.title || 'Sách không xác định'} (x${i.quantity})`).join('\n')
         }));
 
         return JSON.stringify({
-            message: "Danh sách đơn hàng đang hoạt động của khách",
+            message: "Danh sách đơn hàng gần nhất của khách",
             orders: formattedOrders
         });
     } catch (error) {
-        console.error('Lỗi get_active_orders:', error);
+        console.error('Lỗi get_recent_orders:', error);
         return JSON.stringify({ message: 'Lỗi hệ thống khi lấy thông tin đơn hàng.' });
     }
 };
@@ -293,23 +228,12 @@ const executeGetActiveOrders = async (userId) => {
 /* ─────────────────────────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────────────────────────── */
-const removeAccents = (str) =>
-    str
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9\s]/g, '')
-        .trim();
+const removeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9\s]/g, '').trim();
 
-const callAI = (payload) =>
-    Promise.race([
-        getOpenAI().chat.completions.create(payload), // ✅ Dùng hàm khởi tạo động
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('AI request timed out')), AI_TIMEOUT_MS)
-        ),
-    ]);
+const callAI = (payload) => Promise.race([getOpenAI().chat.completions.create(payload), new Promise((_, reject) => setTimeout(() => reject(new Error('AI request timed out')), AI_TIMEOUT_MS))]);
 
 /* ─────────────────────────────────────────────────────────────────
-   SYSTEM PROMPT
+   SYSTEM PROMPT ✅ ĐÃ CẬP NHẬT LẠI PROMPT CHO AI
 ───────────────────────────────────────────────────────────────── */
 const SYSTEM_PROMPT = `Bạn là trợ lý AI bán hàng của nhà sách online BookNest.
 
@@ -336,13 +260,14 @@ XỬ LÝ TỒN KHO:
 - stock > 0 → xác nhận còn hàng.
 
 THÔNG TIN CỬA HÀNG:
-- Phí ship: 40.000₫ toàn quốc. Thanh toán: COD hoặc VietQR.
+- Phí ship: 40.000₫ toàn quốc. Thanh toán: COD, Chuyển khoản hoặc VNPAY.
 - Cam kết: sách thật 100%, đóng gói cẩn thận.
 
 KIỂM TRA ĐƠN HÀNG:
-- Khách hỏi về tình trạng đơn hàng, "đơn của tôi đâu" → BẮT BUỘC dùng get_active_orders.
-- Khi trả lời, liệt kê rõ: Mã đơn(6 số cuối), Trạng thái, Tổng tiền, và Danh sách sách đã đặt.
-- Nếu khách thắc mắc về thanh toán(như VNPAY bị lỗi hay chưa xác nhận), hãy báo trạng thái thanh toán hiện tại của đơn hàng`;
+- Khách hỏi "đơn của tôi đâu", "đã duyệt chưa", "tiền hoàn chưa", "đã hủy chưa" → BẮT BUỘC dùng get_recent_orders.
+- Khi trả lời, đọc rõ: Mã đơn (6 ký tự cuối), Ngày đặt, Trạng thái đơn, Trạng thái thanh toán và Tổng tiền.
+- ĐẶC BIỆT CHÚ Ý TRẠNG THÁI THANH TOÁN: Nếu khách hỏi "bao giờ nhận được tiền hoàn", hãy kiểm tra xem trạng thái thanh toán đang là "Hoàn tiền" (Hệ thống đang xử lý) hay "Đã hoàn tiền" (Đã gửi lại tiền cho khách) để trả lời chính xác.`;
+
 /* ─────────────────────────────────────────────────────────────────
    EXPORTS
 ───────────────────────────────────────────────────────────────── */
@@ -358,24 +283,18 @@ exports.startConversation = async (req, res) => {
         });
 
         if (!conversation) {
-            conversation = await Conversation.create({
-                participants: [userId, admin._id],
-            });
+            conversation = await Conversation.create({ participants: [userId, admin._id] });
         }
-
         res.status(200).json(conversation);
-    } catch (err) {
-        res.status(500).json({ message: 'Không thể tạo cuộc trò chuyện', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể tạo cuộc trò chuyện', error: err.message }); }
 };
 
 exports.sendMessage = async (req, res) => {
     try {
         const sender = req.user.id;
         const { conversationId, text } = req.body;
-        const io = req.app.get('io'); // Lấy IO để phát sự kiện Socket
+        const io = req.app.get('io');
 
-        // ✅ Lấy thông tin người gửi để biết là User hay Admin
         const currentUser = await User.findById(sender);
         if (!currentUser) return res.status(404).json({ message: 'Người dùng không tồn tại' });
         const isSenderAdmin = currentUser.role === 'admin';
@@ -386,51 +305,37 @@ exports.sendMessage = async (req, res) => {
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ message: 'Hội thoại không tồn tại' });
 
-        // ✅ LOGIC XỬ LÝ NÚT GỌI NHÂN VIÊN (Dành riêng cho user)
         const isRequestingHuman = text === '[REQUEST_HUMAN]';
         const actualText = isRequestingHuman ? 'Mình muốn được nhân viên tư vấn trực tiếp.' : text;
 
         const userMessage = await Message.create({ conversationId, sender, text: actualText });
-        await Conversation.findByIdAndUpdate(conversationId, {
-            lastMessage: actualText,
-            updatedAt: Date.now(),
-        });
+        await Conversation.findByIdAndUpdate(conversationId, { lastMessage: actualText, updatedAt: Date.now() });
 
-        // ✅ PHÂN LOẠI EMIT THEO ROLE ĐỂ NAVBAR ADMIN KHÔNG BỊ BÁO SAI
         if (isSenderAdmin) {
-            // Admin nhắn -> Gửi cho User
             if (io) io.emit('new_message_user', { conversationId, sender, text: actualText, senderRole: 'admin' });
         } else {
-            // User nhắn -> Báo cho Admin (ĐỂ TĂNG SỐ THÔNG BÁO)
             if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' });
         }
 
-        // ✅ NẾU USER GỌI NHÂN VIÊN -> TẮT BOT & TRẢ LỜI TỰ ĐỘNG
         if (isRequestingHuman && !isSenderAdmin) {
             await Conversation.findByIdAndUpdate(conversationId, { isBotActive: false });
             if (io) io.emit('bot_status_changed', { conversationId, isBotActive: false });
 
             const sysMsg = await Message.create({
-                conversationId,
-                sender: admin._id,
+                conversationId, sender: admin._id,
                 text: 'Hệ thống đã ghi nhận yêu cầu. Bạn vui lòng chờ một lát, nhân viên hỗ trợ sẽ phản hồi bạn ngay nhé! 👨‍💻'
             });
 
             if (io) io.emit('new_message_user', sysMsg);
-            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' }); // Báo rõ là bot để Navbar bỏ qua
+            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' });
 
             return res.status(201).json({ userMessage, aiMessage: sysMsg });
         }
 
         let aiMessage = null;
 
-        // ✅ QUAN TRỌNG: CHỈ CHO PHÉP AI TRẢ LỜI NẾU NGƯỜI GỬI KHÔNG PHẢI ADMIN & BOT ĐANG BẬT
         if (!isSenderAdmin && conversation.isBotActive) {
-            const history = await Message.find({ conversationId })
-                .sort({ createdAt: -1 })
-                .limit(HISTORY_LIMIT)
-                .lean();
-
+            const history = await Message.find({ conversationId }).sort({ createdAt: -1 }).limit(HISTORY_LIMIT).lean();
             history.reverse();
 
             const messages = [
@@ -442,14 +347,7 @@ exports.sendMessage = async (req, res) => {
             ];
 
             try {
-                const firstResponse = await callAI({
-                    model: AI_MODEL,
-                    messages,
-                    tools,
-                    tool_choice: 'auto',
-                    temperature: 0.5,
-                });
-
+                const firstResponse = await callAI({ model: AI_MODEL, messages, tools, tool_choice: 'auto', temperature: 0.5 });
                 let aiResponseMsg = firstResponse.choices[0].message;
 
                 if (aiResponseMsg.tool_calls?.length > 0) {
@@ -466,30 +364,17 @@ exports.sendMessage = async (req, res) => {
                             dbResult = await executeGetBooksByPrice(args.price_type, args.sort, args.limit);
                         } else if (toolCall.function.name === 'get_promotions') {
                             dbResult = await executeGetPromotions();
-                        } else if (toolCall.function.name === 'get_active_orders') {
-                            // ✅ GỌI HÀM VÀ TRUYỀN ID NGƯỜI DÙNG ĐANG CHAT
-                            dbResult = await executeGetActiveOrders(sender);
+                        } else if (toolCall.function.name === 'get_recent_orders') { // ✅ ĐỔI TÊN Ở ĐÂY
+                            dbResult = await executeGetRecentOrders(sender);
                         }
 
-                        messages.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            name: toolCall.function.name,
-                            content: dbResult,
-                        });
+                        messages.push({ role: 'tool', tool_call_id: toolCall.id, name: toolCall.function.name, content: dbResult });
                     }
 
-                    const stream = await getOpenAI().chat.completions.create({
-                        model: AI_MODEL,
-                        messages,
-                        temperature: 0.5,
-                        stream: true,
-                    });
-
+                    const stream = await getOpenAI().chat.completions.create({ model: AI_MODEL, messages, temperature: 0.5, stream: true });
                     let aiText = '';
 
                     if (io) io.emit('ai_start_typing', { conversationId });
-
                     for await (const chunk of stream) {
                         const content = chunk.choices[0]?.delta?.content || '';
                         if (content) {
@@ -497,122 +382,62 @@ exports.sendMessage = async (req, res) => {
                             if (io) io.emit('ai_typing_chunk', { conversationId, content });
                         }
                     }
-
                     if (io) io.emit('ai_finish_typing', { conversationId });
-
                     aiResponseMsg = { content: aiText };
                 }
 
                 const aiText = aiResponseMsg.content?.trim() || FALLBACK_MSG;
+                aiMessage = await Message.create({ conversationId, sender: admin._id, text: aiText });
+                await Conversation.findByIdAndUpdate(conversationId, { lastMessage: aiText, updatedAt: Date.now() });
 
-                aiMessage = await Message.create({
-                    conversationId,
-                    sender: admin._id,
-                    text: aiText,
-                });
-
-                await Conversation.findByIdAndUpdate(conversationId, {
-                    lastMessage: aiText,
-                    updatedAt: Date.now(),
-                });
-
-                // Socket gửi tới User và Admin (phân role bot để Navbar Admin lờ đi)
                 if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' });
                 if (io) io.emit('new_message_user', aiMessage);
 
             } catch (aiError) {
                 console.error('Lỗi khi xử lý AI:', aiError.message);
-
-                aiMessage = await Message.create({
-                    conversationId,
-                    sender: admin._id,
-                    text: FALLBACK_MSG,
-                });
-
-                await Conversation.findByIdAndUpdate(conversationId, {
-                    lastMessage: FALLBACK_MSG,
-                    updatedAt: Date.now(),
-                });
-
+                aiMessage = await Message.create({ conversationId, sender: admin._id, text: FALLBACK_MSG });
+                await Conversation.findByIdAndUpdate(conversationId, { lastMessage: FALLBACK_MSG, updatedAt: Date.now() });
                 if (io) io.emit('new_message_admin', { conversationId, senderRole: 'bot' });
                 if (io) io.emit('new_message_user', aiMessage);
             }
         }
-
         res.status(201).json({ userMessage, aiMessage });
-
-    } catch (err) {
-        console.error('Lỗi gửi tin:', err);
-        res.status(500).json({ message: 'Không thể gửi tin nhắn', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể gửi tin nhắn', error: err.message }); }
 };
 
 exports.toggleBot = async (req, res) => {
     try {
         const { conversationId } = req.params;
         const { isBotActive } = req.body;
-
-        const conversation = await Conversation.findByIdAndUpdate(
-            conversationId,
-            { isBotActive },
-            { new: true }
-        );
-
-        // ✅ Phát Socket để khách hàng đổi giao diện nút [REQUEST_HUMAN]
+        const conversation = await Conversation.findByIdAndUpdate(conversationId, { isBotActive }, { new: true });
         const io = req.app.get('io');
         if (io) io.emit('bot_status_changed', { conversationId, isBotActive });
-
         res.status(200).json(conversation);
-    } catch (err) {
-        res.status(500).json({ message: 'Không thể cập nhật trạng thái bot', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể cập nhật trạng thái bot', error: err.message }); }
 };
 
 exports.getMessages = async (req, res) => {
     try {
         const { conversationId } = req.params;
-        const messages = await Message.find({ conversationId })
-            .sort({ createdAt: 1 })
-            .populate('sender', 'name role');
+        const messages = await Message.find({ conversationId }).sort({ createdAt: 1 }).populate('sender', 'name role');
         res.status(200).json(messages);
-    } catch (err) {
-        res.status(500).json({ message: 'Không thể lấy tin nhắn', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể lấy tin nhắn', error: err.message }); }
 };
 
 exports.getAllConversations = async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'Không có quyền truy cập' });
-        }
-
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Không có quyền truy cập' });
         const adminId = req.user.id;
-        const conversations = await Conversation.find()
-            .sort({ updatedAt: -1 })
-            .populate({
-                path: 'participants',
-                select: 'name role avatar',
-                match: { role: 'user' },
-            });
-
+        const conversations = await Conversation.find().sort({ updatedAt: -1 }).populate({ path: 'participants', select: 'name role avatar', match: { role: 'user' } });
         const result = [];
         for (const conv of conversations) {
             const user = conv.participants.find((p) => p?.role === 'user');
             if (!user) continue;
-
-            const unreadCount = await Message.countDocuments({
-                conversationId: conv._id,
-                sender: user._id,
-                readBy: { $ne: adminId },
-            });
-
+            const unreadCount = await Message.countDocuments({ conversationId: conv._id, sender: user._id, readBy: { $ne: adminId } });
             result.push({ ...conv.toObject(), participant: user, unreadCount });
         }
-
         res.status(200).json(result);
-    } catch (err) {
-        res.status(500).json({ message: 'Không thể lấy danh sách cuộc trò chuyện', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể lấy danh sách cuộc trò chuyện', error: err.message }); }
 };
 
 exports.getUnreadCount = async (req, res) => {
@@ -620,36 +445,16 @@ exports.getUnreadCount = async (req, res) => {
         const userId = req.user.id;
         const userConversations = await Conversation.find({ participants: userId }).select('_id');
         const conversationIds = userConversations.map((c) => c._id);
-
-        const count = await Message.countDocuments({
-            conversationId: { $in: conversationIds },
-            sender: { $ne: userId },
-            readBy: { $ne: userId },
-        });
-
+        const count = await Message.countDocuments({ conversationId: { $in: conversationIds }, sender: { $ne: userId }, readBy: { $ne: userId } });
         res.json({ unreadCount: count });
-    } catch (err) {
-        res.status(500).json({ message: 'Không thể lấy số tin chưa đọc', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể lấy số tin chưa đọc', error: err.message }); }
 };
 
 exports.markMessagesAsRead = async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user.id;
-
-        await Message.updateMany(
-            {
-                conversationId,
-                sender: { $ne: userId },
-                readBy: { $ne: userId },
-            },
-            { $push: { readBy: userId } }
-        );
-
+        await Message.updateMany({ conversationId, sender: { $ne: userId }, readBy: { $ne: userId } }, { $push: { readBy: userId } });
         res.json({ message: 'Đã đánh dấu là đã đọc' });
-    } catch (err) {
-        res.status(500).json({ message: 'Không thể cập nhật trạng thái đọc', error: err.message });
-    }
+    } catch (err) { res.status(500).json({ message: 'Không thể cập nhật trạng thái đọc', error: err.message }); }
 };
-

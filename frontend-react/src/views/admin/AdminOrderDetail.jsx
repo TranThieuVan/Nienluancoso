@@ -57,6 +57,34 @@ const AdminOrderDetail = () => {
     }
   };
 
+  // ✅ LOGIC MỚI: HÀM NỘI SUY TÁC NHÂN (ACTOR) DỰA VÀO DỮ LIỆU
+  const getStatusLabelWithActor = (status, orderObj) => {
+    const base = translateStatus(status);
+    switch (status) {
+      case 'pending': return `${base} (Khách hàng)`;
+      case 'confirmed':
+      case 'delivering':
+      case 'return_approved':
+      case 'returned': return `${base} (Admin)`;
+      case 'delivered':
+      case 'failed_delivery': return `${base} (Admin/Shipper)`;
+      case 'return_requested':
+      case 'returning': return `${base} (Khách hàng)`;
+      case 'cancelled':
+        // Nếu lý do chứa chữ Hệ thống tự động -> Hệ thống
+        if (orderObj.cancelReason?.includes('Hệ thống tự động')) return `${base} (Hệ thống)`;
+        // Nếu lý do nằm trong danh sách chọn của Form khách hàng -> Khách hàng
+        if (['Thay đổi ý định', 'Đặt nhầm sản phẩm', 'Tìm thấy giá tốt hơn', 'Thời gian giao quá lâu', 'Lý do khác'].includes(orderObj.cancelReason)) return `${base} (Khách hàng)`;
+        // Còn lại (nhập tay) -> Admin
+        return `${base} (Admin)`;
+      case 'completed':
+        if (orderObj.adminNote?.includes('Hệ thống tự động')) return `${base} (Hệ thống)`;
+        if (orderObj.adminNote?.toLowerCase().includes('từ chối')) return `${base} (Admin đóng)`;
+        return base;
+      default: return base;
+    }
+  };
+
   const allowedStatusTransitions = {
     pending: ['confirmed', 'cancelled'],
     confirmed: ['delivering', 'cancelled'],
@@ -105,7 +133,6 @@ const AdminOrderDetail = () => {
       );
 
       const isFailureState = ['cancelled', 'failed_delivery'].includes(newStatus);
-      // ✅ LOGIC MỚI: Ưu tiên lấy paymentStatus từ extraData (nếu Admin xác nhận tiền)
       const updatedPaymentStatus = extraData.paymentStatus || ((isFailureState && order.paymentStatus === 'Đã thanh toán') ? 'Hoàn tiền' : order.paymentStatus);
 
       setPreviousStatus(newStatus);
@@ -163,7 +190,6 @@ const AdminOrderDetail = () => {
     }
   };
 
-  // ✅ ACTION MỚI: XÁC NHẬN ĐÃ NHẬN TIỀN CHUYỂN KHOẢN THỦ CÔNG
   const handleConfirmTransferPayment = () => {
     Swal.fire({
       title: 'Xác nhận đã nhận tiền?',
@@ -174,7 +200,6 @@ const AdminOrderDetail = () => {
       cancelButtonText: 'Chưa nhận được'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Đổi trạng thái sang Confirmed và đánh dấu Đã thanh toán
         executeStatusChange('confirmed', '', { paymentStatus: 'Đã thanh toán' });
       }
     });
@@ -228,7 +253,69 @@ const AdminOrderDetail = () => {
     executeStatusChange(newStatus, cancelReason, extraData);
   };
 
-  const handleConfirmRefund = async () => { /* Logic hoàn tiền ở đây */ };
+  const handleConfirmRefund = async () => {
+    const isVnpay = order.paymentMethod === 'vnpay';
+
+    const result = await Swal.fire({
+      title: 'Xác nhận hoàn tiền?',
+      text: isVnpay
+        ? 'Hệ thống sẽ gửi lệnh hoàn tiền tự động qua cổng VNPAY. Bạn có chắc chắn?'
+        : 'Bạn xác nhận đã chuyển khoản trả lại tiền cho khách hàng?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: isVnpay ? '#4f46e5' : '#10b981',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Xác nhận Đã hoàn tiền',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
+      Swal.fire({ title: 'Đang xử lý...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        const token = localStorage.getItem('adminToken');
+        const { data } = await axios.put(`/api/admin/orders/${order._id}/refund`,
+          { forceManual: !isVnpay },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        Swal.fire('Thành công', data.message || 'Đã hoàn tiền thành công', 'success');
+        setOrder(prev => ({ ...prev, paymentStatus: 'Đã hoàn tiền' }));
+
+      } catch (err) {
+        const errorMsg = err.response?.data?.message || 'Lỗi xử lý hoàn tiền';
+
+        if (isVnpay) {
+          const manualResult = await Swal.fire({
+            title: 'Lỗi cổng VNPAY',
+            text: `${errorMsg}. Bạn có muốn bỏ qua VNPAY và tự chuyển khoản tay cho khách không?`,
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            confirmButtonText: 'Tôi sẽ tự chuyển khoản tay',
+            cancelButtonText: 'Hủy'
+          });
+
+          if (manualResult.isConfirmed) {
+            Swal.fire({ title: 'Đang lưu...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+              const token = localStorage.getItem('adminToken');
+              await axios.put(`/api/admin/orders/${order._id}/refund`,
+                { forceManual: true },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              Swal.fire('Thành công', 'Đã lưu trạng thái hoàn tiền thủ công', 'success');
+              setOrder(prev => ({ ...prev, paymentStatus: 'Đã hoàn tiền' }));
+            } catch (manualErr) {
+              Swal.fire('Lỗi', 'Không thể lưu trạng thái', 'error');
+            }
+          }
+        } else {
+          Swal.fire('Lỗi', errorMsg, 'error');
+        }
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 relative">
@@ -398,7 +485,6 @@ const AdminOrderDetail = () => {
                     </select>
                   )}
 
-                  {/* ✅ BOX XỬ LÝ CHUYỂN KHOẢN THỦ CÔNG */}
                   {order.status !== 'cancelled' && order.paymentMethod === 'transfer' && order.paymentStatus === 'Chờ thanh toán' && (
                     <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded shadow-sm">
                       <div className="flex items-center gap-2 text-amber-700 mb-2">
@@ -447,7 +533,8 @@ const AdminOrderDetail = () => {
                   {order.statusHistory?.map((entry, index) => (
                     <li key={index} className="relative">
                       <span className="absolute -left-[27px] top-1 w-3 h-3 bg-indigo-500 rounded-full ring-4 ring-white"></span>
-                      <p className="font-bold text-gray-800 text-[13px]">{translateStatus(entry.status)}</p>
+                      {/* ✅ ĐÃ SỬA: Gọi hàm hiển thị nhãn kèm Tác nhân */}
+                      <p className="font-bold text-gray-800 text-[13px]">{getStatusLabelWithActor(entry.status, order)}</p>
                       <p className="text-[11px] text-gray-400 font-medium mt-0.5">{formatDateTime(entry.date)}</p>
                     </li>
                   ))}

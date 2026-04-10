@@ -27,30 +27,24 @@ const buildDateRange = (preset, from, to) => {
             const end = new Date(now); end.setDate(end.getDate() - 1); end.setHours(23, 59, 59, 999);
             return { $gte: start, $lte: end };
         }
-        case 'week': {
-            const start = new Date(now);
-            start.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-            start.setHours(0, 0, 0, 0);
+        case 'last3': {
+            const start = new Date(now); start.setDate(start.getDate() - 2); start.setHours(0, 0, 0, 0);
             return { $gte: start, $lte: now };
         }
         case 'last7': {
             const start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
             return { $gte: start, $lte: now };
         }
-        case 'month': {
-            const start = new Date(now.getFullYear(), now.getMonth(), 1);
-            return { $gte: start, $lte: now };
-        }
         case 'last30': {
             const start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0);
             return { $gte: start, $lte: now };
         }
-        case 'year': {
-            const start = new Date(now.getFullYear(), 0, 1);
+        case 'last365': {
+            const start = new Date(now); start.setDate(start.getDate() - 364); start.setHours(0, 0, 0, 0);
             return { $gte: start, $lte: now };
         }
         default:
-            return null; // all time
+            return null; // Toàn thời gian (all time)
     }
 };
 
@@ -69,16 +63,14 @@ exports.getOrderStats = async (req, res) => {
         const dateRange = buildDateRange(preset, from, to);
         const dateQuery = dateRange ? { createdAt: dateRange } : {};
 
-        // 1. LẤY THÔNG KÊ TỔNG QUAN & LOGISTICS
+        // 1. LẤY THÔNG KÊ TỔNG QUAN & LOGISTICS (Áp dụng dateQuery)
         const [generalStats] = await Order.aggregate([
             { $match: dateQuery },
             {
                 $group: {
                     _id: null,
                     total: { $sum: 1 },
-                    // ✅ ĐÃ SỬA: Doanh thu chỉ tính khi completed
                     revenue: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalPrice', 0] } },
-
                     pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
                     delivering: { $sum: { $cond: [{ $eq: ['$status', 'delivering'] }, 1, 0] } },
                     delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
@@ -86,10 +78,8 @@ exports.getOrderStats = async (req, res) => {
                     cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
                     failed_delivery: { $sum: { $cond: [{ $eq: ['$status', 'failed_delivery'] }, 1, 0] } },
                     returned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
-
                     pendingRefund: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'Hoàn tiền'] }, 1, 0] } },
                     doneRefund: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'Đã hoàn tiền'] }, 1, 0] } },
-
                     totalDeliveryTime: {
                         $sum: {
                             $cond: [
@@ -108,27 +98,23 @@ exports.getOrderStats = async (req, res) => {
             cancelled: 0, failed_delivery: 0, returned: 0, pendingRefund: 0, doneRefund: 0, totalDeliveryTime: 0
         };
 
-        // 2. TÍNH TOÁN CÁC "RATE METRICS" (Tỷ lệ)
-        // AOV tính trên đơn completed
         const aov = cur.completed > 0 ? Math.round(cur.revenue / cur.completed) : 0;
         const cancelRate = cur.total > 0 ? ((cur.cancelled / cur.total) * 100).toFixed(1) : 0;
         const deliverySuccessRate = (cur.delivered + cur.completed + cur.failed_delivery + cur.returned) > 0
             ? (((cur.delivered + cur.completed) / (cur.delivered + cur.completed + cur.failed_delivery + cur.returned)) * 100).toFixed(1)
             : 0;
         const refundRate = cur.total > 0 ? (((cur.pendingRefund + cur.doneRefund) / cur.total) * 100).toFixed(1) : 0;
-
         const avgDeliveryDays = (cur.delivered + cur.completed) > 0
             ? (cur.totalDeliveryTime / (cur.delivered + cur.completed) / (1000 * 60 * 60 * 24)).toFixed(1)
             : 0;
 
-        // 3. TÌM TREND CHART
+        // 3. TÌM TREND CHART (Áp dụng dateQuery để biểu đồ tự co giãn theo thời gian)
         const dailyTrends = await Order.aggregate([
             { $match: dateQuery },
             {
                 $group: {
                     _id: { $dateToString: { format: "%Y-%m-%d", date: { $add: ["$createdAt", 7 * 60 * 60 * 1000] } } },
                     orders: { $sum: 1 },
-                    // ✅ ĐÃ SỬA: Doanh thu biểu đồ line chart chỉ tính completed
                     revenue: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalPrice', 0] } }
                 }
             },
@@ -148,23 +134,16 @@ exports.getOrderStats = async (req, res) => {
             }
         ]);
         const cust = customerStats[0] || { totalUniqueCustomers: 0, repeatCustomers: 0 };
-        const repeatRate = cust.totalUniqueCustomers > 0
-            ? ((cust.repeatCustomers / cust.totalUniqueCustomers) * 100).toFixed(1)
-            : 0;
+        const repeatRate = cust.totalUniqueCustomers > 0 ? ((cust.repeatCustomers / cust.totalUniqueCustomers) * 100).toFixed(1) : 0;
 
         res.json({
             summary: { total: cur.total, revenue: cur.revenue, aov },
             rates: { cancelRate: Number(cancelRate), deliverySuccessRate: Number(deliverySuccessRate), refundRate: Number(refundRate), repeatRate: Number(repeatRate) },
             logistics: { avgDeliveryDays: Number(avgDeliveryDays) },
             byStatus: {
-                pending: cur.pending,
-                delivering: cur.delivering,
-                delivered: cur.delivered, // Chờ khiếu nại
-                completed: cur.completed, // Hoàn tất
-                cancelled: cur.cancelled,
-                failed_delivery: cur.failed_delivery,
-                returned: cur.returned,
-                pendingRefund: cur.pendingRefund
+                pending: cur.pending, delivering: cur.delivering, delivered: cur.delivered,
+                completed: cur.completed, cancelled: cur.cancelled, failed_delivery: cur.failed_delivery,
+                returned: cur.returned, pendingRefund: cur.pendingRefund
             },
             chartData: dailyTrends.map(d => ({ date: d._id, orders: d.orders, revenue: d.revenue }))
         });
@@ -184,19 +163,14 @@ exports.getAllOrders = async (req, res) => {
 
         const statusQuery = buildStatusQuery(statusFilter);
         const dateRange = buildDateRange(preset, from, to);
-        const query = {
-            ...statusQuery,
-            ...(dateRange ? { createdAt: dateRange } : {}),
-        };
+        const query = { ...statusQuery, ...(dateRange ? { createdAt: dateRange } : {}) };
 
         const [totalOrders, orders] = await Promise.all([
             Order.countDocuments(query),
             Order.find(query)
                 .populate('user', 'name email')
                 .populate('items.book', 'title price image')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit),
+                .sort({ createdAt: -1 }).skip(skip).limit(limit),
         ]);
 
         res.json({ orders, currentPage: page, totalPages: Math.ceil(totalOrders / limit), totalOrders });
@@ -205,12 +179,10 @@ exports.getAllOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id)
-            .populate('user', 'name email')
-            .populate('items.book', 'title image price')
-        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
-        res.json(order)
-    } catch (err) { res.status(500).json({ message: 'Lỗi server' }) }
+        const order = await Order.findById(req.params.id).populate('user', 'name email').populate('items.book', 'title image price');
+        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+        res.json(order);
+    } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 }
 
 exports.updateOrderStatus = async (req, res) => {
@@ -223,30 +195,18 @@ exports.updateOrderStatus = async (req, res) => {
 
         if (adminNote !== undefined) order.adminNote = adminNote;
         if (callAttempts !== undefined) order.callAttempts = callAttempts;
-
-        // Bổ sung cập nhật thanh toán cho luồng Chuyển khoản
-        if (paymentStatus && order.paymentMethod === 'transfer') {
-            order.paymentStatus = paymentStatus;
-        }
+        if (paymentStatus && order.paymentMethod === 'transfer') order.paymentStatus = paymentStatus;
 
         if (oldStatus !== status) {
-
-            // 🛑 BƯỚC 1: LOGIC HOÀN KHO
             const isNeedToReturnStock = (status === 'cancelled') || (status === 'failed_delivery') || (status === 'returned');
             if (isNeedToReturnStock) {
-                for (const item of order.items) {
-                    await Book.findByIdAndUpdate(item.book, { $inc: { stock: item.quantity } });
-                }
+                for (const item of order.items) { await Book.findByIdAndUpdate(item.book, { $inc: { stock: item.quantity } }); }
             }
 
-            // 🛑 BƯỚC 2: LOGIC DOANH THU (Chỉ cộng Sold khi completed)
             if (status === 'completed') {
-                for (const item of order.items) {
-                    await Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } });
-                }
+                for (const item of order.items) { await Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } }); }
             }
 
-            // 🛑 BƯỚC 3: XỬ LÝ KHÁCH BOOM HÀNG
             if (status === 'failed_delivery') {
                 const userObj = await User.findById(order.user);
                 if (userObj) {
@@ -256,7 +216,6 @@ exports.updateOrderStatus = async (req, res) => {
                 }
             }
 
-            // 🛑 BƯỚC 6: ADMIN TỪ CHỐI YÊU CẦU TRẢ HÀNG
             const isRejectingReturn = (oldStatus === 'return_requested' || oldStatus === 'returning') && (status === 'completed');
             if (isRejectingReturn) {
                 order.adminNote = adminNote || "Admin đã từ chối khiếu nại / hoàn trả của khách hàng";
@@ -301,7 +260,6 @@ exports.confirmRefund = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-
         if (order.paymentStatus !== 'Hoàn tiền') return res.status(400).json({ message: 'Đơn hàng chưa yêu cầu hoàn tiền' });
 
         const { forceManual } = req.body;
@@ -352,7 +310,6 @@ exports.confirmRefund = async (req, res) => {
 
         order.paymentStatus = 'Đã hoàn tiền';
         await order.save();
-
         res.json({ message: 'Hoàn tiền thành công!', order });
 
     } catch (err) {

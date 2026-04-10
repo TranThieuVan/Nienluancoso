@@ -5,7 +5,6 @@ import Pagination from '../../components/Pagination';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 /* ─── Constants ─────────────────────────────────────────────────── */
-// ✅ ĐÃ SỬA: Cập nhật biến trạng thái mới
 const BADGES = {
   pending: { label: 'Đang xử lý', cls: 'bg-yellow-50 text-yellow-800 border border-yellow-200', dot: 'bg-yellow-500' },
   delivering: { label: 'Đang giao', cls: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
@@ -25,7 +24,7 @@ const getBadgeKey = (order) => {
   return order.status;
 };
 
-// ✅ ĐÃ SỬA: Danh sách lọc
+// ✅ Cập nhật bộ lọc Trạng thái: Bổ sung "Cần hoàn tiền"
 const STATUS_FILTERS = [
   { key: 'all', label: 'Tất cả' },
   { key: 'pending', label: 'Đang xử lý' },
@@ -35,22 +34,28 @@ const STATUS_FILTERS = [
   { key: 'failed_delivery', label: 'Thất bại' },
   { key: 'returned', label: 'Trả hàng' },
   { key: 'cancelled', label: 'Đã hủy' },
+  { key: 'pending_refund', label: 'Cần hoàn tiền' },
 ];
 
+// ✅ Cập nhật bộ lọc Thời gian: Theo mốc yêu cầu
 const DATE_PRESETS = [
   { key: '', label: 'Toàn thời gian' },
-  { key: 'last7', label: '7 ngày qua' },
-  { key: 'last30', label: '30 ngày qua' },
-  { key: 'year', label: 'Năm nay' },
+  { key: 'today', label: 'Hôm nay' },
+  { key: 'yesterday', label: 'Hôm qua' },
+  { key: 'last3', label: '3 ngày' },
+  { key: 'last7', label: '7 ngày' },
+  { key: 'last30', label: '30 ngày' },
+  { key: 'last365', label: '365 ngày' },
   { key: 'custom', label: 'Tuỳ chọn' },
 ];
 
 const TABLE_COLUMNS = [
-  { label: 'Mã đơn', width: 'w-[12%]', align: 'text-left' },
-  { label: 'Sản phẩm', width: 'w-[30%]', align: 'text-left' },
-  { label: 'Khách hàng', width: 'w-[18%]', align: 'text-left' },
-  { label: 'Tổng tiền', width: 'w-[14%]', align: 'text-right' },
-  { label: 'Trạng thái', width: 'w-[16%]', align: 'text-left' },
+  { label: 'Mã đơn', width: 'w-[10%]', align: 'text-left' },
+  { label: 'Sản phẩm', width: 'w-[25%]', align: 'text-left' },
+  { label: 'Khách hàng', width: 'w-[16%]', align: 'text-left' },
+  { label: 'Thanh toán', width: 'w-[12%]', align: 'text-center' },
+  { label: 'Tổng tiền', width: 'w-[12%]', align: 'text-right' },
+  { label: 'Trạng thái', width: 'w-[15%]', align: 'text-center' },
   { label: 'Thao tác', width: 'w-[10%]', align: 'text-center' },
 ];
 
@@ -76,7 +81,7 @@ const AdminOrders = () => {
   const navigate = useNavigate();
 
   const [filterStatus, setFilterStatus] = useState('all');
-  const [datePreset, setDatePreset] = useState('last30');
+  const [datePreset, setDatePreset] = useState('last30'); // Mặc định mở lên lọc 30 ngày
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const showCustom = datePreset === 'custom';
@@ -143,7 +148,9 @@ const AdminOrders = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-8 font-sans overflow-y-scroll">
-      <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
+
+      {/* ─── TIÊU ĐỀ ─── */}
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Hiệu suất kinh doanh</h1>
           <p className="text-sm text-gray-500 mt-1">Phân tích dữ liệu vận hành & doanh thu</p>
@@ -153,29 +160,55 @@ const AdminOrders = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          icon="fa-box-check" label="Giao thành công"
-          value={statsLoading ? '-' : `${stats?.rates?.deliverySuccessRate ?? 0}%`} sub="Delivery Success Rate"
-          colorClass={{ bg: 'bg-emerald-100', text: 'text-emerald-700' }}
-        />
-        <StatCard
-          icon="fa-users-arrows-retweet" label="Khách quay lại"
-          value={statsLoading ? '-' : `${stats?.rates?.repeatRate ?? 0}%`} sub="Repeat Customer Rate"
-          colorClass={{ bg: 'bg-blue-100', text: 'text-blue-700' }}
-        />
-        <StatCard
-          icon="fa-truck-fast" label="Thời gian giao"
-          value={statsLoading ? '-' : stats?.logistics?.avgDeliveryDays ?? 0} sub="Ngày (Trung bình)"
-          colorClass={{ bg: 'bg-violet-100', text: 'text-violet-700' }}
-        />
-        <StatCard
-          icon="fa-ban" label="Tỷ lệ hủy/Hoàn"
-          value={statsLoading ? '-' : `${stats?.rates?.cancelRate ?? 0}%`} sub={`Refund Rate: ${stats?.rates?.refundRate ?? 0}%`}
-          colorClass={{ bg: 'bg-red-100', text: 'text-red-700' }}
-        />
+      {/* ─── 1. BỘ LỌC THỜI GIAN NẰM ĐẦU TIÊN ─── */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-3 mb-6 flex flex-wrap items-center gap-3">
+        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mr-2">
+          <i className="fa-regular fa-calendar mr-1.5" />Thời gian lọc
+        </span>
+        {DATE_PRESETS.map(p => (
+          <button key={p.key} onClick={() => handleDatePresetClick(p.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${datePreset === p.key ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+            {p.label}
+          </button>
+        ))}
+        {showCustom && (
+          <div className="flex items-center gap-2 ml-2 animate-in fade-in slide-in-from-left-4 duration-300">
+            <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setCurrentPage(1); }} className="px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg outline-none focus:border-indigo-400" />
+            <span className="text-gray-400 text-xs">→</span>
+            <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setCurrentPage(1); }} className="px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg outline-none focus:border-indigo-400" />
+          </div>
+        )}
       </div>
 
+      {/* ─── THÔNG BÁO HOÀN TIỀN KHẨN CẤP ─── */}
+      {stats?.byStatus?.pendingRefund > 0 && (
+        <div className="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 shrink-0">
+              <i className="fa-solid fa-triangle-exclamation text-lg"></i>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-rose-800">Cần xử lý hoàn tiền</h3>
+              <p className="text-xs text-rose-600 font-medium mt-0.5">Hiện có <strong className="font-black text-lg">{stats.byStatus.pendingRefund}</strong> đơn hàng đang chờ bạn chuyển khoản hoàn tiền cho khách.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleStatusClick('pending_refund')}
+            className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors whitespace-nowrap"
+          >
+            Lọc đơn hoàn tiền ngay
+          </button>
+        </div>
+      )}
+
+      {/* ─── CÁC THẺ THỐNG KÊ (SẼ NHẢY THEO LỌC THỜI GIAN) ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard icon="fa-box-check" label="Giao thành công" value={statsLoading ? '-' : `${stats?.rates?.deliverySuccessRate ?? 0}%`} sub="Tỷ lệ hoàn thành" colorClass={{ bg: 'bg-emerald-100', text: 'text-emerald-700' }} />
+        <StatCard icon="fa-users-arrows-retweet" label="Khách quay lại" value={statsLoading ? '-' : `${stats?.rates?.repeatRate ?? 0}%`} sub="Tỷ lệ khách cũ" colorClass={{ bg: 'bg-blue-100', text: 'text-blue-700' }} />
+        <StatCard icon="fa-truck-fast" label="Thời gian giao" value={statsLoading ? '-' : stats?.logistics?.avgDeliveryDays ?? 0} sub="Ngày (Trung bình)" colorClass={{ bg: 'bg-violet-100', text: 'text-violet-700' }} />
+        <StatCard icon="fa-ban" label="Tỷ lệ hủy/Hoàn" value={statsLoading ? '-' : `${stats?.rates?.cancelRate ?? 0}%`} sub={`Hoàn tiền: ${stats?.rates?.refundRate ?? 0}%`} colorClass={{ bg: 'bg-red-100', text: 'text-red-700' }} />
+      </div>
+
+      {/* ─── BIỂU ĐỒ & VẬN HÀNH ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 lg:col-span-2 flex flex-col min-h-[350px]">
           <div className="flex items-center justify-between mb-6">
@@ -203,14 +236,8 @@ const AdminOrders = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
+                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
@@ -227,7 +254,6 @@ const AdminOrders = () => {
           </div>
         </div>
 
-        {/* ✅ ĐÃ SỬA: Cập nhật tổng kết phân bổ trạng thái logic mới */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 lg:col-span-1 flex flex-col justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-4">Trạng thái vận hành</p>
@@ -235,7 +261,7 @@ const AdminOrders = () => {
               {[
                 { label: 'Hoàn tất (Thực thu)', color: 'bg-emerald-500', val: stats?.byStatus?.completed },
                 { label: 'Đang giao / Chờ KH', color: 'bg-violet-500', val: (stats?.byStatus?.delivering ?? 0) + (stats?.byStatus?.delivered ?? 0) },
-                { label: 'Giao thất bại / Trả hàng', color: 'bg-orange-500', val: (stats?.byStatus?.failed_delivery ?? 0) + (stats?.byStatus?.returned ?? 0) },
+                { label: 'Thất bại / Trả hàng', color: 'bg-orange-500', val: (stats?.byStatus?.failed_delivery ?? 0) + (stats?.byStatus?.returned ?? 0) },
                 { label: 'Đã hủy', color: 'bg-red-500', val: stats?.byStatus?.cancelled },
               ].map(s => {
                 const total = stats?.summary?.total || 1;
@@ -254,41 +280,21 @@ const AdminOrders = () => {
               })}
             </div>
           </div>
-
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <div className="flex justify-between items-center">
-              <span className="text-[11px] font-bold text-gray-400 uppercase">Cần hoàn tiền gấp</span>
-              <span className="text-lg font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-lg tabular-nums">
-                {stats?.byStatus?.pendingRefund ?? 0}
-              </span>
-            </div>
-          </div>
         </div>
-
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-3 mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mr-2"><i className="fa-regular fa-calendar mr-1.5" />Thời gian</span>
-        {DATE_PRESETS.map(p => (
-          <button key={p.key} onClick={() => handleDatePresetClick(p.key)} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${datePreset === p.key ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
-            {p.label}
-          </button>
-        ))}
-        {showCustom && (
-          <div className="flex items-center gap-2 ml-2 animate-in fade-in slide-in-from-left-4 duration-300">
-            <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setCurrentPage(1); }} className="px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg outline-none focus:border-indigo-400" />
-            <span className="text-gray-400 text-xs">→</span>
-            <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setCurrentPage(1); }} className="px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg outline-none focus:border-indigo-400" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {STATUS_FILTERS.map(f => (
-          <button key={f.key} onClick={() => handleStatusClick(f.key)} className={`inline-flex items-center px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${filterStatus === f.key ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            {f.label}
-          </button>
-        ))}
+      {/* ─── LỌC TRẠNG THÁI ĐƠN HÀNG ─── */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mr-1">
+          <i className="fa-solid fa-filter mr-1.5" />Tình trạng đơn
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {STATUS_FILTERS.map(f => (
+            <button key={f.key} onClick={() => handleStatusClick(f.key)} className={`inline-flex items-center px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${filterStatus === f.key ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col relative min-h-[500px]">
@@ -313,10 +319,10 @@ const AdminOrders = () => {
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="h-[400px] text-center text-gray-400 text-sm align-middle">
+                  <td colSpan="7" className="h-[400px] text-center text-gray-400 text-sm align-middle">
                     <div className={`flex flex-col items-center justify-center transition-opacity duration-300 ${loading ? 'opacity-0' : 'opacity-100'}`}>
                       <i className="fa-regular fa-folder-open text-4xl text-gray-300 mb-3" />
-                      <p className="font-medium">Không tìm thấy đơn hàng nào.</p>
+                      <p className="font-medium">Không tìm thấy đơn hàng nào trong khoảng thời gian này.</p>
                     </div>
                   </td>
                 </tr>
@@ -341,10 +347,19 @@ const AdminOrders = () => {
                     <td className="px-4 py-2 align-middle text-[12px] text-gray-700 font-semibold truncate" title={order.user?.name || order.shippingAddress?.fullName}>
                       {order.user?.name || order.shippingAddress?.fullName || 'N/A'}
                     </td>
+                    <td className="px-4 py-2 align-middle text-center">
+                      {order.paymentMethod === 'cod' ? (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md">COD</span>
+                      ) : order.paymentMethod === 'vnpay' ? (
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-1 rounded-md">VNPAY</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">CHUYỂN KHOẢN</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 align-middle text-right font-mono text-[13px] font-bold text-gray-900 truncate">
                       {formatPrice(order.totalPrice)}
                     </td>
-                    <td className="px-4 py-2 align-middle truncate">
+                    <td className="px-4 py-2 align-middle text-center truncate">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${badge.cls}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${badge.dot} shadow-sm flex-shrink-0`} />
                         <span className="truncate">{badge.label}</span>

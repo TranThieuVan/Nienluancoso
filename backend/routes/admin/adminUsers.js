@@ -7,6 +7,7 @@ const { verifyToken, verifyAdmin } = require('../../middleware/authMiddleware');
 router.use(verifyToken, verifyAdmin);
 
 router.get('/', adminUserController.getAllUsers);
+router.get('/:id/detail', adminUserController.getUserDetail)
 router.put('/:id/toggle-lock', adminUserController.toggleUserLock);
 router.put('/:id/role', adminUserController.updateRole);
 
