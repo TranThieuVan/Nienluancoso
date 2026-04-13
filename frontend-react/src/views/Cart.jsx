@@ -36,7 +36,6 @@ const Cart = () => {
 
   useEffect(() => { loadCart(); }, []);
 
-  // ✅ ĐÃ SỬA: Ưu tiên cộng giá đã giảm (discountedPrice) nếu có
   const totalSelected = useMemo(() => {
     return cart
       .filter((item) => selectedItems.includes(item.book._id))
@@ -132,7 +131,6 @@ const Cart = () => {
                 {cart.map((item) => {
                   const imgSrc = item.book.image?.startsWith('http') ? item.book.image : `http://localhost:5000${item.book.image}`;
                   const outOfStock = item.book.stock === 0;
-                  // ✅ ĐÃ SỬA: Lấy giá trị khuyến mãi
                   const currentPrice = item.book.discountedPrice || item.book.price;
 
                   return (
@@ -157,7 +155,6 @@ const Cart = () => {
                         ) : (
                           <p className="text-xs text-stone-400 mt-1">Còn {item.book.stock} sản phẩm</p>
                         )}
-                        {/* ✅ ĐÃ SỬA UI: Hiển thị giá gạch ngang nếu có Sale */}
                         {item.book.discountedPrice ? (
                           <div className="mt-2 flex items-baseline gap-2">
                             <p className="text-sm font-bold text-rose-600">{formatPrice(item.book.discountedPrice)}₫</p>
@@ -182,7 +179,6 @@ const Cart = () => {
 
                       <div className="flex flex-col items-center gap-2 flex-shrink-0 min-w-[88px]">
                         <p className="text-xs text-stone-400">Thành tiền</p>
-                        {/* ✅ ĐÃ SỬA: Nhân với giá đã giảm */}
                         <p className={`font-bold text-sm ${outOfStock ? 'text-stone-300' : 'text-black'}`}>
                           {outOfStock ? '—' : `${formatPrice(currentPrice * item.quantity)}₫`}
                         </p>

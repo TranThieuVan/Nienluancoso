@@ -136,7 +136,7 @@ const Orders = () => {
 
                     {/* Book preview */}
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      {firstItem && (
+                      {firstItem && firstItem.book && (
                         <>
                           <img
                             src={

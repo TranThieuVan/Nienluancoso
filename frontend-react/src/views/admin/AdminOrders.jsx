@@ -24,7 +24,6 @@ const getBadgeKey = (order) => {
   return order.status;
 };
 
-// ✅ Cập nhật bộ lọc Trạng thái: Bổ sung "Cần hoàn tiền"
 const STATUS_FILTERS = [
   { key: 'all', label: 'Tất cả' },
   { key: 'pending', label: 'Đang xử lý' },
@@ -37,7 +36,6 @@ const STATUS_FILTERS = [
   { key: 'pending_refund', label: 'Cần hoàn tiền' },
 ];
 
-// ✅ Cập nhật bộ lọc Thời gian: Theo mốc yêu cầu
 const DATE_PRESETS = [
   { key: '', label: 'Toàn thời gian' },
   { key: 'today', label: 'Hôm nay' },
@@ -81,7 +79,7 @@ const AdminOrders = () => {
   const navigate = useNavigate();
 
   const [filterStatus, setFilterStatus] = useState('all');
-  const [datePreset, setDatePreset] = useState('last30'); // Mặc định mở lên lọc 30 ngày
+  const [datePreset, setDatePreset] = useState('last30');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const showCustom = datePreset === 'custom';
@@ -200,7 +198,7 @@ const AdminOrders = () => {
         </div>
       )}
 
-      {/* ─── CÁC THẺ THỐNG KÊ (SẼ NHẢY THEO LỌC THỜI GIAN) ─── */}
+      {/* ─── CÁC THẺ THỐNG KÊ ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon="fa-box-check" label="Giao thành công" value={statsLoading ? '-' : `${stats?.rates?.deliverySuccessRate ?? 0}%`} sub="Tỷ lệ hoàn thành" colorClass={{ bg: 'bg-emerald-100', text: 'text-emerald-700' }} />
         <StatCard icon="fa-users-arrows-retweet" label="Khách quay lại" value={statsLoading ? '-' : `${stats?.rates?.repeatRate ?? 0}%`} sub="Tỷ lệ khách cũ" colorClass={{ bg: 'bg-blue-100', text: 'text-blue-700' }} />

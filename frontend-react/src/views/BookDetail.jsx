@@ -71,11 +71,11 @@ const BookDetail = () => {
   };
 
   const handleCollapseComments = () => {
-    // Chỉ giữ lại 5 bình luận đầu tiên
     setComments(prev => prev.slice(0, 5));
     setCommentPage(1);
-    setHasMoreComments(true); // Chắc chắn còn bình luận để xem thêm
+    setHasMoreComments(true);
   };
+
   useEffect(() => {
     const loadData = async () => {
       await fetchFavorites();
@@ -170,24 +170,21 @@ const BookDetail = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMsg('');
-
-      // Load lại từ trang 1 khi có bình luận mới
       await fetchComments(1, false);
       if (taRef.current) autosize.update(taRef.current);
     } catch (err) {
-      // Bắt lỗi 429 hoặc các lỗi khác từ Backend
       Swal.fire('Lỗi', err.response?.data?.message || 'Lỗi khi gửi bình luận', 'error');
     }
   };
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+      day: '2-digit', month: '2-digit', year: 'numeric'
     });
   };
+
   const startEdit = (comment) => {
     setEditId(comment._id);
     setEditContent(comment.content);
@@ -212,10 +209,7 @@ const BookDetail = () => {
     const confirm = await Swal.fire({
       title: 'Xác nhận xoá?',
       text: 'Bạn có chắc muốn xoá bình luận này?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Xoá',
-      cancelButtonText: 'Huỷ'
+      icon: 'warning', showCancelButton: true, confirmButtonText: 'Xoá', cancelButtonText: 'Huỷ'
     });
     if (confirm.isConfirmed) {
       await axios.delete(`/api/comments/${cmtId}`, {
@@ -262,8 +256,7 @@ const BookDetail = () => {
 
       return (
         <FontAwesomeIcon
-          key={index}
-          icon={icon}
+          key={index} icon={icon}
           className={`text-[#C9A96E] transition-transform duration-100 ${interactive ? 'cursor-pointer hover:scale-110' : ''}`}
           onClick={interactive ? () => handleSetRating(starValue) : undefined}
           onMouseEnter={interactive ? () => setHoverRating(starValue) : undefined}
@@ -372,9 +365,7 @@ const BookDetail = () => {
                 </div>
               ) : (
                 <div className="text-sm text-stone-400 italic mb-6 p-4 bg-stone-50 border border-gray-100">
-                  Vui lòng{' '}
-                  <span className="text-black underline cursor-pointer" onClick={() => navigate('/login')}>đăng nhập</span>
-                  {' '}để bình luận.
+                  Vui lòng <span className="text-black underline cursor-pointer" onClick={() => navigate('/login')}>đăng nhập</span> để bình luận.
                 </div>
               )}
 
@@ -391,7 +382,6 @@ const BookDetail = () => {
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          {/* --- Phần hiển thị Tên và Ngày tháng --- */}
                           <div className="flex items-center gap-2 mb-1">
                             <p className="text-sm font-semibold text-black">{cmt.userId.name}</p>
                             <span className="text-xs font-medium text-stone-500">• {formatDate(cmt.createdAt)}</span>
@@ -406,20 +396,8 @@ const BookDetail = () => {
                               </button>
                               {menuOpenId === cmt._id && (
                                 <div className="absolute right-0 top-6 bg-white border border-gray-100 shadow-lg z-10 min-w-[120px] py-1">
-                                  <button
-                                    onClick={() => startEdit(cmt)}
-                                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-stone-50 w-full text-left text-sm text-stone-600"
-                                  >
-                                    <FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />
-                                    Chỉnh sửa
-                                  </button>
-                                  <button
-                                    onClick={() => deleteComment(cmt._id)}
-                                    className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 w-full text-left text-sm text-red-500"
-                                  >
-                                    <FontAwesomeIcon icon={['fas', 'trash']} className="text-xs" />
-                                    Xoá
-                                  </button>
+                                  <button onClick={() => startEdit(cmt)} className="flex items-center gap-2.5 px-4 py-2 hover:bg-stone-50 w-full text-left text-sm text-stone-600"><FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />Chỉnh sửa</button>
+                                  <button onClick={() => deleteComment(cmt._id)} className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 w-full text-left text-sm text-red-500"><FontAwesomeIcon icon={['fas', 'trash']} className="text-xs" />Xoá</button>
                                 </div>
                               )}
                             </div>
@@ -432,12 +410,7 @@ const BookDetail = () => {
                           <p className="text-sm text-stone-600 mt-1 leading-relaxed">{cmt.content}</p>
                         ) : (
                           <div className="mt-2">
-                            <textarea
-                              value={editContent}
-                              onChange={(e) => setEditContent(e.target.value)}
-                              rows="2"
-                              className="w-full p-2.5 border border-gray-200 focus:border-black outline-none text-sm resize-none transition-colors"
-                            />
+                            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows="2" className="w-full p-2.5 border border-gray-200 focus:border-black outline-none text-sm resize-none transition-colors" />
                             <div className="flex gap-3 mt-2">
                               <button onClick={() => saveEdit(cmt._id)} className="text-xs font-semibold text-black hover:underline">Lưu</button>
                               <button onClick={() => { setEditId(null); setEditContent(''); }} className="text-xs text-stone-400 hover:underline">Huỷ</button>
@@ -447,31 +420,10 @@ const BookDetail = () => {
                       </div>
                     </div>
                   ))}
-                  {/* --- Cụm nút Xem thêm / Ẩn bớt --- */}
                   {(hasMoreComments || commentPage > 1) && (
                     <div className="flex justify-center items-center gap-6 mt-6 pt-2">
-
-                      {/* Nút Ẩn bớt (chỉ hiện khi đang ở trang 2 trở đi) */}
-                      {commentPage > 1 && (
-                        <button
-                          onClick={handleCollapseComments}
-                          className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors"
-                        >
-                          Ẩn bớt
-                        </button>
-                      )}
-
-                      {/* Nút Xem thêm (chỉ hiện khi backend báo còn dữ liệu) */}
-                      {hasMoreComments && (
-                        <button
-                          onClick={() => fetchComments(commentPage + 1, true)}
-                          disabled={isLoadingComments}
-                          className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors disabled:opacity-50"
-                        >
-                          {isLoadingComments ? 'Đang tải...' : 'Xem thêm bình luận'}
-                        </button>
-                      )}
-
+                      {commentPage > 1 && <button onClick={handleCollapseComments} className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors">Ẩn bớt</button>}
+                      {hasMoreComments && <button onClick={() => fetchComments(commentPage + 1, true)} disabled={isLoadingComments} className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors disabled:opacity-50">{isLoadingComments ? 'Đang tải...' : 'Xem thêm bình luận'}</button>}
                     </div>
                   )}
                 </div>
@@ -503,11 +455,25 @@ const BookDetail = () => {
                 <span className="text-xs text-stone-400">({totalRatings} đánh giá)</span>
               </div>
 
-              {/* Price */}
+              {/* ✅ ĐÃ SỬA: Hiển thị giá Sale và Giá gốc gạch ngang */}
               <div className="mb-6 pb-6 border-b border-gray-100">
-                <p className="text-4xl font-bold text-black tracking-tight">
-                  {book.price.toLocaleString('vi-VN')}₫
-                </p>
+                {book.discountedPrice && book.discountedPrice < book.price ? (
+                  <div className="flex items-end gap-3">
+                    <p className="text-4xl font-bold text-rose-600 tracking-tight">
+                      {book.discountedPrice.toLocaleString('vi-VN')}₫
+                    </p>
+                    <p className="text-lg text-stone-400 line-through mb-1">
+                      {book.price.toLocaleString('vi-VN')}₫
+                    </p>
+                    <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-1 tracking-widest mb-1.5 shadow-sm">
+                      Giảm {(book.price - book.discountedPrice).toLocaleString('vi-VN')}₫
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-4xl font-bold text-black tracking-tight">
+                    {book.price.toLocaleString('vi-VN')}₫
+                  </p>
+                )}
               </div>
 
               {/* Stock Status */}
@@ -566,7 +532,6 @@ const BookDetail = () => {
                   </button>
                 </div>
 
-                {/* Favorite */}
                 <button
                   onClick={() => toggleFavorite(book)}
                   className="flex items-center justify-center gap-2 py-3 border border-gray-100 hover:border-gray-300 text-stone-500 hover:text-black transition-all duration-200 text-sm"

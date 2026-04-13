@@ -158,49 +158,64 @@ exports.getAllOrders = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
-        const { status: statusFilter = 'all', preset, from, to } = req.query;
 
-        const statusQuery = buildStatusQuery(statusFilter);
-        const dateRange = buildDateRange(preset, from, to);
-        const query = { ...statusQuery, ...(dateRange ? { createdAt: dateRange } : {}) };
+        // 1. Khởi tạo object query trống để chứa các điều kiện lọc
+        let query = {};
 
-        const [totalOrders, orders] = await Promise.all([
-            Order.countDocuments(query),
-            Order.find(query)
-                .populate('user', 'name email')
-                .populate('items.book', 'title price image')
-                .sort({ createdAt: -1 }).skip(skip).limit(limit),
-        ]);
+        // 2. Lọc theo trạng thái (status)
+        if (req.query.status && req.query.status !== 'all') {
+            if (req.query.status === 'pending_refund') {
+                query.paymentStatus = 'Hoàn tiền';
+            } else if (req.query.status === 'done_refund') {
+                query.paymentStatus = 'Đã hoàn tiền';
+            } else {
+                query.status = req.query.status;
+            }
+        }
 
-        // ✅ Áp dụng giá sale để Admin cũng thấy giống User
-        orders.forEach(order => {
-            const booksInOrder = order.items.map(item => item.book).filter(b => b != null);
-            PricingService.applyPricing(booksInOrder);
-        });
+        // 3. Lọc theo ngày tháng (từ và đến)
+        if (req.query.from && req.query.to) {
+            query.createdAt = {
+                $gte: new Date(req.query.from),
+                $lte: new Date(req.query.to + 'T23:59:59.999Z') // Lấy tới cuối ngày
+            };
+        } else if (req.query.preset && req.query.preset !== 'all') {
+            // Xử lý nhanh các preset ngày (Ví dụ: last30, last7...)
+            const pastDate = new Date();
+            const daysToSubtract = req.query.preset.replace('last', '');
+            if (!isNaN(daysToSubtract)) {
+                pastDate.setDate(pastDate.getDate() - parseInt(daysToSubtract));
+                query.createdAt = { $gte: pastDate };
+            } else if (req.query.preset === 'today') {
+                pastDate.setHours(0, 0, 0, 0);
+                query.createdAt = { $gte: pastDate };
+            }
+        }
 
-        res.json({ orders, currentPage: page, totalPages: Math.ceil(totalOrders / limit), totalOrders });
+        // 4. Áp dụng query vào Mongoose (Của bạn viết rất chuẩn rồi, chỉ cần nhét query vào)
+        const orders = await Order.find(query)
+            .populate('user', 'name email')
+            .populate('items.book')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        // Đếm tổng số đơn MỚI theo query (Để thanh phân trang chạy đúng)
+        const total = await Order.countDocuments(query);
+
+        res.json({ orders, totalPages: Math.ceil(total / limit), totalOrders: total });
     } catch (err) {
-        res.status(500).json({ message: 'Không thể lấy danh sách đơn hàng' });
+        console.error("Lỗi getAdminOrders:", err);
+        res.status(500).json({ message: 'Lỗi server' });
     }
 };
 exports.getOrderById = async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id)
-            .populate('user', 'name email')
-            .populate('items.book', 'title image price');
-
-        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-
-        // ✅ Áp dụng giá sale cho Admin
-        const booksInOrder = order.items.map(item => item.book).filter(b => b != null);
-        PricingService.applyPricing(booksInOrder);
-
+        const order = await Order.findById(req.params.id).populate('user', 'name email').populate('items.book');
         res.json(order);
-    } catch (err) {
-        res.status(500).json({ message: 'Lỗi server' });
-    }
+    } catch (err) { res.status(500).json({ message: 'Lỗi' }); }
 };
+
 
 exports.updateOrderStatus = async (req, res) => {
     try {
@@ -209,73 +224,36 @@ exports.updateOrderStatus = async (req, res) => {
         if (!order) return res.status(404).json({ msg: 'Không tìm thấy đơn hàng' });
 
         const oldStatus = order.status;
-
-        // 🔥 LOGIC: BACKEND KIỂM SOÁT LUỒNG TRẠNG THÁI (State Machine Validation)
         const ALLOWED_TRANSITIONS = {
             pending: ['confirmed', 'cancelled'],
             confirmed: ['delivering', 'cancelled'],
             delivering: ['delivered', 'failed_delivery', 'cancelled'],
             delivered: ['completed', 'return_requested'],
-            return_requested: ['return_approved', 'completed'], // completed = Từ chối
-            return_approved: ['returning', 'completed'], // completed = Quá hạn 7 ngày
-            returning: ['returned', 'completed'], // completed = Tráo hàng/Lỗi
-            completed: [],
-            failed_delivery: [],
-            returned: [],
-            cancelled: []
+            return_requested: ['return_approved', 'completed'],
+            return_approved: ['returning', 'completed'],
+            returning: ['returned', 'completed'],
+            completed: [], failed_delivery: [], returned: [], cancelled: []
         };
 
-        // Cập nhật các trường không phụ thuộc vào State Machine
         if (adminNote !== undefined) order.adminNote = adminNote;
         if (callAttempts !== undefined) order.callAttempts = callAttempts;
         if (paymentStatus && order.paymentMethod === 'transfer') order.paymentStatus = paymentStatus;
 
         if (oldStatus !== status) {
-            // Chặn ngay nếu luồng đi không hợp lệ
             if (!ALLOWED_TRANSITIONS[oldStatus]?.includes(status)) {
-                return res.status(400).json({
-                    msg: `Hành động không hợp lệ! Hệ thống không thể chuyển đơn hàng từ trạng thái "${oldStatus}" sang "${status}".`
-                });
-            }
-            // 🚨 1. BẢO VỆ TỒN KHO: HOÀN KHO KHI ĐƠN THẤT BẠI/BỊ HỦY
-            const isNeedToReturnStock = (status === 'cancelled') || (status === 'failed_delivery') || (status === 'returned');
-            if (isNeedToReturnStock) {
-                await Promise.all(order.items.map(item =>
-                    Book.findByIdAndUpdate(item.book, { $inc: { stock: item.quantity } })
-                ));
+                return res.status(400).json({ msg: `Hành động không hợp lệ` });
             }
 
-            // 🚨 2. CHUẨN BỊ HOÀN TIỀN NẾU ADMIN HỦY ĐƠN ĐÃ THANH TOÁN
-            if (status === 'cancelled' && order.paymentStatus === 'Đã thanh toán') {
-                order.paymentStatus = 'Hoàn tiền';
+            if (['cancelled', 'failed_delivery', 'returned'].includes(status)) {
+                await Promise.all(order.items.map(item => Book.findByIdAndUpdate(item.book, { $inc: { stock: item.quantity } })));
             }
 
-            // 🔥 3. KHI ĐƠN HÀNG HOÀN TẤT (Cộng doanh số & Thăng hạng)
+            if (status === 'cancelled' && order.paymentStatus === 'Đã thanh toán') order.paymentStatus = 'Hoàn tiền';
+
             if (status === 'completed') {
-                await Promise.all(order.items.map(item =>
-                    Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } })
-                ));
-
-                const userId = order.user;
-                if (userId) {
-                    const userOrders = await Order.aggregate([
-                        { $match: { user: userId, status: 'completed' } },
-                        { $group: { _id: null, totalSpent: { $sum: '$totalPrice' } } }
-                    ]);
-                    const pastSpent = userOrders.length > 0 ? userOrders[0].totalSpent : 0;
-                    const totalSpent = pastSpent + order.totalPrice;
-
-                    let newRank = 'Khách hàng';
-                    if (totalSpent >= 20000000) newRank = 'Kim cương';
-                    else if (totalSpent >= 10000000) newRank = 'Bạch kim';
-                    else if (totalSpent >= 5000000) newRank = 'Vàng';
-                    else if (totalSpent >= 2000000) newRank = 'Bạc';
-
-                    await User.findByIdAndUpdate(userId, { rank: newRank, lastPurchaseDate: new Date() });
-                }
+                await Promise.all(order.items.map(item => Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } })));
             }
 
-            // 4. XỬ LÝ BOM HÀNG
             if (status === 'failed_delivery') {
                 const userObj = await User.findById(order.user);
                 if (userObj) {
@@ -285,79 +263,35 @@ exports.updateOrderStatus = async (req, res) => {
                 }
             }
 
-            // 5. XỬ LÝ TỪ CHỐI KHIẾU NẠI / TỪ CHỐI NHẬN HÀNG TRẢ
-            const isRejectingReturn = (oldStatus === 'return_requested' || oldStatus === 'returning') && (status === 'completed');
+            const isRejectingReturn = (oldStatus === 'return_requested' || oldStatus === 'returning') && status === 'completed';
             if (isRejectingReturn) {
-                order.adminNote = adminNote || "[BIÊN BẢN] Admin đã từ chối khiếu nại / hoàn trả của khách hàng";
+                order.adminNote = adminNote || "Từ chối yêu cầu trả hàng";
                 if (order.paymentStatus === 'Hoàn tiền') order.paymentStatus = 'Đã thanh toán';
             }
 
-            // Cập nhật các trường tracking và mốc thời gian
+            order.status = status;
+            order.statusHistory.push({ status, date: new Date() });
             if (shippingProvider) order.shippingProvider = shippingProvider;
             if (trackingLink) order.trackingLink = trackingLink;
             if (reason) order.cancelReason = reason;
 
-            if (status === 'cancelled') order.cancelledAt = new Date();
-            if (status === 'delivered') order.deliveredAt = new Date();
-            if (status === 'returned') order.returnedAt = new Date();
+            // BẮN SOCKET THÔNG BÁO
+            const io = req.app.get('io');
+            if (io) {
+                const shortId = order._id.toString().slice(-6).toUpperCase();
+                let noti = null;
+                if (status === 'failed_delivery') noti = { title: "Giao hàng thất bại ⚠️", message: `Đơn #${shortId} không thành công do bom hàng.` };
+                else if (status === 'return_approved') noti = { title: "Duyệt trả hàng ✅", message: `Đơn #${shortId} đã được chấp nhận khiếu nại.` };
+                else if (isRejectingReturn) noti = { title: "Từ chối trả hàng ❌", message: `Yêu cầu cho đơn #${shortId} bị từ chối.` };
+                else if (status === 'delivering') noti = { title: "Đang giao hàng 🚚", message: `Đơn hàng #${shortId} đang đến bạn.` };
 
-            order.status = status;
-            order.statusHistory.push({ status, date: new Date() });
-
-            // =======================================================
-            // 🚀 BƯỚC MỚI: TẠO THÔNG BÁO ẢO VÀ BẮN SOCKET
-            // =======================================================
-            const shortId = order._id.toString().slice(-6).toUpperCase();
-            let notificationToSend = null;
-
-            if (status === 'failed_delivery') {
-                notificationToSend = {
-                    _id: `${order._id}_failed`,
-                    title: "Giao hàng thất bại ⚠️",
-                    message: `Kiện hàng #${shortId} không thể giao tới bạn do bom hàng hoặc không nghe máy.`,
-                    type: 'order', link: `/orders/${order._id}`, createdAt: new Date()
-                };
-            } else if (status === 'return_approved') {
-                notificationToSend = {
-                    _id: `${order._id}_approved`,
-                    title: "Duyệt trả hàng ✅",
-                    message: `Yêu cầu trả hàng đơn #${shortId} đã được chấp nhận. Vui lòng gửi lại hàng!`,
-                    type: 'order', link: `/orders/${order._id}`, createdAt: new Date()
-                };
-            } else if (isRejectingReturn) {
-                notificationToSend = {
-                    _id: `${order._id}_rejected`,
-                    title: "Khiếu nại bị từ chối ❌",
-                    message: `Yêu cầu đơn #${shortId} bị từ chối. Lý do: ${order.adminNote}`,
-                    type: 'order', link: `/orders/${order._id}`, createdAt: new Date()
-                };
-            } else if (status === 'delivering') {
-                // Tặng thêm cho bạn thông báo "Đang giao hàng", khách rất thích cái này
-                notificationToSend = {
-                    _id: `${order._id}_delivering`,
-                    title: "Đơn hàng đang giao 🚚",
-                    message: `Đơn hàng #${shortId} đang trên đường đến tay bạn. Chú ý điện thoại nhé!`,
-                    type: 'order', link: `/orders/${order._id}`, createdAt: new Date()
-                };
-            }
-
-            // Nếu có thông báo cần gửi thì bắn Socket
-            if (notificationToSend) {
-                const io = req.app.get('io');
-                if (io) {
-                    io.emit('new_notification', notificationToSend); // Bắn cho FE hiện Toast Realtime
-                }
+                if (noti) io.emit('new_notification', { ...noti, _id: `${order._id}_${status}`, type: 'order', link: `/orders/${order._id}`, createdAt: new Date() });
             }
         }
 
-        // Lưu đơn hàng
         await order.save();
         res.json({ msg: 'Cập nhật thành công', order });
-
-    } catch (err) {
-        console.error("Lỗi updateOrderStatus:", err);
-        res.status(500).json({ msg: 'Lỗi server' });
-    }
+    } catch (err) { res.status(500).json({ msg: 'Lỗi server' }); }
 };
 
 
@@ -379,11 +313,9 @@ exports.deleteAllOrders = async (req, res) => {
 exports.confirmRefund = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
-        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-        if (order.paymentStatus !== 'Hoàn tiền') return res.status(400).json({ message: 'Đơn hàng chưa yêu cầu hoàn tiền' });
+        if (!order || order.paymentStatus !== 'Hoàn tiền') return res.status(400).json({ message: 'Không thể hoàn tiền' });
 
         const { forceManual } = req.body;
-
         if (order.paymentMethod === 'vnpay' && !forceManual) {
             if (!order.vnpayTransactionNo || !order.vnpayPayDate) {
                 return res.status(400).json({ message: 'Thiếu dữ liệu giao dịch gốc của VNPAY để hoàn tiền' });
@@ -431,27 +363,16 @@ exports.confirmRefund = async (req, res) => {
         order.paymentStatus = 'Đã hoàn tiền';
         await order.save();
 
-        // =======================================================
-        // 🚀 BẮN THÔNG BÁO HOÀN TIỀN CHO USER QUA SOCKET
-        // =======================================================
-        const shortId = order._id.toString().slice(-6).toUpperCase();
         const io = req.app.get('io');
-
         if (io) {
             io.emit('new_notification', {
-                _id: `${order._id}_refunded`,
-                title: "Hoàn tiền thành công 💰",
-                message: `Tiền của đơn hàng #${shortId} đã được hoàn về tài khoản của bạn.`,
-                type: 'order',
-                link: `/orders/${order._id}`,
-                createdAt: new Date()
+                _id: `${order._id}_refund`, title: "Hoàn tiền thành công 💰",
+                message: `Tiền đơn #${order._id.toString().slice(-6).toUpperCase()} đã được hoàn về tài khoản.`,
+                type: 'order', link: `/orders/${order._id}`, createdAt: new Date()
             });
         }
-
         res.json({ message: 'Hoàn tiền thành công!', order });
-
-    } catch (err) {
-        console.error("Lỗi hoàn tiền:", err);
-        res.status(500).json({ message: 'Lỗi server khi kết nối ngân hàng' });
-    }
+    } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 };
+
+

@@ -107,13 +107,11 @@ const AdminOrderDetail = () => {
     { value: 'cancelled', label: ' Đã hủy' }
   ];
 
-  // ✅ ĐÃ SỬA: Tính toán subTotal dựa trên giá khuyến mãi
+  // ✅ ĐÃ SỬA: Lấy giá trị item.price đã chốt lúc mua
   const subTotal = useMemo(() => order.items?.reduce((sum, item) => {
-    const currentPrice = item.book.discountedPrice || item.book.price;
+    const currentPrice = item.price || item.book?.discountedPrice || item.book?.price || 0;
     return sum + item.quantity * currentPrice;
   }, 0) || 0, [order.items]);
-
-  const discountAmount = useMemo(() => { const raw = subTotal + (order.shippingFee || 0) - (order.totalPrice || 0); return raw > 0 ? raw : 0; }, [subTotal, order.shippingFee, order.totalPrice]);
 
   const saveAdminNote = async () => {
     try {
@@ -234,12 +232,11 @@ const AdminOrderDetail = () => {
                 <div>Hình ảnh</div><div className="col-span-2">Tên sách</div><div>Số lượng</div><div>Đơn giá</div>
               </div>
               {order.items?.map(item => {
-                // ✅ ĐÃ SỬA: Lấy giá khuyến mãi hiển thị cho Admin
-                const currentPrice = item.book.discountedPrice || item.book.price;
+                const currentPrice = item.price || item.book?.discountedPrice || item.book?.price || 0;
                 return (
-                  <div key={item.book._id} className="grid grid-cols-5 items-center p-3 border-b last:border-0">
-                    <img src={getImageUrl(item.book.image)} alt="book" className="w-12 h-16 object-cover rounded shadow-sm" />
-                    <div className="col-span-2 text-gray-800 font-medium pr-2">{item.book.title}</div>
+                  <div key={item.book?._id} className="grid grid-cols-5 items-center p-3 border-b last:border-0">
+                    <img src={getImageUrl(item.book?.image)} alt="book" className="w-12 h-16 object-cover rounded shadow-sm" />
+                    <div className="col-span-2 text-gray-800 font-medium pr-2">{item.book?.title}</div>
                     <div className="text-gray-700 ml-6">{item.quantity}</div>
                     <div className="text-gray-700 font-semibold">{formatPrice(currentPrice)}</div>
                   </div>
@@ -248,7 +245,8 @@ const AdminOrderDetail = () => {
               <div className="text-right font-semibold text-gray-800 mt-4 space-y-1 p-3 rounded">
                 <p className="text-sm">Tổng giá sản phẩm: <span className="font-normal">{formatPrice(subTotal)}</span></p>
                 <p className="text-sm">Phí vận chuyển: <span className="font-normal">{formatPrice(order.shippingFee || 0)}</span></p>
-                {discountAmount > 0 && <p className="text-sm">Voucher giảm giá: <span className="font-normal text-emerald-600">-{formatPrice(discountAmount)}</span></p>}
+                {/* ✅ HIỂN THỊ VOUCHER CHUẨN */}
+                {order.discountAmount > 0 && <p className="text-sm">Voucher giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}: <span className="font-normal text-emerald-600">-{formatPrice(order.discountAmount)}</span></p>}
                 <p className="text-lg mt-1 border-t border-gray-100 pt-2 inline-block w-64">
                   Tổng cộng: <span className="text-red-600 font-bold ml-2">{formatPrice(order.totalPrice || 0)}</span>
                 </p>

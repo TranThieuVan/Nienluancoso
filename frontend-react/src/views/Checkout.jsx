@@ -38,7 +38,6 @@ const Checkout = () => {
     return `${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`;
   };
 
-  // ✅ ĐÃ SỬA: Ưu tiên cộng giá đã giảm
   const subTotal = useMemo(() => cart.reduce((sum, item) => {
     const currentPrice = item.book.discountedPrice || item.book.price;
     return sum + currentPrice * item.quantity;
@@ -177,7 +176,7 @@ const Checkout = () => {
       const res = await axios.post('/api/orders', {
         shippingAddress: form,
         items: cart.map(item => ({ book: item.book._id, quantity: item.quantity })),
-        shippingFee, discountAmount, voucherCode: appliedVoucher, paymentMethod, totalAmount
+        shippingFee, discountAmount, voucherCode: appliedVoucher, paymentMethod
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       const orderId = res.data.order._id;
@@ -225,7 +224,6 @@ const Checkout = () => {
                 <div className="space-y-4">
                   {cart.map(item => {
                     const imgSrc = item.book.image?.startsWith('http') ? item.book.image : `http://localhost:5000${item.book.image}`;
-                    // ✅ ĐÃ SỬA: Lấy giá khuyến mãi
                     const currentPrice = item.book.discountedPrice || item.book.price;
                     return (
                       <div key={item.book._id} className="flex gap-3 items-center pb-4 border-b border-gray-50 last:border-0 last:pb-0">
@@ -234,7 +232,6 @@ const Checkout = () => {
                           <p className="text-sm font-semibold text-black line-clamp-2 leading-snug">{item.book.title}</p>
                           <p className="text-xs text-stone-600 mt-0.5">x{item.quantity}</p>
                         </div>
-                        {/* ✅ ĐÃ SỬA: Nhân với giá đã giảm */}
                         <p className="text-sm font-bold text-black flex-shrink-0 ml-2">
                           {formatPrice(currentPrice * item.quantity)}
                         </p>
@@ -308,7 +305,6 @@ const Checkout = () => {
         </div>
       </div>
 
-      {/* MODALS */}
       {showVoucherModal && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-end md:items-center z-[110] p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md shadow-2xl relative flex flex-col max-h-[85vh] transition-all duration-300">

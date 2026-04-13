@@ -12,7 +12,7 @@ exports.createOrder = async (req, res) => {
         if (!items || items.length === 0) return res.status(400).json({ msg: 'Không có sản phẩm nào' });
 
         const bookIds = items.map(i => i.book);
-        const rawBooks = await Book.find({ _id: { $in: bookIds } });
+        const rawBooks = await Book.find({ _id: { $in: bookIds } }).lean();
         const pricedBooks = PricingService.applyPricing(rawBooks);
 
         let calculatedTotalAmount = 0;
@@ -75,13 +75,12 @@ exports.getMyOrders = async (req, res) => {
         const totalPages = Math.ceil(totalOrders / limit) || 1;
 
         const orders = await Order.find({ user: userId })
-            .sort({ createdAt: -1 }).populate('items.book').skip(skip).limit(limit);
+            .sort({ createdAt: -1 })
+            .populate('items.book')
+            .skip(skip)
+            .limit(limit);
 
-        // ✅ Lọc lại giá cho toàn bộ sách trong lịch sử đơn hàng
-        orders.forEach(order => {
-            const booksInOrder = order.items.map(item => item.book).filter(b => b != null);
-            PricingService.applyPricing(booksInOrder);
-        });
+        // ❌ KHÔNG dùng PricingService ở đây để giữ nguyên giá lịch sử lúc khách mua
 
         res.json({ orders, currentPage: page, totalPages, totalOrders });
     } catch (err) {
@@ -93,23 +92,21 @@ exports.getMyOrders = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
-        const order = await Order.findById(req.params.id).populate('items.book')
-        if (!order) return res.status(404).json({ msg: 'Không tìm thấy đơn hàng' })
+        const order = await Order.findById(req.params.id).populate('items.book');
+
+        if (!order) return res.status(404).json({ msg: 'Không tìm thấy đơn hàng' });
 
         if (String(order.user) !== String(userId) && req.user.role !== 'admin') {
-            return res.status(403).json({ msg: 'Không có quyền truy cập' })
+            return res.status(403).json({ msg: 'Không có quyền truy cập' });
         }
 
-        // ✅ Lọc lại giá cho sách trong chi tiết đơn hàng
-        const booksInOrder = order.items.map(item => item.book).filter(b => b != null);
-        PricingService.applyPricing(booksInOrder);
+        // ❌ KHÔNG dùng PricingService ở đây để giữ nguyên giá lịch sử
 
-        res.json(order)
+        res.json(order);
     } catch (err) {
-        res.status(500).json({ msg: 'Lỗi khi lấy chi tiết đơn hàng' })
+        res.status(500).json({ msg: 'Lỗi khi lấy chi tiết đơn hàng' });
     }
 };
-
 exports.cancelOrder = async (req, res) => {
     try {
         const { id } = req.params;
