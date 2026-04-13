@@ -11,12 +11,16 @@ import NotificationBell from './NotificationBell';
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../composables/cartStore';
 
+const GENRES = [
+    'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',
+    'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
+];
+
 const Navbar = () => {
     const navigate = useNavigate();
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [genres, setGenres] = useState([]);
     const [showGenres, setShowGenres] = useState(false);
 
     const dropdownRef = useRef(null);
@@ -50,12 +54,7 @@ const Navbar = () => {
         navigate('/');
     };
 
-    const fetchGenres = async () => {
-        try {
-            const { data } = await axios.get('http://localhost:5000/api/books/genres');
-            setGenres(data);
-        } catch (err) { console.error('Lỗi khi tải thể loại:', err); }
-    };
+
 
     const goToGenre = (genre) => {
         navigate(`/books/view-all?genre=${encodeURIComponent(genre)}`);
@@ -79,7 +78,6 @@ const Navbar = () => {
 
     useEffect(() => {
         loadCartCount();
-        fetchGenres();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token]);
 
@@ -123,7 +121,7 @@ const Navbar = () => {
 
                             <div className={`absolute left-1/2 -translate-x-1/2 top-full mt-[-4px] w-52 z-50 transition-all duration-200 origin-top ${showGenres ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-95 pointer-events-none'}`}>
                                 <div className="bg-white border border-gray-100 shadow-lg py-2 rounded-b-lg">
-                                    {genres.map((genre) => (
+                                    {GENRES.map((genre) => (
                                         <button
                                             key={genre}
                                             onClick={() => goToGenre(genre)}
@@ -265,7 +263,7 @@ const Navbar = () => {
                                     <FontAwesomeIcon icon={['fas', 'chevron-down']} className="text-[10px] text-stone-400 transition-transform duration-200 group-open:rotate-180" />
                                 </summary>
                                 <div className="pl-4 py-2 flex flex-col gap-1 bg-stone-50/30">
-                                    {genres.map(genre => (
+                                    {GENRES.map(genre => (
                                         <button
                                             key={genre}
                                             onClick={() => goToGenreMobile(genre)}

@@ -12,6 +12,7 @@ const InputSearch = () => {
   const navigate = useNavigate();
   const wrapperRef = useRef(null);
 
+  // Xử lý click ra ngoài để đóng popup
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -22,6 +23,7 @@ const InputSearch = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Xử lý gọi API tìm kiếm (Có Debounce 300ms)
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSuggestions([]);
@@ -33,8 +35,12 @@ const InputSearch = () => {
       setIsLoading(true);
       try {
         const res = await axios.get(`/api/books?search=${encodeURIComponent(searchQuery.trim())}`);
-        setSuggestions(res.data.slice(0, 5));
+
+        // ✅ ĐÃ SỬA BUG: Trỏ đúng vào res.data.books thay vì res.data
+        const foundBooks = res.data.books || [];
+        setSuggestions(foundBooks.slice(0, 5)); // Lấy 5 cuốn đầu tiên
         setShowSuggestions(true);
+
       } catch (error) {
         console.error('Lỗi khi gợi ý sách:', error);
       } finally {
@@ -46,16 +52,18 @@ const InputSearch = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  // Chuyển hướng sang trang kết quả tìm kiếm đầy đủ
   const emitSearch = () => {
     if (!searchQuery.trim()) return;
     setShowSuggestions(false);
-    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    navigate(`/books?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') emitSearch();
   };
 
+  // Click vào 1 sách gợi ý -> Bay thẳng vào chi tiết
   const handleSuggestionClick = (bookId) => {
     setShowSuggestions(false);
     setSearchQuery('');
@@ -108,9 +116,24 @@ const InputSearch = () => {
                     <p className="text-sm font-medium text-black truncate">{book.title}</p>
                     <p className="text-xs text-stone-400 mt-0.5 truncate">{book.author}</p>
                   </div>
-                  <p className="text-xs font-bold text-black flex-shrink-0">
-                    {book.price?.toLocaleString('vi-VN')}₫
-                  </p>
+
+                  {/* ✅ TỐI ƯU UI: Hiển thị giá khuyến mãi nếu có */}
+                  <div className="flex flex-col items-end flex-shrink-0">
+                    {book.discountedPrice && book.discountedPrice < book.price ? (
+                      <>
+                        <p className="text-xs font-bold text-rose-600">
+                          {book.discountedPrice.toLocaleString('vi-VN')}₫
+                        </p>
+                        <p className="text-[10px] text-stone-400 line-through">
+                          {book.price?.toLocaleString('vi-VN')}₫
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs font-bold text-black">
+                        {book.price?.toLocaleString('vi-VN')}₫
+                      </p>
+                    )}
+                  </div>
                 </li>
               ))}
 

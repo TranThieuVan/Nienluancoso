@@ -3,9 +3,17 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
+// Danh sách thể loại gán cứng để đồng bộ với Backend
+const GENRES = [
+  'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',
+  'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
+];
+
 const AddBook = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ title: '', author: '', genre: '', importPrice: '', price: '', stock: '', description: '' });
+  const [form, setForm] = useState({
+    title: '', author: '', genre: '', importPrice: '', price: '', stock: '', description: ''
+  });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -22,8 +30,14 @@ const AddBook = () => {
   };
 
   const handleCurrencyKeyDown = (e, field) => {
-    if (e.key === 'ArrowUp') { e.preventDefault(); setForm(prev => ({ ...prev, [field]: (Number(prev[field]) || 0) + 1000 })); }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setForm(prev => ({ ...prev, [field]: Math.max(0, (Number(prev[field]) || 0) - 1000) })); }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setForm(prev => ({ ...prev, [field]: (Number(prev[field]) || 0) + 1000 }));
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setForm(prev => ({ ...prev, [field]: Math.max(0, (Number(prev[field]) || 0) - 1000) }));
+    }
   };
 
   const applyFile = (file) => {
@@ -50,8 +64,10 @@ const AddBook = () => {
       if (imageFile) formData.append('image', imageFile);
 
       await axios.post('http://localhost:5000/api/books', formData, {
-        // ✅ ĐÃ SỬA: Đổi 'token' thành 'adminToken'
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${localStorage.getItem('adminToken')}`
+        },
       });
       Swal.fire('Thành công', 'Đã thêm sách mới', 'success');
       navigate('/admin/books');
@@ -89,8 +105,19 @@ const AddBook = () => {
               <input name="author" value={form.author} onChange={handleChange} placeholder="Tên tác giả" className={inputCls} />
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Thể loại</label>
-              <input name="genre" value={form.genre} onChange={handleChange} placeholder="VD: Tiểu thuyết" className={inputCls} />
+              <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Thể loại *</label>
+              <select
+                name="genre"
+                value={form.genre}
+                onChange={handleChange}
+                required
+                className={`${inputCls} appearance-none cursor-pointer`}
+              >
+                <option value="" disabled>-- Chọn thể loại --</option>
+                {GENRES.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
             </div>
           </div>
 

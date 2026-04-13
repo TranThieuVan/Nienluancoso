@@ -172,16 +172,18 @@ const BookList = () => {
         <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400 mb-3 font-bold">Thể loại</p>
         <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
           <button
-            onClick={() => { setSelectedGenre(''); setPage(1); setSidebarOpen(false); }}
-            className={`text-left px-3 py-2 text-sm transition-all ${selectedGenre === '' ? 'bg-black text-white font-bold' : 'text-stone-600 hover:bg-stone-50'}`}
+            onClick={() => { setSelectedGenre(''); setPage(1); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            // ✅ ĐÃ SỬA: Loại bỏ font-bold, thống nhất dùng font-medium để tránh chữ bự ra ép rớt dòng gây giật layout
+            className={`text-left px-3 py-2 text-sm font-medium transition-all rounded-md ${selectedGenre === '' ? 'bg-black text-white' : 'text-stone-600 hover:bg-stone-50'}`}
           >
             Tất cả
           </button>
           {genres.map(genre => (
             <button
               key={genre}
-              onClick={() => { setSelectedGenre(genre); setPage(1); setSidebarOpen(false); }}
-              className={`text-left px-3 py-2 text-sm transition-all ${selectedGenre === genre ? 'bg-black text-white font-bold' : 'text-stone-600 hover:bg-stone-50'}`}
+              // ✅ ĐÃ SỬA: Thêm scroll mượt lên top để không bị hụt hẫng khi kết quả lọc quá ít
+              onClick={() => { setSelectedGenre(genre); setPage(1); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className={`text-left px-3 py-2 text-sm font-medium transition-all rounded-md ${selectedGenre === genre ? 'bg-black text-white' : 'text-stone-600 hover:bg-stone-50'}`}
             >
               {genre}
             </button>
@@ -209,14 +211,14 @@ const BookList = () => {
             <div className="sticky top-28">{filterContent}</div>
           </aside>
 
-          <div className="flex-1 min-w-0">
+          {/* ✅ ĐÃ SỬA: Thêm min-h-[60vh] để chống sập chiều cao web khi mảng rỗng hoặc ít sách */}
+          <div className="flex-1 min-w-0 min-h-[60vh]">
             <div className="flex items-center justify-between mb-10 gap-4">
               <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 text-xs font-bold border border-gray-200 px-4 py-2 uppercase tracking-widest hover:border-black transition-all">
                 <FontAwesomeIcon icon={['fas', 'sliders']} /> Lọc
               </button>
 
               <div className="ml-auto flex items-center gap-4">
-                {/* ✨ Dropdown Promotion chi tiết */}
                 {isSaleFilter && promotions.length > 0 && (
                   <select
                     value={selectedPromoId}

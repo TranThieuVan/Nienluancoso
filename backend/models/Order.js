@@ -5,7 +5,8 @@ const orderSchema = new mongoose.Schema({
     items: [
         {
             book: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
-            quantity: { type: Number, required: true, min: 1 }
+            quantity: { type: Number, required: true, min: 1 },
+            price: { type: Number, required: true }
         }
     ],
     totalPrice: { type: Number, required: true },
@@ -43,7 +44,8 @@ const orderSchema = new mongoose.Schema({
     ],
 
     shippingFee: { type: Number, default: 40000 },
-
+    discountAmount: { type: Number, default: 0 }, // 🔥 LƯU TIỀN VOUCHER VÀO DB
+    voucherCode: { type: String, default: null }, // 🔥 LƯU MÃ VOUCHER VÀO DB
     // TRACKING GIAO HÀNG
     shippingProvider: { type: String, default: null },
     trackingLink: { type: String, default: null },

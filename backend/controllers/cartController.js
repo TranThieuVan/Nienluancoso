@@ -2,25 +2,38 @@
 
 const Cart = require('../models/Cart');
 const Book = require('../models/Book');
+const PricingService = require('../services/pricingService'); // ✅ Import PricingService
 
 // 1. Lấy giỏ hàng của user
 exports.getCart = async (req, res) => {
     try {
         const cart = await Cart.findOne({ userId: req.user.id }).populate('items.bookId');
 
-        const items = cart?.items.map(item => ({
+        if (!cart) {
+            return res.json({ items: [], total: 0 });
+        }
+
+        // ✅ ÁP DỤNG GIÁ KHUYẾN MÃI: Lọc lại giá cho các sách trong giỏ hàng
+        const booksInCart = cart.items.map(item => item.bookId).filter(b => b != null);
+        PricingService.applyPricing(booksInCart);
+
+        const items = cart.items.map(item => ({
             book: item.bookId, // rename bookId -> book
             quantity: item.quantity
-        })) || [];
+        })).filter(item => item.book != null); // Lọc bỏ nếu có sách bị admin xóa khỏi Database
 
-        const total = items.reduce((sum, item) => sum + item.book.price * item.quantity, 0);
+        // ✅ TÍNH LẠI TỔNG TIỀN: Lấy giá khuyến mãi (nếu có), không có mới lấy giá gốc
+        const total = items.reduce((sum, item) => {
+            const currentPrice = item.book.discountedPrice || item.book.price;
+            return sum + (currentPrice * item.quantity);
+        }, 0);
 
         res.json({ items, total });
     } catch (err) {
+        console.error("Lỗi getCart:", err);
         res.status(500).json({ msg: 'Lỗi server' });
     }
 };
-
 
 // 2. Thêm hoặc tăng số lượng sách trong giỏ
 exports.addToCart = async (req, res) => {

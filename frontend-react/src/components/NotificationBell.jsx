@@ -162,6 +162,9 @@ const NotificationBell = () => {
                                                             flashSaleSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                                         }
                                                     }, 300);
+                                                } else if (noti.type === 'order') {
+                                                    setIsOpen(false);
+                                                    navigate(noti.link); // Sẽ bay tới http://localhost:5174/orders/ID_DON_HANG
                                                 }
                                             }}
                                             className={`relative px-4 py-3 border-b border-gray-50 cursor-pointer transition group

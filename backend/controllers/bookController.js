@@ -1,118 +1,137 @@
 const Book = require('../models/Book');
-const Order = require('../models/Order')
-const Rating = require('../models/Rating');
+const Order = require('../models/Order');
 const Promotion = require('../models/Promotion');
 const PricingService = require('../services/pricingService');
 const OpenAI = require("openai");
+const fs = require("fs");
+const path = require("path");
 
-// Khởi tạo OpenAI (Nếu model embedding bị lỗi với OpenRouter, bạn hãy dùng base URL gốc của OpenAI nhé)
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
+    // baseURL: "https://openrouter.ai/api/v1", // Bỏ comment nếu dùng OpenRouter
 });
 
-// ✅ HÀM TRỢ GIÚP 1: Dịch sách thành Vector
+// ==========================================
+// ✅ HELPER: GENERATE EMBEDDING (SUPER OPTIMIZED)
+// ==========================================
 const generateEmbedding = async (bookData) => {
     try {
-        // Gộp chuỗi thông minh để AI hiểu nội dung
-        const textToEmbed = `Tên sách: ${bookData.title}. Tác giả: ${bookData.author || 'Chưa rõ'}. Thể loại: ${bookData.genre || 'Chưa rõ'}. Mô tả: ${bookData.description || 'Không có'}`;
+        // 1. Chặn gọi API dư thừa (Phòng vệ)
+        if (!bookData.title || !bookData.genre) return null;
+
+        // 2. Chuẩn hóa chuỗi
+        const normalize = (text) => (text || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+        // 3. Fallback description thông minh
+        let description = normalize(bookData.description);
+        if (!description || description.length < 30) {
+            description = `sách thể loại ${bookData.genre || 'chưa rõ'} của ${bookData.author || 'chưa rõ'}`;
+        }
+
+        // 4. Gộp text + Boost trọng số cho Title & Genre
+        let textToEmbed = `
+            tên sách: ${normalize(bookData.title)}
+            tên sách: ${normalize(bookData.title)} 
+            thể loại: ${normalize(bookData.genre)}
+            thể loại: ${normalize(bookData.genre)}
+            tác giả: ${normalize(bookData.author)}
+            mô tả: ${description}
+        `;
+
+        // 5. Ép token siêu nhỏ (Tối đa 500 ký tự)
+        textToEmbed = textToEmbed.slice(0, 500);
 
         const response = await openai.embeddings.create({
-            model: "text-embedding-3-small", // Model chuyên tạo vector
+            model: "text-embedding-3-small",
             input: textToEmbed,
         });
 
-        return response.data[0].embedding; // Trả về mảng 1536 số
-    } catch (error) {
-        console.error("⚠️ Lỗi tạo vector embedding:", error);
-        return null; // Nếu lỗi thì trả về null, không làm sập chức năng thêm sách
+        return {
+            embedding: response.data[0].embedding,
+            enrichedDescription: description
+        };
+
+    } catch (err) {
+        console.error("⚠️ Lỗi embedding:", err.message);
+        return null;
     }
 };
 
-// ✅ HÀM TRỢ GIÚP 2: Toán học thuần JS đo độ giống nhau giữa 2 mảng số
+// ==========================================
+// ✅ HELPER: COSINE SIMILARITY (SAFE)
+// ==========================================
 function cosineSimilarity(vecA, vecB) {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
+    if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+
+    let dot = 0, normA = 0, normB = 0;
     for (let i = 0; i < vecA.length; i++) {
-        dotProduct += vecA[i] * vecB[i];
+        dot += vecA[i] * vecB[i];
         normA += vecA[i] * vecA[i];
         normB += vecB[i] * vecB[i];
     }
-    if (normA === 0 || normB === 0) return 0;
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    if (!normA || !normB) return 0;
+
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 exports.createBook = async (req, res) => {
     try {
-        const cleanBody = {};
-        for (let key in req.body) {
-            const cleanKey = key.trim();
-            const cleanValue = typeof req.body[key] === 'string' ? req.body[key].trim() : req.body[key];
-            cleanBody[cleanKey] = cleanValue;
-        }
-
-        console.log('🟢 Cleaned Body:', cleanBody);
-        console.log('🟢 Uploaded File:', req.file);
+        const clean = (val) => typeof val === "string" ? val.trim() : val;
 
         const bookData = {
-            title: cleanBody.title,
-            author: cleanBody.author,
-            price: Number(cleanBody.price),
-            stock: Number(cleanBody.stock),
-            genre: cleanBody.genre,
-            description: cleanBody.description,
+            title: clean(req.body.title),
+            author: clean(req.body.author),
+            price: Number(req.body.price),
+            stock: Number(req.body.stock),
+            genre: clean(req.body.genre),
+            description: clean(req.body.description),
             image: req.file ? `/uploads/${req.file.filename}` : undefined
         };
 
-        const embedding = await generateEmbedding(bookData);
-        if (embedding) {
-            bookData.embedding = embedding;
+        const aiResult = await generateEmbedding(bookData);
+        if (aiResult) {
+            bookData.embedding = aiResult.embedding;
+            bookData.description = aiResult.enrichedDescription;
+            bookData.embeddingUpdatedAt = new Date();
+            bookData.embeddingVersion = 1;
         }
 
         const newBook = await Book.create(bookData);
         res.status(201).json(newBook);
+
     } catch (err) {
-        console.error('❌ Error creating book:', err);
-        res.status(500).json({ msg: 'Lỗi tạo sách', err });
+        console.error(err);
+        res.status(500).json({ msg: 'Lỗi tạo sách' });
     }
 };
+
 exports.getAllBooks = async (req, res) => {
     try {
         const filter = {};
         const now = new Date();
 
-        // 1. Lọc Genre & Search
         if (req.query.genre) filter.genre = req.query.genre;
-        if (req.query.search) filter.title = { $regex: req.query.search, $options: 'i' };
-
-        // 2. Lọc theo Promotion
-        if (req.query.promo) {
-            const promo = await Promotion.findById(req.query.promo);
-            if (promo && promo.isActive && new Date(promo.startDate) <= now && new Date(promo.endDate) >= now) {
-                if (promo.targetType === 'genre') {
-                    filter.genre = promo.targetValue;
-                } else if (promo.targetType === 'book') {
-                    try {
-                        const configs = JSON.parse(promo.targetValue);
-                        filter._id = { $in: configs.map(c => c.bookId) };
-                    } catch (e) { }
-                }
-            } else { filter._id = null; }
+        if (req.query.search) {
+            filter.$or = [
+                { title: { $regex: req.query.search, $options: 'i' } },
+                { author: { $regex: req.query.search, $options: 'i' } }
+            ];
         }
-        else if (req.query.filter === 'sale') {
-            const activePromos = await Promotion.find({
-                isActive: true, startDate: { $lte: now }, endDate: { $gte: now }
+        if (req.query.filter === 'sale') {
+            const promos = await Promotion.find({
+                isActive: true,
+                startDate: { $lte: now },
+                endDate: { $gte: now }
             });
 
-            if (activePromos.length === 0) {
-                filter._id = null;
+            if (promos.length === 0) {
+                filter._id = { $in: [] };
             } else {
                 let isAllShopSale = false;
                 const saleGenres = [];
                 const saleBookIds = [];
 
-                activePromos.forEach(p => {
+                promos.forEach(p => {
                     if (p.targetType === 'all') isAllShopSale = true;
                     else if (p.targetType === 'genre') saleGenres.push(p.targetValue);
                     else if (p.targetType === 'book') {
@@ -124,37 +143,33 @@ exports.getAllBooks = async (req, res) => {
                     const conditions = [];
                     if (saleGenres.length > 0) conditions.push({ genre: { $in: saleGenres } });
                     if (saleBookIds.length > 0) conditions.push({ _id: { $in: saleBookIds } });
-                    filter.$or = conditions.length > 0 ? conditions : [{ _id: null }];
+                    filter.$or = conditions.length > 0 ? conditions : [{ _id: { $in: [] } }];
                 }
             }
         }
 
-        // 3. Logic Sắp xếp (Sort)
-        let sortQuery = { createdAt: -1 };
-        if (req.query.sort === 'price_asc') sortQuery = { price: 1 };
-        if (req.query.sort === 'price_desc') sortQuery = { price: -1 };
-        if (req.query.sort === 'name_asc') sortQuery = { title: 1 };
-        if (req.query.sort === 'name_desc') sortQuery = { title: -1 }; // Bổ sung Z -> A
+        let sort = { createdAt: -1 };
+        if (req.query.sort === 'price_asc') sort = { price: 1 };
+        if (req.query.sort === 'price_desc') sort = { price: -1 };
 
-        // 4. Phân trang
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 21;
+        const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        const totalBooks = await Book.countDocuments(filter);
-        const books = await Book.find(filter).sort(sortQuery).skip(skip).limit(limit);
-
-        // Áp dụng Giá Động (Pricing Engine)
-        const booksWithPrice = PricingService.applyPricing(books);
+        const [total, books] = await Promise.all([
+            Book.countDocuments(filter),
+            Book.find(filter).sort(sort).skip(skip).limit(limit)
+        ]);
 
         res.json({
-            books: booksWithPrice,
-            currentPage: page,
-            totalPages: Math.ceil(totalBooks / limit),
-            totalBooks
+            books: PricingService.applyPricing(books),
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
         });
+
     } catch (err) {
-        res.status(500).json({ msg: 'Lỗi lấy sách', err });
+        res.status(500).json({ msg: 'Lỗi lấy sách' });
     }
 };
 
@@ -162,110 +177,198 @@ exports.getBookById = async (req, res) => {
     try {
         const book = await Book.findById(req.params.id);
         if (!book) return res.status(404).json({ msg: 'Không tìm thấy sách' });
-
-        const bookWithPrice = PricingService.applyPricing(book);
-        res.json(bookWithPrice);
+        res.json(PricingService.applyPricing(book));
     } catch (err) {
-        res.status(500).json({ msg: 'Lỗi server', err });
+        res.status(500).json({ msg: 'Lỗi server' });
     }
 };
+
+
 exports.updateBook = async (req, res) => {
     try {
-        const cleanBody = {};
+        const book = await Book.findById(req.params.id);
+        if (!book) return res.status(404).json({ msg: 'Không tìm thấy sách' });
 
-        for (let key in req.body) {
-            const cleanKey = key.trim();
-            let cleanValue = req.body[key];
+        let needUpdateAI = false;
+        const normalizeStr = (v) => (v || "").toString().trim().toLowerCase();
 
-            // Ép kiểu nếu là số
-            if (cleanKey === 'price' || cleanKey === 'stock') {
-                cleanValue = Number(cleanValue);
-            } else if (typeof cleanValue === 'string') {
-                cleanValue = cleanValue.trim();
+        Object.keys(req.body).forEach(key => {
+            let val = typeof req.body[key] === 'string' ? req.body[key].trim() : req.body[key];
+            if (key === 'price' || key === 'stock') val = Number(val);
+
+            // 👉 FIX 1: So sánh cực kỳ chặt chẽ (đã xử lý khoảng trắng & in hoa)
+            if (['title', 'author', 'genre', 'description'].includes(key) && normalizeStr(book[key]) !== normalizeStr(val)) {
+                needUpdateAI = true;
             }
+            book[key] = val;
+        });
 
-            cleanBody[cleanKey] = cleanValue;
-        }
-
-        // Nếu có file ảnh mới
         if (req.file) {
-            cleanBody.image = `/uploads/${req.file.filename}`;
+            book.image = `/uploads/${req.file.filename}`;
         }
 
-        console.log('Clean Body for Update:', cleanBody);
-        console.log('Uploaded File:', req.file);
+        if (needUpdateAI) {
+            console.log(`🔄 Nội dung đổi, đang tạo lại Vector cho: ${book.title}`);
+            // 👉 FIX 2: Truyền Object thuần thay vì truyền Document của Mongoose
+            const aiResult = await generateEmbedding({
+                title: book.title,
+                author: book.author,
+                genre: book.genre,
+                description: book.description
+            });
 
-        // ✅ THÊM ĐOẠN NÀY: Tạo lại vector vì nội dung sách có thể đã bị sửa
-        const existingBook = await Book.findById(req.params.id);
-        const mergedData = { ...existingBook.toObject(), ...cleanBody }; // Trộn data cũ và mới để AI đọc
-
-        const embedding = await generateEmbedding(mergedData);
-        if (embedding) {
-            cleanBody.embedding = embedding;
+            if (aiResult) {
+                book.embedding = aiResult.embedding;
+                book.description = aiResult.enrichedDescription;
+                book.embeddingUpdatedAt = new Date();
+                book.embeddingVersion = (book.embeddingVersion || 1) + 1;
+            }
         }
 
-        const updatedBook = await Book.findByIdAndUpdate(req.params.id, cleanBody, { new: true });
+        await book.save();
+        res.json(book);
 
-        if (!updatedBook) {
-            return res.status(404).json({ msg: 'Không tìm thấy sách để cập nhật' });
-        }
-
-        res.json(updatedBook);
     } catch (err) {
-        console.error('❌ Lỗi cập nhật sách:', err);
-        res.status(500).json({ msg: 'Lỗi server khi cập nhật sách', error: err.message });
+        res.status(500).json({ msg: 'Lỗi update' });
     }
 };
 
-exports.get
-
-
-const fs = require("fs");
-const path = require("path");
 exports.deleteBook = async (req, res) => {
     try {
         const book = await Book.findById(req.params.id);
-        if (!book) {
-            return res.status(404).json({ msg: "Không tìm thấy sách để xoá" });
+        if (!book) return res.status(404).json({ msg: 'Không tìm thấy sách' });
+
+        if (book.image) {
+            const imgPath = path.join(__dirname, "..", "public", book.image);
+            fs.unlink(imgPath, () => { });
         }
 
-        // Xoá ảnh nếu có
-        if (book.image) {
-            const imagePath = path.join(__dirname, "..", "public", book.image);
-            fs.unlink(imagePath, (err) => {
-                if (err) {
-                    console.warn("⚠️ Không thể xoá ảnh:", err.message); // không dừng chương trình
-                } else {
-                    console.log("🗑 Đã xoá ảnh:", imagePath);
-                }
-            });
-        }
         await book.deleteOne();
-        res.json({ msg: "🗑 Đã xoá sách thành công" });
-    } catch (err) {
-        console.error("❌ Lỗi xoá sách:", err);
-        res.status(500).json({ msg: "Lỗi xoá sách", err });
+        res.json({ msg: 'Đã xoá' });
+    } catch {
+        res.status(500).json({ msg: 'Lỗi xoá' });
     }
 };
 
-// Lấy danh sách tất cả thể loại (không trùng)
-exports.getAllGenres = async (req, res) => {
-    try {
-        const genres = await Book.distinct('genre');
-        res.json(genres);
-    } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi lấy thể loại', error });
+// ==========================================
+// 🚀 HỆ THỐNG GỢI Ý & CACHE
+// ==========================================
+const recommendationCache = new Map();
+const CACHE_TTL = 15 * 60 * 1000;
+
+// 👉 FIX 5: Xóa rác Cache định kỳ mỗi 10 phút chống Memory Leak
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of recommendationCache.entries()) {
+        if (now - value.timestamp > CACHE_TTL) {
+            recommendationCache.delete(key);
+        }
     }
+}, 10 * 60 * 1000);
+
+exports.getRecommendations = async (req, res) => {
+    try {
+        const bookId = req.params.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+        const MAX_CACHE = 30;
+
+        let allSorted = [];
+
+        // 1. Kiểm tra Cache RAM
+        if (recommendationCache.has(bookId)) {
+            const cached = recommendationCache.get(bookId);
+            if ((Date.now() - cached.timestamp) <= CACHE_TTL) {
+                allSorted = cached.data;
+            } else {
+                recommendationCache.delete(bookId);
+            }
+        }
+
+        // 2. Nếu không có Cache, gọi Database & Tính toán
+        if (allSorted.length === 0) {
+            const currentBook = await Book.findById(bookId).select('+embedding');
+            if (!currentBook || !currentBook.embedding || currentBook.embedding.length === 0) {
+                return res.json({ books: [], hasMore: false });
+            }
+
+            // 👉 FIX 4: Giới hạn tập Candidate theo Genre trước cho nhẹ và chính xác
+            const candidates = await Book.find({
+                _id: { $ne: currentBook._id },
+                genre: currentBook.genre
+            }).limit(100).select('+embedding');
+
+            // 3. Tính điểm (AI Vector + Luật Kinh Doanh)
+            const scoredBooks = candidates.map(book => {
+                if (!book.embedding || book.embedding.length === 0) return { book, score: 0 };
+
+                let score = cosineSimilarity(currentBook.embedding, book.embedding);
+
+                if (book.author === currentBook.author) score += 0.15;
+                if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) score += 0.03;
+                if (book.stock < 5) score -= 0.05;
+
+                return { book, score };
+            });
+
+            // 4. Lọc
+            allSorted = scoredBooks
+                .filter(item => item.score > 0.25) // 👉 FIX 3: Hạ chuẩn độ khó xuống 0.25
+                .sort((a, b) => b.score - a.score)
+                .slice(0, MAX_CACHE)
+                .map(item => {
+                    const obj = item.book.toObject();
+                    delete obj.embedding;
+                    return obj;
+                });
+
+            // 👉 FIX 4 (Nâng cao): Nếu filter xong mà rỗng (vì AI kén chọn), lấy luôn sách cùng thể loại làm Fallback cho đỡ gọi DB lần 2.
+            if (allSorted.length === 0) {
+                allSorted = candidates.slice(0, 10).map(b => {
+                    const obj = b.toObject();
+                    delete obj.embedding;
+                    return obj;
+                });
+            }
+
+            // Lưu Cache
+            recommendationCache.set(bookId, { data: allSorted, timestamp: Date.now() });
+        }
+
+        // 5. Cắt lát Phân trang cho Frontend
+        const start = (page - 1) * limit;
+        const end = page * limit;
+
+        // Cắt lấy mảng sách theo trang hiện tại
+        const paginatedBooks = allSorted.slice(start, end);
+
+        // ✅ FIX BUG: Bắt buộc phải cho chạy qua PricingService để tính toán lại giá thật ở thời điểm hiện tại (xóa khuyến mãi đã hết hạn)
+        const booksWithPrice = PricingService.applyPricing(paginatedBooks);
+
+        res.json({
+            books: booksWithPrice, // Trả về mảng đã được lọc giá chuẩn xác
+            hasMore: end < allSorted.length
+        });
+
+    } catch (err) {
+        console.error("Lỗi recommend:", err);
+        res.status(500).json({ msg: 'Lỗi hệ thống gợi ý' });
+    }
+};
+
+exports.getAllGenres = async (req, res) => {
+    const genres = [
+        'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',
+        'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
+    ];
+    res.json(genres);
 };
 
 exports.getTopSellingBooks = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-
-        // ✅ ĐÃ SỬA: Lấy những đơn hàng đã 'completed' (hoàn tất)
         const matchStage = { status: "completed" };
 
-        // Nếu client truyền ngày tháng lên, thêm bộ lọc ngày vào query
         if (startDate && endDate) {
             matchStage.createdAt = {
                 $gte: new Date(startDate),
@@ -283,7 +386,7 @@ exports.getTopSellingBooks = async (req, res) => {
                 }
             },
             { $sort: { totalSold: -1 } },
-            { $limit: 5 }, // Lấy Top 5
+            { $limit: 5 },
             {
                 $lookup: {
                     from: "books",
@@ -300,7 +403,7 @@ exports.getTopSellingBooks = async (req, res) => {
                     author: "$book.author",
                     image: "$book.image",
                     price: "$book.price",
-                    discountedPrice: "$book.discountedPrice", // Thêm dòng này để lỡ sách có giảm giá thì hiển thị đúng
+                    discountedPrice: "$book.discountedPrice",
                     stock: "$book.stock",
                     totalSold: 1
                 }
@@ -313,11 +416,12 @@ exports.getTopSellingBooks = async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi lấy top sách bán chạy' });
     }
 };
+
 exports.getLowStockBooks = async (req, res) => {
     try {
         const books = await Book.find({ stock: { $lte: 5 } })
             .select('title stock image')
-            .sort({ stock: 1 }) // sách gần hết ở đầu
+            .sort({ stock: 1 })
             .limit(10);
 
         res.json(books);
@@ -327,125 +431,14 @@ exports.getLowStockBooks = async (req, res) => {
     }
 };
 
-// ==========================================
-// TẠO BỘ NHỚ ĐỆM (CACHE) BẢO VỆ SERVER
-// ==========================================
-const recommendationCache = new Map();
-const CACHE_TTL = 15 * 60 * 1000; // Thời gian sống của Cache: 15 phút (tính bằng mili-giây)
-
-exports.getRecommendations = async (req, res) => {
-    try {
-        const bookId = req.params.id;
-
-        // Nhận thông số phân trang từ Frontend
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 6;
-        const MAX_CACHE_RESULTS = 30; // Giới hạn lưu tối đa 30 cuốn ngon nhất vào RAM
-
-        let allSortedRecommendations = []; // Biến chứa toàn bộ sách đã sắp xếp
-
-        // -------------------------------------------------------------------
-        // 1. KIỂM TRA CACHE (Lấy toàn bộ danh sách từ RAM nếu có)
-        // -------------------------------------------------------------------
-        if (recommendationCache.has(bookId)) {
-            const cachedItem = recommendationCache.get(bookId);
-            const isExpired = (Date.now() - cachedItem.timestamp) > CACHE_TTL;
-
-            if (!isExpired) {
-                allSortedRecommendations = cachedItem.data; // Bốc từ RAM ra
-            } else {
-                recommendationCache.delete(bookId); // Quá hạn thì xóa đi
-            }
-        }
-
-        // -------------------------------------------------------------------
-        // 2. NẾU CACHE TRỐNG -> TRUY VẤN DB VÀ TÍNH TOÁN LẠI TỪ ĐẦU
-        // -------------------------------------------------------------------
-        if (allSortedRecommendations.length === 0) {
-            const currentBook = await Book.findById(bookId).select('+embedding');
-
-            if (!currentBook || !currentBook.embedding || currentBook.embedding.length === 0) {
-                return res.json({ books: [], hasMore: false });
-            }
-
-            // Lấy Candidate Books (Giới hạn 200 cuốn)
-            const sameGenreBooks = await Book.find({
-                _id: { $ne: currentBook._id },
-                genre: currentBook.genre
-            }).limit(150).select('+embedding');
-
-            const otherBooks = await Book.find({
-                _id: { $ne: currentBook._id },
-                genre: { $ne: currentBook.genre }
-            }).limit(50).select('+embedding');
-
-            const candidateBooks = [...sameGenreBooks, ...otherBooks];
-
-            // Tính điểm
-            const scoredBooks = candidateBooks.map(book => {
-                if (!book.embedding || book.embedding.length === 0) return { book, score: 0 };
-
-                let score = cosineSimilarity(currentBook.embedding, book.embedding);
-
-                if (book.author === currentBook.author) score += 0.15;
-                if (book.genre === currentBook.genre) score += 0.05;
-                if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) score += 0.03;
-                if (book.stock < 5) score -= 0.05;
-
-                return { book, score };
-            });
-
-            // Lọc, Sắp xếp và lưu vào biến tổng
-            allSortedRecommendations = scoredBooks
-                .filter(item => item.score > 0.4)
-                .sort((a, b) => b.score - a.score)
-                .slice(0, MAX_CACHE_RESULTS) // Chỉ giữ 30 cuốn tốt nhất
-                .map(item => {
-                    const bookObj = item.book.toObject();
-                    delete bookObj.embedding;
-                    return bookObj;
-                });
-
-            // Lưu toàn bộ 30 cuốn này vào Cache để các trang sau (page 2, 3) lấy dùng luôn
-            recommendationCache.set(bookId, {
-                data: allSortedRecommendations,
-                timestamp: Date.now()
-            });
-        }
-
-        // -------------------------------------------------------------------
-        // 3. THUẬT TOÁN CẮT LÁT (PHÂN TRANG DỰA TRÊN MẢNG ĐÃ TÍNH TÓAN)
-        // -------------------------------------------------------------------
-        const startIndex = (page - 1) * limit;
-        const endIndex = page * limit;
-
-        const paginatedBooks = allSortedRecommendations.slice(startIndex, endIndex);
-
-        // Kiểm tra xem cuộn trang tiếp thì còn sách không
-        const hasMore = endIndex < allSortedRecommendations.length;
-
-        // Trả về Frontend
-        res.json({
-            books: paginatedBooks,
-            hasMore: hasMore
-        });
-
-    } catch (err) {
-        console.error("❌ Lỗi getRecommendations:", err);
-        res.status(500).json({ error: 'Lỗi server khi tìm sách đề xuất' });
-    }
-};
-
 exports.getBookManagementAnalytics = async (req, res) => {
     try {
         const [allBooks, topByRevenue] = await Promise.all([
             Book.find().select('title stock sold price importPrice discountedPrice genre createdAt'),
 
-            // Tối ưu lại Query Doanh thu
             Order.aggregate([
                 { $match: { status: "delivered" } },
                 { $unwind: "$items" },
-                // Join thẳng với bảng books để lấy giá lúc tính
                 { $lookup: { from: 'books', localField: 'items.book', foreignField: '_id', as: 'bookData' } },
                 { $unwind: "$bookData" },
                 {
@@ -473,7 +466,6 @@ exports.getBookManagementAnalytics = async (req, res) => {
 
         allBooks.forEach(book => {
             const currentPrice = book.discountedPrice || book.price || 0;
-            // 🛡️ Bọc chống lỗi NaN: Nếu chưa kịp chạy migrate, lấy tạm 60%
             const costPrice = book.importPrice || (book.price * 0.6);
             const profitPerUnit = currentPrice - costPrice;
 
@@ -512,48 +504,3 @@ exports.getBookManagementAnalytics = async (req, res) => {
         res.status(500).json({ message: "Lỗi tính toán báo cáo sách", error: err.message });
     }
 };
-
-// ✅ API ĐỒNG BỘ AI: Tự động tạo Vector cho TẤT CẢ sách cũ chưa có
-
-// exports.syncAIVectors = async (req, res) => {
-//     try {
-//         const booksWithoutAI = await Book.find({
-//             $or: [
-//                 { embedding: { $exists: false } },
-//                 { embedding: { $size: 0 } }
-//             ]
-//         });
-
-//         if (booksWithoutAI.length === 0) {
-//             return res.json({ message: "🎉 Tuyệt vời! Toàn bộ kho sách của bạn đã được tích hợp AI." });
-//         }
-
-//         res.write("Đang bat dau dong bo... Vui long doi...\n"); 
-
-//         let successCount = 0;
-//         for (let book of booksWithoutAI) {
-//             const bookData = {
-//                 title: book.title,
-//                 author: book.author,
-//                 genre: book.genre,
-//                 description: book.description
-//             };
-
-//             const embedding = await generateEmbedding(bookData);
-            
-//             if (embedding) {
-//                 book.embedding = embedding;
-//                 await book.save();
-//                 successCount++;
-//                 console.log(`✅ Đã nạp AI cho sách: ${book.title}`);
-//             }
-            
-//             await new Promise(resolve => setTimeout(resolve, 1000)); 
-//         }
-
-//         res.end(`\nHoan tat! Da cap nhat AI cho ${successCount}/${booksWithoutAI.length} cuon sach.`);
-//     } catch (err) {
-//         console.error("❌ Lỗi đồng bộ AI:", err);
-//         res.end("\nLoi he thong khi dong bo.");
-//     }
-// };

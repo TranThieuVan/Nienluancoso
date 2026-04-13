@@ -2,55 +2,62 @@ const Order = require('../models/Order')
 const Cart = require('../models/Cart')
 const Book = require('../models/Book')
 const User = require('../models/User');
-
+const PricingService = require('../services/pricingService');
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
-        const { items, shippingAddress, paymentMethod, totalAmount } = req.body;
+        // ✅ Nhận đúng các biến discountAmount và voucherCode từ Frontend gửi lên
+        const { items, shippingAddress, paymentMethod, discountAmount, voucherCode } = req.body;
 
         if (!items || items.length === 0) return res.status(400).json({ msg: 'Không có sản phẩm nào' });
 
-        // 1. Kiểm tra tồn kho trước khi thực hiện bất kỳ giao dịch nào
         const bookIds = items.map(i => i.book);
-        const books = await Book.find({ _id: { $in: bookIds } });
+        const rawBooks = await Book.find({ _id: { $in: bookIds } });
+        const pricedBooks = PricingService.applyPricing(rawBooks);
+
+        let calculatedTotalAmount = 0;
+        const processedItems = [];
 
         for (const item of items) {
-            const book = books.find(b => String(b._id) === String(item.book));
+            const book = pricedBooks.find(b => String(b._id) === String(item.book));
             if (!book) return res.status(400).json({ msg: `Sách không tồn tại.` });
-            if (book.stock < item.quantity) {
-                return res.status(400).json({ msg: `Sách "${book.title}" chỉ còn ${book.stock} cuốn.` });
-            }
+            if (book.stock < item.quantity) return res.status(400).json({ msg: `Sách "${book.title}" chỉ còn ${book.stock} cuốn.` });
+
+            const currentPrice = book.discountedPrice || book.price;
+            calculatedTotalAmount += (currentPrice * item.quantity);
+
+            processedItems.push({
+                book: item.book,
+                quantity: item.quantity,
+                price: currentPrice // ✅ LƯU CỨNG GIÁ VÀO DATABASE ĐỂ KHÔNG BAO GIỜ BỊ ĐỔI NỮA
+            });
         }
 
-        // 2. CONSTRAINT: TRỪ KHO NGAY LẬP TỨC (Inventory Reservation)
+        calculatedTotalAmount += 40000; // Phí ship
+        if (discountAmount) {
+            calculatedTotalAmount -= discountAmount; // Trừ tiền voucher thực sự
+        }
+
         for (const item of items) {
             await Book.findByIdAndUpdate(item.book, { $inc: { stock: -item.quantity } });
         }
 
-        // 3. Tạo đơn hàng
-        const mergedItems = items.map(item => ({ book: item.book, quantity: item.quantity }));
         const order = new Order({
-            user: userId, items: mergedItems, shippingAddress, shippingFee: 40000,
-            totalPrice: totalAmount, paymentMethod: paymentMethod || 'cod',
-            paymentStatus: 'Chờ thanh toán', status: 'pending',
+            user: userId,
+            items: processedItems,
+            shippingAddress,
+            shippingFee: 40000,
+            totalPrice: calculatedTotalAmount,
+            discountAmount: discountAmount || 0, // ✅ LƯU VOUCHER VÀO ĐƠN
+            voucherCode: voucherCode || null,
+            paymentMethod: paymentMethod || 'cod',
+            paymentStatus: 'Chờ thanh toán',
+            status: 'pending',
             statusHistory: [{ status: 'pending', date: new Date() }]
         });
         await order.save();
 
-        // 4. Logic Thăng hạng thành viên
-        const user = await User.findById(userId);
-        if (user) {
-            user.lastPurchaseDate = new Date();
-            let newRank = user.rank;
-            if (totalAmount >= 10000000) newRank = 'Kim cương';
-            else if (totalAmount >= 5000000) newRank = 'Bạch kim';
-            else if (totalAmount >= 2000000) newRank = 'Vàng';
-            else if (totalAmount >= 500000) newRank = 'Bạc';
-            user.rank = newRank;
-            await user.save();
-        }
-
-        res.status(201).json({ msg: 'Đặt hàng thành công và đã giữ chỗ trong kho', order });
+        res.status(201).json({ msg: 'Đặt hàng thành công', order });
     } catch (err) {
         console.error(err);
         res.status(500).json({ msg: 'Lỗi server khi tạo đơn hàng' });
@@ -70,11 +77,17 @@ exports.getMyOrders = async (req, res) => {
         const orders = await Order.find({ user: userId })
             .sort({ createdAt: -1 }).populate('items.book').skip(skip).limit(limit);
 
+        // ✅ Lọc lại giá cho toàn bộ sách trong lịch sử đơn hàng
+        orders.forEach(order => {
+            const booksInOrder = order.items.map(item => item.book).filter(b => b != null);
+            PricingService.applyPricing(booksInOrder);
+        });
+
         res.json({ orders, currentPage: page, totalPages, totalOrders });
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi khi lấy danh sách đơn hàng' });
     }
-}
+};
 
 // Lấy chi tiết đơn hàng
 exports.getOrderById = async (req, res) => {
@@ -87,11 +100,15 @@ exports.getOrderById = async (req, res) => {
             return res.status(403).json({ msg: 'Không có quyền truy cập' })
         }
 
+        // ✅ Lọc lại giá cho sách trong chi tiết đơn hàng
+        const booksInOrder = order.items.map(item => item.book).filter(b => b != null);
+        PricingService.applyPricing(booksInOrder);
+
         res.json(order)
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi khi lấy chi tiết đơn hàng' })
     }
-}
+};
 
 exports.cancelOrder = async (req, res) => {
     try {
@@ -193,3 +210,74 @@ exports.submitReturnTracking = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi server' });
     }
 }
+
+exports.getVirtualNotifications = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        // Tìm các đơn hàng có trạng thái "đặc biệt" cần báo cho user
+        const orders = await Order.find({
+            user: userId,
+            status: { $in: ['failed_delivery', 'return_approved', 'completed'] }
+        }).sort({ updatedAt: -1 }).limit(10);
+
+        const notifications = [];
+
+        orders.forEach(order => {
+            const shortId = order._id.toString().slice(-6).toUpperCase();
+
+            // 1. Thông báo Bom hàng
+            if (order.status === 'failed_delivery') {
+                notifications.push({
+                    _id: `${order._id}_failed`, // ID giả để React nhận diện
+                    title: "Giao hàng thất bại ⚠️",
+                    message: `Đơn hàng #${shortId} không thể giao tới bạn. Vui lòng kiểm tra lại.`,
+                    type: 'order',
+                    link: `/orders/${order._id}`,
+                    createdAt: order.updatedAt
+                });
+            }
+
+            // 2. Thông báo Hoàn tiền
+            if (order.paymentStatus === 'Đã hoàn tiền') {
+                notifications.push({
+                    _id: `${order._id}_refunded`,
+                    title: "Hoàn tiền thành công 💰",
+                    message: `Tiền của đơn hàng #${shortId} đã được hoàn về tài khoản.`,
+                    type: 'order',
+                    link: `/orders/${order._id}`,
+                    createdAt: order.updatedAt
+                });
+            }
+
+            // 3. Thông báo Duyệt trả hàng
+            if (order.status === 'return_approved') {
+                notifications.push({
+                    _id: `${order._id}_approved`,
+                    title: "Duyệt trả hàng ✅",
+                    message: `Yêu cầu trả hàng #${shortId} đã được chấp nhận. Vui lòng gửi lại hàng.`,
+                    type: 'order',
+                    link: `/orders/${order._id}`,
+                    createdAt: order.updatedAt
+                });
+            }
+
+            // 4. Thông báo Từ chối (Rejection)
+            const isRejected = order.status === 'completed' && order.adminNote?.toLowerCase().includes('từ chối');
+            if (isRejected) {
+                notifications.push({
+                    _id: `${order._id}_rejected`,
+                    title: "Khiếu nại bị từ chối ❌",
+                    message: `Yêu cầu cho đơn #${shortId} không được chấp nhận. Lý do: ${order.adminNote}`,
+                    type: 'order',
+                    link: `/orders/${order._id}`,
+                    createdAt: order.updatedAt
+                });
+            }
+        });
+
+        res.json(notifications);
+    } catch (err) {
+        res.status(500).json({ msg: "Lỗi trích xuất thông báo" });
+    }
+};

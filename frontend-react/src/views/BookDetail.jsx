@@ -346,7 +346,7 @@ const BookDetail = () => {
               </h2>
 
               {isLoggedIn ? (
-                <div className="flex gap-3 mb-6 select-none">
+                <div className="flex gap-3 mb-6">
                   <img
                     src={getAvatarUrl(user?.avatar)}
                     className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
@@ -386,7 +386,7 @@ const BookDetail = () => {
                     <div key={cmt._id} className="flex gap-3 pb-5 border-b border-gray-100 last:border-0">
                       <img
                         src={getAvatarUrl(cmt.userId.avatar)}
-                        className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100 select-none"
+                        className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
                         onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }}
                       />
                       <div className="flex-1">
@@ -553,14 +553,14 @@ const BookDetail = () => {
                   <button
                     onClick={() => addToCart(book, quantity)}
                     disabled={book.stock === 0}
-                    className="flex-1 py-3.5 bg-white border-2 border-black text-black text-sm font-bold uppercase tracking-wider hover:bg-stone-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 py-3.5 hover-flip-btn"
                   >
                     Thêm vào giỏ
                   </button>
                   <button
                     onClick={handleBuyNow}
                     disabled={book.stock === 0}
-                    className="flex-1 py-3.5 bg-black text-white text-sm font-bold uppercase tracking-wider hover:bg-stone-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 py-3.5 hover-flip-btn"
                   >
                     Mua ngay
                   </button>

@@ -12,7 +12,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import {
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faChartPie, faUsers,
-    faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis,
+    faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faCircleXmark,
     faMedal, faCrown, faGem, faCircleCheck, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
     faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus, faChevronRight,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket,
@@ -36,7 +36,7 @@ library.add(
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faChartPie, faUsers,
     faMedal, faCrown, faGem, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
-    faAngleLeft, faAngleRight, faChartLine, fasStar, faTruck, faShieldHalved, faMinus, faChevronRight,
+    faAngleLeft, faAngleRight, faChartLine, fasStar, faTruck, faShieldHalved, faMinus, faChevronRight, faCircleXmark,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket, faPhone,
 
     // Regular Icons
