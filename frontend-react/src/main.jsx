@@ -10,7 +10,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 
 // Import Icon Solid (fas)
 import {
-    faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
+    faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faChartPie, faUsers,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faCircleXmark, faBolt,
     faMedal, faCrown, faGem, faCircleCheck, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
@@ -23,7 +23,8 @@ import {
 import {
     faHeart as faHeartRegular,
     faUser as faUserRegular,
-    faStar as farStar
+    faStar as farStar,
+    faBell as faBellRegular // <-- ĐÃ THÊM ICON CHUÔNG Ở ĐÂY
 } from '@fortawesome/free-regular-svg-icons'
 
 // Import Icon Brands (fab)
@@ -32,7 +33,7 @@ import { faFacebookF, faInstagram, faXTwitter } from '@fortawesome/free-brands-s
 // Khởi tạo thư viện
 library.add(
     // Solid Icons
-    faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders,
+    faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faChartPie, faUsers, faBolt,
     faMedal, faCrown, faGem, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
@@ -40,7 +41,7 @@ library.add(
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket, faPhone,
 
     // Regular Icons
-    faHeartRegular, faUserRegular, farStar,
+    faHeartRegular, faUserRegular, farStar, faBellRegular, // <-- ĐÃ THÊM VÀO LIBRARY
 
     // Brand Icons
     faFacebookF, faInstagram, faXTwitter

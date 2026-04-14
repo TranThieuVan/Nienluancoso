@@ -73,6 +73,29 @@ const Cart = () => {
     }
   };
 
+  const removeSelectedItems = async () => {
+    if (selectedItems.length === 0) return;
+
+    try {
+      // Gọi API xóa đồng loạt các item đã check
+      await Promise.all(
+        selectedItems.map(bookId =>
+          axios.delete(`/api/cart/remove/${bookId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        )
+      );
+
+      // Cập nhật lại giao diện và state sau khi xóa thành công
+      const newCart = cart.filter(i => !selectedItems.includes(i.book._id));
+      setCart(newCart);
+      setSelectedItems([]); // Reset lại mảng chọn
+      setCartCountStore(newCart.reduce((sum, i) => sum + i.quantity, 0));
+    } catch (err) {
+      console.error('Lỗi khi xoá nhiều sản phẩm:', err);
+    }
+  };
+
   const proceedToCheckout = () => {
     if (selectedItems.length === 0) {
       alert('Vui lòng chọn ít nhất một sản phẩm để thanh toán');
@@ -105,7 +128,7 @@ const Cart = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <div className="w-full lg:w-[68%] flex flex-col gap-3">
             {cart.length === 0 ? (
@@ -121,11 +144,33 @@ const Cart = () => {
               </div>
             ) : (
               <>
-                <div className="bg-white border border-gray-100 px-5 py-3.5 flex items-center gap-3 select-none">
-                  <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-4 h-4 accent-black cursor-pointer" />
-                  <label className="text-sm font-medium text-stone-600 cursor-pointer select-none">
-                    Chọn tất cả ({selectableIds.length} sản phẩm)
-                  </label>
+                {/* THANH CÔNG CỤ: CHỌN TẤT CẢ & XÓA NHIỀU */}
+                <div className="bg-white border border-gray-100 px-4 md:px-5 py-3.5 flex items-center justify-between select-none">
+
+                  {/* Cụm checkbox bên trái */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 accent-black cursor-pointer"
+                    />
+                    <label className="text-sm font-medium text-stone-600 cursor-pointer select-none">
+                      Chọn tất cả ({selectableIds.length} sản phẩm)
+                    </label>
+                  </div>
+
+                  {/* Nút Xóa + Icon bên phải (Chỉ hiện khi có item được check) */}
+                  {selectedItems.length > 0 && (
+                    <button
+                      onClick={removeSelectedItems}
+                      className="text-sm font-bold text-red-500 hover:text-red-700 transition-colors flex items-center gap-2 animate-in fade-in zoom-in duration-200"
+                    >
+                      <FontAwesomeIcon icon={['fas', 'trash']} />
+                      Xóa ({selectedItems.length})
+                    </button>
+                  )}
+
                 </div>
 
                 {cart.map((item) => {
@@ -134,58 +179,69 @@ const Cart = () => {
                   const currentPrice = item.book.discountedPrice || item.book.price;
 
                   return (
-                    <div key={item.book._id} className={`bg-white border border-gray-100 px-5 py-4 flex items-center select-none gap-4 transition-opacity duration-200 ${outOfStock ? 'opacity-60' : ''}`}>
-                      <div className="flex-shrink-0">
-                        {!outOfStock ? (
-                          <input type="checkbox" checked={selectedItems.includes(item.book._id)} onChange={(e) => toggleItemSelect(item.book._id, e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
-                        ) : (
-                          <div className="w-4 h-4" />
-                        )}
+                    <div key={item.book._id} className={`relative bg-white border border-gray-100 p-4 md:px-5 md:py-4 flex flex-col md:flex-row md:items-center select-none gap-4 md:gap-4 transition-opacity duration-200 ${outOfStock ? 'opacity-60' : ''}`}>
+
+                      {/* CỤM TRÁI: Checkbox + Ảnh + Thông tin sách */}
+                      <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1 min-w-0">
+                        <div className="flex-shrink-0 mt-1 md:mt-0">
+                          {!outOfStock ? (
+                            <input type="checkbox" checked={selectedItems.includes(item.book._id)} onChange={(e) => toggleItemSelect(item.book._id, e.target.checked)} className="w-4 h-4 accent-black cursor-pointer" />
+                          ) : (
+                            <div className="w-4 h-4" />
+                          )}
+                        </div>
+
+                        <img src={imgSrc} className="w-20 h-28 md:w-16 md:h-24 object-cover flex-shrink-0 cursor-pointer" alt={item.book.title} onClick={() => navigate(`/books/${item.book._id}`)} />
+
+                        {/* pr-8 trên mobile để tránh đè lên nút Xóa góc phải */}
+                        <div className="flex-1 min-w-0 pr-8 md:pr-0">
+                          <h3 className="font-semibold text-sm text-black line-clamp-2 cursor-pointer hover:underline underline-offset-2" onClick={() => navigate(`/books/${item.book._id}`)}>
+                            {item.book.title}
+                          </h3>
+                          <p className="text-xs text-stone-400 mt-1">{item.book.author}</p>
+                          {outOfStock ? (
+                            <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 px-2 py-0.5">Hết hàng</span>
+                          ) : (
+                            <p className="text-xs text-stone-400 mt-1">Còn {item.book.stock} sản phẩm</p>
+                          )}
+                          {item.book.discountedPrice ? (
+                            <div className="mt-2 flex items-baseline gap-2">
+                              <p className="text-sm font-bold text-rose-600">{formatPrice(item.book.discountedPrice)}₫</p>
+                              <p className="text-xs text-stone-400 line-through">{formatPrice(item.book.price)}₫</p>
+                            </div>
+                          ) : (
+                            <p className="text-sm font-bold text-black mt-2">{formatPrice(item.book.price)}₫</p>
+                          )}
+                        </div>
                       </div>
 
-                      <img src={imgSrc} className="w-16 h-24 object-cover flex-shrink-0 cursor-pointer" alt={item.book.title} onClick={() => navigate(`/books/${item.book._id}`)} />
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm text-black line-clamp-2 cursor-pointer hover:underline underline-offset-2" onClick={() => navigate(`/books/${item.book._id}`)}>
-                          {item.book.title}
-                        </h3>
-                        <p className="text-xs text-stone-400 mt-1">{item.book.author}</p>
-                        {outOfStock ? (
-                          <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 px-2 py-0.5">Hết hàng</span>
-                        ) : (
-                          <p className="text-xs text-stone-400 mt-1">Còn {item.book.stock} sản phẩm</p>
-                        )}
-                        {item.book.discountedPrice ? (
-                          <div className="mt-2 flex items-baseline gap-2">
-                            <p className="text-sm font-bold text-rose-600">{formatPrice(item.book.discountedPrice)}₫</p>
-                            <p className="text-xs text-stone-400 line-through">{formatPrice(item.book.price)}₫</p>
+                      {/* CỤM PHẢI: Tăng giảm số lượng + Thành tiền + Nút xóa */}
+                      <div className="flex items-center justify-between md:justify-end w-full md:w-auto pl-7 md:pl-0 mt-2 md:mt-0 gap-4">
+                        {!outOfStock && (
+                          <div className="flex border border-gray-200 flex-shrink-0 h-8">
+                            <button onClick={() => item.quantity > 1 && updateQuantity(item.book._id, item.quantity - 1)} className="w-8 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600 disabled:opacity-30" disabled={item.quantity <= 1}>
+                              <FontAwesomeIcon icon={['fas', 'minus']} className="text-xs" />
+                            </button>
+                            <div className="w-10 flex items-center justify-center text-sm font-semibold border-x border-gray-200">{item.quantity}</div>
+                            <button onClick={() => updateQuantity(item.book._id, item.quantity + 1)} disabled={item.quantity >= item.book.stock} className="w-8 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                              <FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" />
+                            </button>
                           </div>
-                        ) : (
-                          <p className="text-sm font-bold text-black mt-2">{formatPrice(item.book.price)}₫</p>
                         )}
-                      </div>
 
-                      {!outOfStock && (
-                        <div className="flex border border-gray-200 flex-shrink-0">
-                          <button onClick={() => item.quantity > 1 && updateQuantity(item.book._id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600 disabled:opacity-30" disabled={item.quantity <= 1}>
-                            <FontAwesomeIcon icon={['fas', 'minus']} className="text-xs" />
-                          </button>
-                          <div className="w-10 h-8 flex items-center justify-center text-sm font-semibold border-x border-gray-200">{item.quantity}</div>
-                          <button onClick={() => updateQuantity(item.book._id, item.quantity + 1)} disabled={item.quantity >= item.book.stock} className="w-8 h-8 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600 disabled:opacity-30 disabled:cursor-not-allowed">
-                            <FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" />
+                        <div className="flex flex-col items-end md:items-center gap-1 md:gap-2 flex-shrink-0 min-w-[88px]">
+                          <p className="text-xs text-stone-400 hidden md:block">Thành tiền</p>
+                          <p className={`font-bold text-sm md:text-base ${outOfStock ? 'text-stone-300' : 'text-black'}`}>
+                            {outOfStock ? '—' : `${formatPrice(currentPrice * item.quantity)}₫`}
+                          </p>
+
+                          {/* Nút xóa: Nằm góc phải trên cùng ở Mobile, nằm dưới Thành tiền ở Desktop */}
+                          <button onClick={() => removeItem(item.book._id)} className="absolute top-4 right-4 md:static md:mt-1 text-stone-300 hover:text-red-400 transition-colors" title="Xóa">
+                            <FontAwesomeIcon icon={['fas', 'trash']} className="text-sm md:text-base" />
                           </button>
                         </div>
-                      )}
-
-                      <div className="flex flex-col items-center gap-2 flex-shrink-0 min-w-[88px]">
-                        <p className="text-xs text-stone-400">Thành tiền</p>
-                        <p className={`font-bold text-sm ${outOfStock ? 'text-stone-300' : 'text-black'}`}>
-                          {outOfStock ? '—' : `${formatPrice(currentPrice * item.quantity)}₫`}
-                        </p>
-                        <button onClick={() => removeItem(item.book._id)} className="text-stone-300 hover:text-red-400 transition-colors mt-1" title="Xóa">
-                          <FontAwesomeIcon icon={['fas', 'trash']} className="text-m" />
-                        </button>
                       </div>
+
                     </div>
                   );
                 })}
@@ -193,6 +249,7 @@ const Cart = () => {
             )}
           </div>
 
+          {/* KHỐI TỔNG TIỀN (Panel Checkout) */}
           {cart.length > 0 && (
             <div className="w-full lg:w-[32%] sticky top-24">
               <div className="bg-white border border-gray-100 p-6">

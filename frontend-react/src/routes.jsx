@@ -11,6 +11,7 @@ import AuthLayout from '@/layouts/AuthLayout';
 import Home from '@/views/Home';
 import Login from '@/views/Login';
 import Register from '@/views/Register';
+import About from '@/views/About';
 import Cart from '@/views/Cart';
 import BookDetail from '@/views/BookDetail';
 import Favorites from '@/views/Favorites';
@@ -88,6 +89,7 @@ const AppRoutes = () => {
                     <Route path="books/:id" element={<BookDetail />} />
                     <Route path="favorites" element={<Favorites />} />
                     <Route path="cart" element={<Cart />} />
+                    <Route path="about" element={<About />} />
                     <Route path="search" element={<SearchResults />} />
                     <Route path="books/view-all" element={<ViewAllBooks />} />
                     <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

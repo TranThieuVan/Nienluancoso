@@ -284,14 +284,16 @@ const BookDetail = () => {
         <div className="flex flex-col md:flex-row gap-12">
 
           {/* ── LEFT COLUMN ── */}
-          <div className="md:w-[52%] flex flex-col gap-10">
-            {/* Cover Image */}
-            <div className="bg-stone-50 overflow-hidden aspect-[3/4] max-w-sm mx-auto w-full shadow-md select-none">
+          {/* Đổi thành contents trên mobile để phá vỡ vách ngăn cột, md:flex để giữ nguyên trên desktop */}
+          <div className="contents md:flex md:w-[52%] flex-col gap-10">
+
+            {/* Cover Image (Mobile: Hiển thị ĐẦU TIÊN) */}
+            <div className="order-1 md:order-none mb-10 md:mb-0 bg-stone-50 overflow-hidden aspect-[3/4] max-w-sm mx-auto w-full shadow-md select-none">
               <img src={imgSrc} alt={book.title} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
             </div>
 
-            {/* Book Details */}
-            <div className="border border-gray-100 p-6">
+            {/* Book Details (Mobile: Hiển thị THỨ BA, sau phần Giá/Mua hàng) */}
+            <div className="order-3 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-3 border-b border-gray-100">
                 Chi tiết sản phẩm
               </h2>
@@ -315,8 +317,8 @@ const BookDetail = () => {
               )}
             </div>
 
-            {/* Rating Section */}
-            <div className="border border-gray-100 p-6">
+            {/* Rating Section (Mobile: Hiển thị THỨ TƯ) */}
+            <div className="order-4 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Đánh giá của bạn</h2>
                 <div className="flex gap-1.5 text-base">
@@ -332,8 +334,8 @@ const BookDetail = () => {
               </div>
             </div>
 
-            {/* Comments Section */}
-            <div>
+            {/* Comments Section (Mobile: Hiển thị CUỐI CÙNG - đúng ý bạn) */}
+            <div className="order-5 md:order-none mb-10 md:mb-0">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 pb-3 border-b border-gray-100">
                 Bình luận ({comments.length})
               </h2>
@@ -432,8 +434,11 @@ const BookDetail = () => {
           </div>
 
           {/* ── RIGHT COLUMN (sticky) ── */}
-          <div className="md:w-[48%]">
-            <div className="md:sticky md:top-24">
+          {/* Cột phải cũng trở thành contents trên mobile, và block trên desktop */}
+          <div className="contents md:block md:w-[48%]">
+
+            {/* Khối chức năng Mua hàng (Mobile: Hiển thị THỨ HAI, ngay sau Cover Image) */}
+            <div className="order-2 md:order-none mb-10 md:mb-0 md:sticky md:top-24">
               {/* Genre Tag */}
               <span className="inline-block text-[10px] tracking-[0.3em] uppercase border border-stone-200 text-stone-400 px-3 py-1 mb-4">
                 {book.genre}
@@ -455,7 +460,7 @@ const BookDetail = () => {
                 <span className="text-xs text-stone-400">({totalRatings} đánh giá)</span>
               </div>
 
-              {/* ✅ ĐÃ SỬA: Hiển thị giá Sale và Giá gốc gạch ngang */}
+              {/* Giá Sale và Giá gốc */}
               <div className="mb-6 pb-6 border-b border-gray-100">
                 {book.discountedPrice && book.discountedPrice < book.price ? (
                   <div className="flex items-end gap-3">
