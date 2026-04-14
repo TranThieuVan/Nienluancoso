@@ -69,25 +69,32 @@ exports.getMyOrders = async (req, res) => {
         const userId = req.user._id || req.user.id;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 5;
+        const { startDate, endDate } = req.query; // Nhận tham số ngày từ frontend
+
         const skip = (page - 1) * limit;
 
-        const totalOrders = await Order.countDocuments({ user: userId });
+        // Xây dựng query lọc theo user và thời gian
+        let query = { user: userId };
+        if (startDate && endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Lấy đến cuối ngày của endDate
+            query.createdAt = { $gte: new Date(startDate), $lte: end };
+        }
+
+        const totalOrders = await Order.countDocuments(query);
         const totalPages = Math.ceil(totalOrders / limit) || 1;
 
-        const orders = await Order.find({ user: userId })
+        const orders = await Order.find(query)
             .sort({ createdAt: -1 })
             .populate('items.book')
             .skip(skip)
             .limit(limit);
-
-        // ❌ KHÔNG dùng PricingService ở đây để giữ nguyên giá lịch sử lúc khách mua
 
         res.json({ orders, currentPage: page, totalPages, totalOrders });
     } catch (err) {
         res.status(500).json({ msg: 'Lỗi khi lấy danh sách đơn hàng' });
     }
 };
-
 // Lấy chi tiết đơn hàng
 exports.getOrderById = async (req, res) => {
     try {

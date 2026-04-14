@@ -93,16 +93,16 @@ const SaleBookCard = ({ book, promotion }) => {
                     className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 mix-blend-multiply"
                 />
                 {/* ✅ HIỂN THỊ NHÃN ĐỘNG THEO ADMIN */}
-                <div className="absolute top-2 left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 tracking-widest z-10 shadow-sm">
+                <div className="absolute top-2 left-2 bg-rose-500 text-white text-[13px] font-bold px-2 py-1 tracking-widest z-10 shadow-sm">
                     {discountLabel}
                 </div>
             </div>
             <div className="p-4 flex flex-col flex-1 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-black line-clamp-2 leading-snug mb-1 group-hover/card:text-rose-600 transition-colors">{book.title}</h3>
-                <p className="text-[11px] text-stone-500 truncate mb-4">{book.author}</p>
+                <h3 className="text-lg font-bold text-black line-clamp-2 leading-snug mb-1 group-hover/card:text-rose-600 transition-colors">{book.title}</h3>
+                <p className="text-[15px] text-stone-500 truncate mb-4">{book.author}</p>
                 <div className="mt-auto">
-                    <p className="text-[11px] text-stone-400 line-through tabular-nums">{book.price?.toLocaleString('vi-VN')}₫</p>
-                    <p className="text-base font-bold text-rose-600 leading-tight tabular-nums mt-0.5">{book.discountedPrice?.toLocaleString('vi-VN')}₫</p>
+                    <p className="text-[15px] text-stone-400 line-through tabular-nums">{book.price?.toLocaleString('vi-VN')}₫</p>
+                    <p className="text-lg font-bold text-rose-600 leading-tight tabular-nums mt-0.5">{book.discountedPrice?.toLocaleString('vi-VN')}₫</p>
                 </div>
             </div>
         </div>
@@ -124,7 +124,7 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
     if (!livePromotions.length) return null;
 
     return (
-        <section className="w-full bg-stone-50 border-y border-gray-100 py-16 flex flex-col">
+        <section className="w-full bg-stone-50 border-y border-gray-200 py-16 flex flex-col">
             <div className="max-w-7xl mx-auto px-6 w-full flex-1 flex flex-col gap-16">
 
                 {livePromotions.map((promotion) => {
@@ -139,36 +139,42 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                             {/* Tiêu đề & Đồng hồ đếm ngược */}
                             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                                 <div className="flex flex-col gap-2">
-                                    <p className="text-[10px] tracking-[0.4em] uppercase font-bold text-rose-500 flex items-center gap-2">
-                                        <FontAwesomeIcon icon={['fas', 'bolt']} className="text-rose-500" /> Ưu đãi giới hạn
+                                    <p className="text-[13px] tracking-[0.3em] uppercase font-bold text-gray-500 flex items-center gap-2">
+                                        <FontAwesomeIcon icon={['fas', 'bolt']} className="text-black" /> Ưu đãi giới hạn
                                     </p>
                                     <div className="flex items-center gap-4">
-                                        <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-black">
+                                        <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-black uppercase">
                                             {promotion.name}
                                         </h2>
-                                        <span className="flex items-center gap-1.5 text-[9px] font-bold tracking-widest text-rose-600 bg-rose-100 border border-rose-200 px-2 py-1 uppercase rounded-full shadow-sm">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" /> Live
+
+                                        {/* ✅ Đổi nhãn Live sang Đen/Trắng sắc sảo */}
+                                        <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-white bg-black px-2.5 py-1 uppercase">
+                                            <span className="w-1.5 h-1.5 bg-white animate-pulse" /> Live
                                         </span>
                                     </div>
                                     {promotion.description && (
-                                        <p className="text-sm mt-3 max-w-xl leading-relaxed text-stone-500">
+                                        <p className="text-sm mt-3 max-w-xl leading-relaxed text-gray-500">
                                             {promotion.description}
                                         </p>
                                     )}
                                 </div>
 
-                                <div className="flex flex-col sm:items-end gap-4 shrink-0">
-                                    <div className="flex items-center gap-3 bg-white px-4 py-2 border border-gray-200 rounded-lg shadow-sm">
-                                        <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-stone-500">
+                                <div className="flex flex-col sm:items-end gap-5 shrink-0">
+
+                                    {/* ✅ Hộp Countdown: Bỏ góc bo tròn, dùng viền đen mỏng chuẩn cấu trúc */}
+                                    <div className="flex items-center gap-3 bg-white px-5 py-3 border border-black">
+                                        <span className="text-[12px] tracking-[0.2em] uppercase font-bold text-black">
                                             Kết thúc sau
                                         </span>
                                         <Countdown endDate={promotion.endDate} />
                                     </div>
+
+                                    {/* ✅ Nút xem tất cả: Đổi sang dạng Text Link có gạch chân cứng cáp */}
                                     <button
                                         onClick={() => navigate(`/books?filter=sale&promo=${promotion._id}`)}
-                                        className="text-xs font-bold tracking-widest uppercase border-b-2 border-black pb-1 transition-all text-stone-600 hover:text-rose-600 hover:border-rose-600 mt-2"
+                                        className="text-[12px] tracking-[0.2em] uppercase font-bold text-black border-b-2 border-black pb-0.5 hover:text-gray-500 hover:border-gray-500 transition-colors"
                                     >
-                                        Xem tất cả {saleBooks.length} sách →
+                                        Xem tất cả {saleBooks.length} sách
                                     </button>
                                 </div>
                             </div>

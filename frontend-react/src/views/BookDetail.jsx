@@ -270,7 +270,7 @@ const BookDetail = () => {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs tracking-widest uppercase text-stone-400">Đang tải...</p>
+        <p className="text-sm tracking-widest uppercase text-stone-400">Đang tải...</p>
       </div>
     );
   }
@@ -294,7 +294,7 @@ const BookDetail = () => {
 
             {/* Book Details (Mobile: Hiển thị THỨ BA, sau phần Giá/Mua hàng) */}
             <div className="order-3 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-3 border-b border-gray-100">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-4 pb-3 border-b border-gray-100">
                 Chi tiết sản phẩm
               </h2>
               <div className="space-y-3">
@@ -303,7 +303,7 @@ const BookDetail = () => {
                   { label: 'Tác giả', value: book.author },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex gap-6">
-                    <span className="text-xs text-stone-400 w-24 flex-shrink-0 pt-0.5">{label}</span>
+                    <span className="text-sm text-stone-400 w-24 flex-shrink-0 pt-0.5">{label}</span>
                     <span className="text-sm font-medium text-black">{value}</span>
                   </div>
                 ))}
@@ -311,7 +311,7 @@ const BookDetail = () => {
 
               {book.description && (
                 <div className="mt-6 pt-5 border-t border-gray-100">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Mô tả</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-3">Mô tả</h3>
                   <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-line">{book.description}</p>
                 </div>
               )}
@@ -320,7 +320,7 @@ const BookDetail = () => {
             {/* Rating Section (Mobile: Hiển thị THỨ TƯ) */}
             <div className="order-4 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Đánh giá của bạn</h2>
+                <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400">Đánh giá của bạn</h2>
                 <div className="flex gap-1.5 text-base">
                   {renderStars(rating, true)}
                 </div>
@@ -330,13 +330,13 @@ const BookDetail = () => {
                   {renderStars(averageRating, false)}
                 </div>
                 <span className="text-sm font-bold text-black">{averageRating.toFixed(1)}</span>
-                <span className="text-xs text-stone-400">({totalRatings} đánh giá)</span>
+                <span className="text-sm text-stone-400">({totalRatings} đánh giá)</span>
               </div>
             </div>
 
             {/* Comments Section (Mobile: Hiển thị CUỐI CÙNG - đúng ý bạn) */}
             <div className="order-5 md:order-none mb-10 md:mb-0">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 pb-3 border-b border-gray-100">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-6 pb-3 border-b border-gray-100">
                 Bình luận ({comments.length})
               </h2>
 
@@ -386,7 +386,7 @@ const BookDetail = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 mb-1">
                             <p className="text-sm font-semibold text-black">{cmt.userId.name}</p>
-                            <span className="text-xs font-medium text-stone-500">• {formatDate(cmt.createdAt)}</span>
+                            <span className="text-sm font-medium text-stone-500">• {formatDate(cmt.createdAt)}</span>
                           </div>
                           {isLoggedIn && isCommentOwner(cmt.userId) && (
                             <div className="relative">
@@ -398,8 +398,8 @@ const BookDetail = () => {
                               </button>
                               {menuOpenId === cmt._id && (
                                 <div className="absolute right-0 top-6 bg-white border border-gray-100 shadow-lg z-10 min-w-[120px] py-1">
-                                  <button onClick={() => startEdit(cmt)} className="flex items-center gap-2.5 px-4 py-2 hover:bg-stone-50 w-full text-left text-sm text-stone-600"><FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />Chỉnh sửa</button>
-                                  <button onClick={() => deleteComment(cmt._id)} className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 w-full text-left text-sm text-red-500"><FontAwesomeIcon icon={['fas', 'trash']} className="text-xs" />Xoá</button>
+                                  <button onClick={() => startEdit(cmt)} className="flex items-center gap-2.5 px-4 py-2 hover:bg-stone-50 w-full text-left text-sm text-stone-600"><FontAwesomeIcon icon={['fas', 'pen']} className="text-sm" />Chỉnh sửa</button>
+                                  <button onClick={() => deleteComment(cmt._id)} className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 w-full text-left text-sm text-red-500"><FontAwesomeIcon icon={['fas', 'trash']} className="text-sm" />Xoá</button>
                                 </div>
                               )}
                             </div>
@@ -407,15 +407,15 @@ const BookDetail = () => {
                         </div>
 
                         {cmt.isHidden ? (
-                          <p className="text-xs text-red-400 italic mt-1">Bình luận đã bị ẩn: {cmt.hiddenReason}</p>
+                          <p className="text-sm text-red-400 italic mt-1">Bình luận đã bị ẩn: {cmt.hiddenReason}</p>
                         ) : editId !== cmt._id ? (
                           <p className="text-sm text-stone-600 mt-1 leading-relaxed">{cmt.content}</p>
                         ) : (
                           <div className="mt-2">
                             <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows="2" className="w-full p-2.5 border border-gray-200 focus:border-black outline-none text-sm resize-none transition-colors" />
                             <div className="flex gap-3 mt-2">
-                              <button onClick={() => saveEdit(cmt._id)} className="text-xs font-semibold text-black hover:underline">Lưu</button>
-                              <button onClick={() => { setEditId(null); setEditContent(''); }} className="text-xs text-stone-400 hover:underline">Huỷ</button>
+                              <button onClick={() => saveEdit(cmt._id)} className="text-sm font-semibold text-black hover:underline">Lưu</button>
+                              <button onClick={() => { setEditId(null); setEditContent(''); }} className="text-sm text-stone-400 hover:underline">Huỷ</button>
                             </div>
                           </div>
                         )}
@@ -424,8 +424,8 @@ const BookDetail = () => {
                   ))}
                   {(hasMoreComments || commentPage > 1) && (
                     <div className="flex justify-center items-center gap-6 mt-6 pt-2">
-                      {commentPage > 1 && <button onClick={handleCollapseComments} className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors">Ẩn bớt</button>}
-                      {hasMoreComments && <button onClick={() => fetchComments(commentPage + 1, true)} disabled={isLoadingComments} className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors disabled:opacity-50">{isLoadingComments ? 'Đang tải...' : 'Xem thêm bình luận'}</button>}
+                      {commentPage > 1 && <button onClick={handleCollapseComments} className="text-sm font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors">Ẩn bớt</button>}
+                      {hasMoreComments && <button onClick={() => fetchComments(commentPage + 1, true)} disabled={isLoadingComments} className="text-sm font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors disabled:opacity-50">{isLoadingComments ? 'Đang tải...' : 'Xem thêm bình luận'}</button>}
                     </div>
                   )}
                 </div>
@@ -457,7 +457,7 @@ const BookDetail = () => {
                 <div className="flex gap-0.5 text-sm">
                   {renderStars(averageRating, false)}
                 </div>
-                <span className="text-xs text-stone-400">({totalRatings} đánh giá)</span>
+                <span className="text-sm text-stone-400">({totalRatings} đánh giá)</span>
               </div>
 
               {/* Giá Sale và Giá gốc */}
@@ -483,12 +483,12 @@ const BookDetail = () => {
 
               {/* Stock Status */}
               {book.stock > 0 ? (
-                <p className="text-xs text-green-600 flex items-center gap-2 mb-6">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                <p className="text-sm text-stone-500 flex items-center gap-2 mb-6">
+                  <span className="w-1.5 h-1.5 rounded-full bg-stone-500 inline-block" />
                   Còn hàng · {book.stock} sản phẩm
                 </p>
               ) : (
-                <p className="text-xs text-red-500 flex items-center gap-2 mb-6">
+                <p className="text-sm text-red-500 flex items-center gap-2 mb-6">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
                   Hết hàng
                 </p>
@@ -502,7 +502,7 @@ const BookDetail = () => {
                       onClick={() => setQuantity(q => Math.max(1, q - 1))}
                       className="w-10 h-10 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600"
                     >
-                      <FontAwesomeIcon icon={['fas', 'minus']} className="text-xs" />
+                      <FontAwesomeIcon icon={['fas', 'minus']} className="text-sm" />
                     </button>
                     <div className="w-12 h-10 flex items-center justify-center font-semibold text-sm border-x border-gray-200">
                       {quantity}
@@ -511,10 +511,10 @@ const BookDetail = () => {
                       onClick={() => setQuantity(q => Math.min(book.stock, q + 1))}
                       className="w-10 h-10 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600"
                     >
-                      <FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" />
+                      <FontAwesomeIcon icon={['fas', 'plus']} className="text-sm" />
                     </button>
                   </div>
-                  <span className="text-xs text-stone-400">Tối đa {book.stock} sản phẩm</span>
+                  <span className="text-sm text-stone-400">Tối đa {book.stock} sản phẩm</span>
                 </div>
               )}
 
@@ -556,7 +556,7 @@ const BookDetail = () => {
                   { icon: 'rotate-left', text: 'Đổi trả trong 7 ngày nếu sản phẩm lỗi' },
                   { icon: 'shield-halved', text: 'Cam kết sách chính hãng, chất lượng' },
                 ].map(({ icon, text }) => (
-                  <div key={text} className="flex items-center gap-3 text-xs text-stone-500">
+                  <div key={text} className="flex items-center gap-3 text-sm text-stone-500">
                     <FontAwesomeIcon icon={['fas', icon]} className="text-stone-300 w-4 flex-shrink-0" />
                     {text}
                   </div>

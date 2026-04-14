@@ -4,9 +4,10 @@ import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Swal from 'sweetalert2';
 
+// ✅ ĐÃ SỬA: Đổi icon cho pending và confirmed
 const stepIcons = {
-    pending: ['fas', 'clipboard-list'],
-    confirmed: ['fas', 'check'],
+    pending: ['fas', 'file-invoice'],
+    confirmed: ['fas', 'clipboard-check'],
     delivering: ['fas', 'truck'],
     delivered: ['fas', 'box-open'],
     completed: ['fas', 'star'],
@@ -254,7 +255,6 @@ const OrderDetail = () => {
     const isRejected = order.status === 'completed' && order.adminNote?.toLowerCase().includes('từ chối');
     const approvalEntry = order.statusHistory?.find((h) => h.status === 'return_approved');
 
-    // ✅ ĐÃ SỬA: Lấy item.price đã chốt lúc mua
     const subTotal = order.items.reduce((sum, item) => {
         const currentPrice = item.price || item.book?.discountedPrice || item.book?.price || 0;
         return sum + currentPrice * item.quantity;
@@ -264,10 +264,10 @@ const OrderDetail = () => {
         <div className="min-h-screen bg-stone-50 pb-16">
             <div className="bg-white border-b border-gray-100">
                 <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
-                    <button onClick={() => navigate('/orders')} className="text-xs font-bold uppercase tracking-widest text-stone-400 hover:text-black transition-colors flex items-center gap-2"><FontAwesomeIcon icon={['fas', 'arrow-left']} /> Đơn hàng của tôi</button>
+                    <button onClick={() => navigate('/orders')} className="text-lg font-bold uppercase tracking-widest text-stone-400 hover:text-black transition-colors flex items-center gap-2"><FontAwesomeIcon icon={['fas', 'arrow-left']} /> Đơn hàng của tôi</button>
                     <div className="text-right">
-                        <span className="text-[9px] text-stone-400 uppercase tracking-[0.3em] font-bold block">Mã đơn hàng</span>
-                        <span className="font-mono font-bold text-black text-sm">#{order._id.slice(-6).toUpperCase()}</span>
+                        <span className="text-[15px] text-stone-400 uppercase tracking-[0.3em] font-bold block">Mã đơn hàng</span>
+                        <span className="font-mono font-bold text-black text-lg">#{order._id.slice(-6).toUpperCase()}</span>
                     </div>
                 </div>
             </div>
@@ -275,39 +275,42 @@ const OrderDetail = () => {
             <div className="max-w-5xl mx-auto px-6 mt-8 space-y-5">
                 <div className="bg-white border border-gray-100 p-8">
                     <div className="flex items-start justify-between relative px-4 md:px-10">
-                        <div className="absolute top-5 left-[10%] right-[10%] h-px bg-gray-200 hidden md:block" />
-                        <div className={`absolute top-5 left-[10%] h-px transition-all duration-500 hidden md:block ${order.status === 'cancelled' || order.status === 'failed_delivery' ? 'bg-red-400' : 'bg-black'}`} style={{ width: `${(currentStepIndex / (steps.length - 1)) * 80}%` }} />
+                        <div className="absolute top-6 left-[10%] right-[10%] h-px bg-gray-200 hidden md:block" />
+                        <div className={`absolute top-6 left-[10%] h-px transition-all duration-500 hidden md:block ${order.status === 'cancelled' || order.status === 'failed_delivery' ? 'bg-red-400' : 'bg-black'}`} style={{ width: `${(currentStepIndex / (steps.length - 1)) * 80}%` }} />
                         {steps.map((step, index) => {
                             const isCompleted = index <= currentStepIndex;
                             const isActive = index === currentStepIndex;
                             const isError = step.isError && isCompleted;
                             const stepDate = getStepDate(step.id);
                             return (
-                                <div key={step.id} className="relative z-10 flex flex-col items-center w-16 md:w-24">
-                                    <div className={`w-10 h-10 border-2 flex items-center justify-center transition-all duration-300 bg-white ${isError ? 'border-red-500 text-red-500' : isCompleted ? 'border-black text-black' : 'border-gray-200 text-stone-300'}`}><FontAwesomeIcon icon={stepIcons[step.id]} className="text-sm" /></div>
-                                    <p className={`mt-3 text-[10px] md:text-xs font-bold text-center leading-tight ${isActive ? (isError ? 'text-red-500' : 'text-black') : isCompleted ? 'text-stone-600' : 'text-stone-300'}`}>{step.label}</p>
+                                // ✅ ĐÃ SỬA: Tăng box w-12 h-12, icon to hơn, label to hơn
+                                <div key={step.id} className="relative z-10 flex flex-col items-center w-20 md:w-28">
+                                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full border-2 flex items-center justify-center transition-all duration-300 bg-white ${isError ? 'border-red-500 text-red-500' : isCompleted ? 'border-black text-black' : 'border-gray-200 text-stone-300'}`}>
+                                        <FontAwesomeIcon icon={stepIcons[step.id]} className="text-lg md:text-xl" />
+                                    </div>
+                                    <p className={`mt-3 text-xs md:text-sm font-bold text-center leading-tight ${isActive ? (isError ? 'text-red-500' : 'text-black') : isCompleted ? 'text-stone-600' : 'text-stone-300'}`}>{step.label}</p>
                                     <div className="mt-1 flex flex-col items-center h-8">
-                                        {stepDate ? (<><span className="text-[9px] md:text-[10px] text-stone-500 font-semibold">{stepDate.time}</span><span className="text-[8px] md:text-[9px] text-stone-400">{stepDate.date}</span></>) : (<span className="text-[9px] text-stone-200">—</span>)}
+                                        {stepDate ? (<><span className="text-sm md:text-[15px] text-stone-500 font-semibold">{stepDate.time}</span><span className="text-[10px] px-2 md:text-[15px] text-stone-400">{stepDate.date}</span></>) : (<span className="text-[10px] text-stone-200">—</span>)}
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
                     <div className="mt-10 pt-5 border-t border-gray-100 text-center">
-                        <p className="text-xs uppercase tracking-widest text-stone-400 font-bold mb-2">Trạng thái hiện tại</p>
-                        {order.status === 'pending' && <p className="text-sm font-semibold text-black">Đơn hàng đang chờ nhân viên kiểm tra và xác nhận.</p>}
-                        {order.status === 'confirmed' && <p className="text-sm font-semibold text-black">Đơn hàng đã được duyệt và đang đóng gói.</p>}
-                        {order.status === 'delivering' && <p className="text-sm font-semibold text-blue-600">Kiện hàng đã được giao cho shipper. Vui lòng chú ý điện thoại!</p>}
-                        {order.status === 'return_requested' && <p className="text-sm font-semibold text-rose-600">Đã gửi khiếu nại. Vui lòng chờ Shop phản hồi trong 24h tới.</p>}
-                        {order.status === 'return_approved' && <p className="text-sm font-semibold text-indigo-600">Shop đã duyệt trả hàng. Vui lòng gửi lại hàng và cập nhật mã vận đơn!</p>}
-                        {order.status === 'returning' && <p className="text-sm font-semibold text-amber-600">Hàng đang trên đường hoàn về kho. Shop sẽ hoàn tiền ngay khi nhận được.</p>}
-                        {order.status === 'returned' && <p className="text-sm font-semibold text-emerald-600">Đã hoàn tiền! Cảm ơn bạn và mong bạn thông cảm về sự cố lần này.</p>}
-                        {order.status === 'completed' && !isRejected && <p className="text-sm font-semibold text-emerald-600">Đơn hàng đã hoàn tất thành công. Chúc bạn đọc sách vui vẻ!</p>}
+                        <p className="text-lg uppercase tracking-widest text-stone-400 font-bold mb-2">Trạng thái hiện tại</p>
+                        {order.status === 'pending' && <p className=" text-lg md:text-2xl font-semibold text-black">Đơn hàng đang chờ nhân viên kiểm tra và xác nhận.</p>}
+                        {order.status === 'confirmed' && <p className=" text-lg md:text-2xl font-semibold text-black">Đơn hàng đã được duyệt và đang đóng gói.</p>}
+                        {order.status === 'delivering' && <p className=" text-lg md:text-2xl font-semibold text-blue-600">Kiện hàng đã được giao cho shipper. Vui lòng chú ý điện thoại!</p>}
+                        {order.status === 'return_requested' && <p className=" text-lg md:text-2xl font-semibold text-rose-600">Đã gửi khiếu nại. Vui lòng chờ Shop phản hồi trong 24h tới.</p>}
+                        {order.status === 'return_approved' && <p className=" text-lg md:text-2xl font-semibold text-indigo-600">Shop đã duyệt trả hàng. Vui lòng gửi lại hàng và cập nhật mã vận đơn!</p>}
+                        {order.status === 'returning' && <p className=" text-lg md:text-2xl font-semibold text-amber-600">Hàng đang trên đường hoàn về kho. Shop sẽ hoàn tiền ngay khi nhận được.</p>}
+                        {order.status === 'returned' && <p className=" text-lg md:text-2xl font-semibold text-emerald-600">Đã hoàn tiền! Cảm ơn bạn và mong bạn thông cảm về sự cố lần này.</p>}
+                        {order.status === 'completed' && !isRejected && <p className=" text-lg md:text-2xl font-semibold text-emerald-600">Đơn hàng đã hoàn tất thành công. Chúc bạn đọc sách vui vẻ!</p>}
                     </div>
                     {order.trackingLink && !['cancelled'].includes(order.status) && (
                         <div className="mt-10 p-4 bg-stone-50 border border-gray-100 flex items-center justify-between">
-                            <div className="flex items-center gap-3"><div className="w-9 h-9 border border-gray-200 flex items-center justify-center text-stone-600"><FontAwesomeIcon icon={['fas', 'truck']} className="text-sm" /></div><div><p className="text-[9px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-0.5">Vận chuyển bởi</p><p className="text-sm font-bold text-black">{order.shippingProvider}</p></div></div>
-                            <a href={order.trackingLink} target="_blank" rel="noreferrer" className="px-5 py-2 border border-black text-black text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all">Tra cứu hành trình</a>
+                            <div className="flex items-center gap-3"><div className="w-9 h-9 border border-gray-200 flex items-center justify-center text-stone-600"><FontAwesomeIcon icon={['fas', 'truck']} className="text-sm" /></div><div><p className="text-[8px] md:text-sm uppercase tracking-[0.2em] font-bold text-stone-400 mb-0.5">Vận chuyển bởi</p><p className="text-sm md:text-lg font-bold text-black">{order.shippingProvider}</p></div></div>
+                            <a href={order.trackingLink} target="_blank" rel="noreferrer" className="px-6 py-2 border border-black text-black text-[11px] md:text-[15px] font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all">Tra cứu hành trình</a>
                         </div>
                     )}
                     {isRejected && (
@@ -335,7 +338,7 @@ const OrderDetail = () => {
                         )}
 
                         <div className="bg-white border border-gray-100 p-6">
-                            <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-stone-400 mb-5 pb-4 border-b border-gray-100">Sản phẩm đã đặt</p>
+                            <p className="text-[10px] md:text-base uppercase tracking-[0.3em] font-bold text-stone-400 mb-5 pb-4 border-b border-gray-100">Sản phẩm đã đặt</p>
                             <div className="flex flex-col divide-y divide-gray-50">
                                 {order.items.map((item) => {
                                     const currentPrice = item.price || item.book?.discountedPrice || item.book?.price || 0;
@@ -343,30 +346,29 @@ const OrderDetail = () => {
                                         <div key={item.book?._id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                                             <div className="flex items-center gap-4">
                                                 <img src={item.book?.image?.startsWith('http') ? item.book.image : `http://localhost:5000${item.book?.image}`} className="w-14 h-20 object-cover border border-gray-100 flex-shrink-0" alt={item.book?.title} />
-                                                <div><p className="text-sm font-semibold text-black line-clamp-2 leading-snug">{item.book?.title}</p><p className="text-xs text-stone-400 mt-1">x{item.quantity}</p></div>
+                                                <div><p className="text-sm md:text-base font-semibold text-black line-clamp-2 leading-snug">{item.book?.title}</p><p className="text-sm text-stone-400 mt-1">x{item.quantity}</p></div>
                                             </div>
-                                            <p className="text-sm font-bold text-black flex-shrink-0 ml-4">{formatPrice(currentPrice * item.quantity)}</p>
+                                            <p className="text-sm md:text-base md:text-base font-bold text-black flex-shrink-0 ml-4">{formatPrice(currentPrice * item.quantity)}</p>
                                         </div>
                                     );
                                 })}
                             </div>
 
                             <div className="mt-5 border-t border-gray-100 pt-5 space-y-2 text-sm">
-                                <div className="flex justify-between text-stone-500"><span>Tổng tiền hàng</span><span className="font-semibold text-black">{formatPrice(subTotal)}</span></div>
-                                <div className="flex justify-between text-stone-500"><span>Phí vận chuyển</span><span className="font-semibold text-black">{formatPrice(order.shippingFee || 0)}</span></div>
-                                {/* ✅ CHỈ HIỂN THỊ VOUCHER NẾU ADMIN CÓ TẠO MÃ VÀ KHÁCH CÓ NHẬP */}
+                                <div className="flex md:text-base justify-between text-stone-500"><span>Tổng tiền hàng</span><span className="font-semibold md:text-base text-black">{formatPrice(subTotal)}</span></div>
+                                <div className="flex md:text-base justify-between text-stone-500"><span>Phí vận chuyển</span><span className="font-semibold md:text-base text-black">{formatPrice(order.shippingFee || 0)}</span></div>
                                 {order.discountAmount > 0 && <div className="flex justify-between text-emerald-600"><span>Voucher giảm giá {order.voucherCode ? `(${order.voucherCode})` : ''}</span><span className="font-bold">−{formatPrice(order.discountAmount)}</span></div>}
-                                <div className="flex justify-between items-center pt-4 mt-2 border-t border-gray-100"><span className="font-bold text-black">Tổng thanh toán</span><span className="text-xl font-black text-black">{formatPrice(order.totalPrice)}</span></div>
+                                <div className="flex md:text-base justify-between items-center pt-4 mt-2 border-t border-gray-100"><span className="font-bold text-black">Tổng thanh toán</span><span className="text-xl font-black text-black">{formatPrice(order.totalPrice)}</span></div>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-5">
                         <div className="bg-white border border-gray-100 p-6">
-                            <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-stone-400 mb-5 pb-4 border-b border-gray-100">Thông tin nhận hàng</p>
-                            <div className="space-y-4 text-sm">
-                                {[{ label: 'Người nhận', value: order.shippingAddress.fullName }, { label: 'Điện thoại', value: order.shippingAddress.phone }, { label: 'Địa chỉ', value: formatAddress(order.shippingAddress) }].map(({ label, value }) => (<div key={label}><span className="text-[9px] uppercase tracking-[0.2em] font-bold text-stone-400 block mb-0.5">{label}</span><span className="font-semibold text-black leading-relaxed">{value}</span></div>))}
-                                <div><span className="text-[9px] uppercase tracking-[0.2em] font-bold text-stone-400 block mb-1">Thanh toán</span><span className="text-[10px] font-bold uppercase tracking-widest border border-gray-200 px-3 py-1 inline-block text-stone-600">{order.paymentMethod === 'vnpay' ? 'VNPAY' : order.paymentMethod === 'transfer' ? 'Chuyển khoản' : 'COD'}</span></div>
+                            <p className="text-[10px] md:text-sm uppercase tracking-[0.3em] font-bold text-stone-400 mb-5 pb-4 border-b border-gray-100">Thông tin nhận hàng</p>
+                            <div className="space-y-4 text-sm md:text-base">
+                                {[{ label: 'Người nhận', value: order.shippingAddress.fullName }, { label: 'Điện thoại', value: order.shippingAddress.phone }, { label: 'Địa chỉ', value: formatAddress(order.shippingAddress) }].map(({ label, value }) => (<div key={label}><span className="text-[11px] md:text-sm uppercase tracking-[0.2em] font-bold text-stone-400 block mb-0.5">{label}</span><span className="font-semibold text-black leading-relaxed">{value}</span></div>))}
+                                <div><span className="text-[11px] md:text-base uppercase tracking-[0.2em] font-bold text-stone-400 block mb-1">Thanh toán</span><span className="text-[10px] md:text-base font-bold uppercase tracking-widest border border-gray-200 px-3 py-1 inline-block text-stone-600">{order.paymentMethod === 'vnpay' ? 'VNPAY' : order.paymentMethod === 'transfer' ? 'Chuyển khoản' : 'COD'}</span></div>
                             </div>
                         </div>
 

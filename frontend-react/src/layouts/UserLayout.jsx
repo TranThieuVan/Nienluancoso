@@ -20,7 +20,7 @@ const UserLayout = () => {
     }, [userId]);
 
     return (
-        <div className="flex flex-col min-h-screen relative">
+        <div className="flex flex-col min-h-screen relative font-sans">
             <Navbar />
             <main className="flex-grow">
                 <Outlet />

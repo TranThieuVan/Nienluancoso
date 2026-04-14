@@ -73,15 +73,22 @@ const Home = () => {
         />
 
         {isBannerLoaded && (
-          <div className="absolute top-0 pointer-events-none z-10">
+          /* w-full và flex justify-center để căn giữa hoàn hảo */
+          /* top-0 để đưa lên sát mép trên cùng của banner */
+          <div className="absolute top-0 left-0 w-full flex justify-center pointer-events-none z-10">
             <SplitText
               text="BOOKNEST"
-              className="text-[60px] md:text-[120px] lg:text-[180px] font-bold tracking-widest text-black/30 drop-shadow-2xl whitespace-nowrap -mt-16"
+              /* QUAN TRỌNG: 
+                 - Xóa sạch margin âm (-mt-16)
+                 - Thêm 'leading-none' để triệt tiêu khoảng cách thừa phía trên của font chữ 
+              */
+              className="text-[60px] md:text-[120px] lg:text-[180px] font-bold tracking-[0.2em] text-black/20 drop-shadow-2xl whitespace-nowrap leading-none"
               delay={100}
               duration={1}
               ease="none"
               splitType="chars"
-              from={{ opacity: 0, y: 100 }}
+              /* Chỉnh y: 0 ở 'to' để khi xong hiệu ứng nó nằm đúng vị trí top-0 */
+              from={{ opacity: 0, y: 50 }}
               to={{ opacity: 1, y: 0, delay: 0.25 }}
               threshold={0.1}
               rootMargin="-100px"
@@ -89,7 +96,6 @@ const Home = () => {
             />
           </div>
         )}
-
         <div className={`origin-left absolute inset-y-0 left-0 w-1/2 bg-white z-50 pointer-events-none transition-transform duration-1000 ease-linear ${isBannerLoaded ? 'scale-x-0' : 'scale-x-100'}`}></div>
         <div className={`origin-right absolute inset-y-0 right-0 w-1/2 bg-white z-50 pointer-events-none transition-transform duration-1000 ease-linear ${isBannerLoaded ? 'scale-x-0' : 'scale-x-100'}`}></div>
       </section>
@@ -116,9 +122,9 @@ const Home = () => {
         {genreSections.map((section, index) => (
           <section
             key={section.genre}
-            className={`py-14 ${index < genreSections.length - 1 ? 'border-b border-gray-100' : ''}`}
+            className={`py-6 ${index < genreSections.length - 1 ? 'border-b border-gray-100' : ''}`}
           >
-            <p className="text-xs text-stone-400 mb-2">{section.sub}</p>
+            <p className="text-[17px] text-stone-400 mb-2">{section.sub}</p>
             <Suspense fallback={<Skeleton />}>
               <BookSlider
                 books={getBooksByGenre(section.genre)}

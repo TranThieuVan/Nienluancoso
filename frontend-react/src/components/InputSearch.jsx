@@ -76,7 +76,7 @@ const InputSearch = () => {
         onClick={() => setIsSearchOpen(!isSearchOpen)}
         className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-stone-50 transition-colors text-stone-600 hover:text-black focus:outline-none"
       >
-        <FontAwesomeIcon icon={['fas', 'magnifying-glass']} className="text-[17px]" />
+        <FontAwesomeIcon icon={['fas', 'magnifying-glass']} className="text-[20px]" />
       </button>
 
       {/* ── KHUNG SEARCH TRƯỢT XUỐNG (Responsive Tuyệt Đối) ── */}

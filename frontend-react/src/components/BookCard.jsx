@@ -41,7 +41,7 @@ const BookCard = ({ book }) => {
 
                 {/* Discount Badge */}
                 {hasDiscount && (
-                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 tracking-wide">
+                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[12px] font-bold px-2 py-0.5 tracking-wide">
                         -{discountPct}%
                     </span>
                 )}
@@ -69,31 +69,35 @@ const BookCard = ({ book }) => {
             </div>
 
             {/* ── Info ── */}
-            <div
-                className="py-3 flex flex-col flex-grow cursor-pointer"
+            {/* ✅ 1. Thêm min-w-0 vào đây để các thẻ truncate bên trong được hoạt động */}
+            <div className="py-3 flex flex-col flex-grow cursor-pointer min-w-0">
 
-            >
+                {/* ✅ 2. Bỏ line-clamp-2 và thay bằng truncate */}
                 <h2
-                    className="text-xs font-semibold text-black leading-snug line-clamp-2"
+                    className="text-[15px] font-semibold text-black truncate"
                     title={book.title}
                 >
                     {book.title}
                 </h2>
-                <p className="text-[11px] text-stone-400 mt-1 truncate">{book.author}</p>
 
-                {/* Price */}
-                <div className="mt-2 flex items-baseline gap-2">
+                {/* Tác giả đã có sẵn truncate */}
+                <p className="text-[14px] text-stone-400 mt-1 truncate">
+                    {book.author}
+                </p>
+
+                {/* ✅ 3. Thêm truncate vào cả khung giá tiền để không bao giờ bị rớt dòng */}
+                <div className="mt-2 flex items-baseline gap-2 truncate">
                     {hasDiscount ? (
                         <>
-                            <span className="text-sm font-bold text-black">
+                            <span className="text-lg font-bold text-black truncate">
                                 {book.discountedPrice?.toLocaleString('vi-VN')}₫
                             </span>
-                            <span className="text-[11px] text-stone-400 line-through">
+                            <span className="text-[13px] text-stone-400 line-through truncate">
                                 {book.price?.toLocaleString('vi-VN')}₫
                             </span>
                         </>
                     ) : (
-                        <span className="text-sm font-bold text-black">
+                        <span className="text-lg font-bold text-black truncate">
                             {book.price?.toLocaleString('vi-VN')}₫
                         </span>
                     )}

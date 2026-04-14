@@ -5,38 +5,13 @@ import Swal from 'sweetalert2';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 
-// ── RANK CONFIG (Đã chuyển đổi hoàn toàn sang Tailwind CSS) ─────────
+// ── RANK CONFIG (Màu sắc bắt mắt, rực rỡ, không dùng gradient) ─────────
 const RANK_CONFIG = {
-  'Khách hàng': {
-    label: 'Khách hàng',
-    icon: ['fas', 'user'],
-    bgClass: 'bg-gradient-to-r from-gray-600 to-gray-400',
-    textColor: 'text-gray-600',
-  },
-  'Bạc': {
-    label: 'Bạc',
-    icon: ['fas', 'medal'],
-    bgClass: 'bg-gradient-to-r from-slate-500 to-slate-300',
-    textColor: 'text-slate-500',
-  },
-  'Vàng': {
-    label: 'Vàng',
-    icon: ['fas', 'star'],
-    bgClass: 'bg-gradient-to-r from-amber-600 to-yellow-400',
-    textColor: 'text-amber-500',
-  },
-  'Bạch kim': {
-    label: 'Bạch kim',
-    icon: ['fas', 'crown'],
-    bgClass: 'bg-gradient-to-r from-purple-700 to-purple-400',
-    textColor: 'text-purple-600',
-  },
-  'Kim cương': {
-    label: 'Kim cương',
-    icon: ['fas', 'gem'],
-    bgClass: 'bg-gradient-to-r from-sky-700 to-sky-400',
-    textColor: 'text-sky-600',
-  },
+  'Khách hàng': { label: 'Khách hàng', icon: ['fas', 'user'], bgClass: 'bg-stone-800', textColor: 'text-stone-600' },
+  'Bạc': { label: 'Bạc', icon: ['fas', 'medal'], bgClass: 'bg-gray-400', textColor: 'text-gray-500' },
+  'Vàng': { label: 'Vàng', icon: ['fas', 'star'], bgClass: 'bg-amber-500', textColor: 'text-amber-500' },
+  'Bạch kim': { label: 'Bạch kim', icon: ['fas', 'crown'], bgClass: 'bg-violet-600', textColor: 'text-violet-600' },
+  'Kim cương': { label: 'Kim cương', icon: ['fas', 'gem'], bgClass: 'bg-cyan-500', textColor: 'text-cyan-600' },
 };
 
 const Profile = () => {
@@ -44,14 +19,8 @@ const Profile = () => {
   const [tab, setTab] = useState('security');
   const { setUser: setAuthUser } = useAuthStore();
 
-  useEffect(() => {
-    if (location.state?.tab) setTab(location.state.tab);
-  }, [location.state]);
-
   const [user, setUser] = useState({ name: '', email: '', avatar: '', rank: 'Khách hàng' });
-  const [form, setForm] = useState({
-    currentPassword: '', newPassword: '', confirmPassword: '',
-  });
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -65,15 +34,22 @@ const Profile = () => {
   const [addressForm, setAddressForm] = useState({
     fullName: '', phone: '', street: '', ward: '', district: '', city: ''
   });
+
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
+
   const [preview, setPreview] = useState(null);
   const [pwMessage, setPwMessage] = useState('');
   const [pwMessageClass, setPwMessageClass] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
   const token = localStorage.getItem('token');
+
+  // ── INIT DATA ──
+  useEffect(() => {
+    if (location.state?.tab) setTab(location.state.tab);
+  }, [location.state]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,7 +63,7 @@ const Profile = () => {
         const resProvinces = await axios.get('https://provinces.open-api.vn/api/p/');
         setProvinces(resProvinces.data);
       } catch (err) {
-        console.error('Lỗi khi tải dữ liệu Profile:', err);
+        console.error('Lỗi tải dữ liệu:', err);
       }
     };
     fetchData();
@@ -100,6 +76,7 @@ const Profile = () => {
     }
   }, [editingName]);
 
+  // ── DATA FETCHERS ──
   const fetchAddresses = async () => {
     try {
       const resAddr = await axios.get('/api/addresses', { headers: { Authorization: `Bearer ${token}` } });
@@ -109,35 +86,65 @@ const Profile = () => {
 
   const fetchVouchers = async () => {
     try {
-      const t = localStorage.getItem('token');
       const resVouchers = await axios.get('http://localhost:5000/api/vouchers/active', {
-        headers: { Authorization: `Bearer ${t}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setVouchers(resVouchers.data);
     } catch (error) { console.error('Lỗi tải mã giảm giá', error); }
   };
 
+  // ── HANDLERS: ADDRESSES ──
   const handleProvinceChange = async (e) => {
-    const provinceCode = e.target.value;
-    const provinceName = provinces.find(p => p.code == provinceCode)?.name;
-    setAddressForm({ ...addressForm, city: provinceName, district: '', ward: '' });
+    const code = e.target.value;
+    const name = provinces.find(p => p.code == code)?.name;
+    setAddressForm({ ...addressForm, city: name, district: '', ward: '' });
     setWards([]);
-    if (provinceCode) {
-      const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+    if (code) {
+      const res = await axios.get(`https://provinces.open-api.vn/api/p/${code}?depth=2`);
       setDistricts(res.data.districts);
     }
   };
 
   const handleDistrictChange = async (e) => {
-    const districtCode = e.target.value;
-    const districtName = districts.find(d => d.code == districtCode)?.name;
-    setAddressForm({ ...addressForm, district: districtName, ward: '' });
-    if (districtCode) {
-      const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+    const code = e.target.value;
+    const name = districts.find(d => d.code == code)?.name;
+    setAddressForm({ ...addressForm, district: name, ward: '' });
+    if (code) {
+      const res = await axios.get(`https://provinces.open-api.vn/api/d/${code}?depth=2`);
       setWards(res.data.wards);
     }
   };
 
+  const saveAddress = async () => {
+    if (!addressForm.fullName || !addressForm.phone || !addressForm.street || !addressForm.ward || !addressForm.district || !addressForm.city) {
+      return Swal.fire({ title: 'Thiếu thông tin', text: 'Vui lòng điền đủ địa chỉ', icon: 'warning', confirmButtonColor: '#000' });
+    }
+    try {
+      if (isEditing) {
+        await axios.put(`/api/addresses/${currentAddressId}`, addressForm, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        await axios.post('/api/addresses', addressForm, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      fetchAddresses();
+      resetAddressForm();
+      Swal.fire({ title: 'Thành công', text: 'Đã lưu địa chỉ', icon: 'success', confirmButtonColor: '#000' });
+    } catch (err) { Swal.fire('Lỗi', 'Không thể lưu địa chỉ', 'error'); }
+  };
+
+  const resetAddressForm = () => {
+    setAddressForm({ fullName: '', phone: '', street: '', ward: '', district: '', city: '' });
+    setIsEditing(false);
+    setShowAddressForm(false);
+  };
+
+  const editAddress = (addr) => {
+    setAddressForm({ fullName: addr.fullName, phone: addr.phone, street: addr.street, ward: addr.ward, district: addr.district, city: addr.city });
+    setCurrentAddressId(addr._id);
+    setIsEditing(true);
+    setShowAddressForm(true);
+  };
+
+  // ── HANDLERS: USER INFO ──
   const changePassword = async () => {
     const { currentPassword, newPassword, confirmPassword } = form;
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -146,7 +153,7 @@ const Profile = () => {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPwMessage('Mật khẩu mới và nhập lại không trùng khớp!');
+      setPwMessage('Mật khẩu mới không khớp!');
       setPwMessageClass('text-red-500');
       return;
     }
@@ -164,35 +171,6 @@ const Profile = () => {
       setPwMessage(err.response?.data?.msg || 'Lỗi đổi mật khẩu');
       setPwMessageClass('text-red-500');
     }
-  };
-
-  const saveAddress = async () => {
-    if (!addressForm.fullName || !addressForm.phone || !addressForm.street || !addressForm.ward || !addressForm.district || !addressForm.city) {
-      return Swal.fire('Thông báo', 'Vui lòng điền đầy đủ thông tin địa chỉ', 'warning');
-    }
-    try {
-      if (isEditing) {
-        await axios.put(`/api/addresses/${currentAddressId}`, addressForm, { headers: { Authorization: `Bearer ${token}` } });
-      } else {
-        await axios.post('/api/addresses', addressForm, { headers: { Authorization: `Bearer ${token}` } });
-      }
-      fetchAddresses();
-      resetAddressForm();
-      Swal.fire('Thành công', 'Đã lưu địa chỉ', 'success');
-    } catch (err) { Swal.fire('Lỗi', 'Không thể lưu địa chỉ', 'error'); }
-  };
-
-  const resetAddressForm = () => {
-    setAddressForm({ fullName: '', phone: '', street: '', ward: '', district: '', city: '' });
-    setIsEditing(false);
-    setShowAddressForm(false);
-  };
-
-  const editAddress = (addr) => {
-    setAddressForm({ fullName: addr.fullName, phone: addr.phone, street: addr.street, ward: addr.ward, district: addr.district, city: addr.city });
-    setCurrentAddressId(addr._id);
-    setIsEditing(true);
-    setShowAddressForm(true);
   };
 
   const onFileChange = async (e) => {
@@ -225,10 +203,9 @@ const Profile = () => {
     } catch (err) { Swal.fire('Lỗi', 'Không thể cập nhật tên', 'error'); }
   };
 
-  const cancelEditName = () => {
-    setNameInput(user.name);
-    setEditingName(false);
-  };
+  // ── CONSTANTS & RENDER HELPERS ──
+  const inputClass = "w-full border border-gray-200 bg-stone-50 px-4 py-3 text-sm md:text-base outline-none focus:border-black focus:bg-white transition-all rounded-none";
+  const btnClass = "px-6 py-3 bg-black text-white text-sm md:text-base font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors w-full md:w-auto text-center rounded-none";
 
   const tabs = [
     { id: 'security', label: 'Bảo mật', icon: 'lock' },
@@ -236,223 +213,185 @@ const Profile = () => {
     { id: 'vouchers', label: 'Voucher', icon: 'ticket-alt' },
   ];
 
-  const inputClass = "w-full border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-black focus:bg-white transition-all";
-
   const rank = user.rank || 'Khách hàng';
   const rankCfg = RANK_CONFIG[rank] ?? RANK_CONFIG['Khách hàng'];
 
   return (
-    <div className="min-h-screen bg-gray-50/70 py-8 px-4">
-      <div className="max-w-5xl mx-auto space-y-4">
+    <div className="min-h-screen bg-stone-50 py-10 px-4 md:px-6">
+      <div className="max-w-5xl mx-auto space-y-8">
 
-        {/* ══ HERO CARD ══════════════════════════════════════════════════════ */}
-        <div className="relative overflow-hidden border border-gray-200 shadow-sm rounded-lg">
-
-          {/* ── Banner (Chỉ màu nền, Tên Rank, Logo) ── */}
-          <div className={`relative h-20 mb-6 w-full flex items-center justify-end px-6  ${rankCfg.bgClass}`}>
-            <div className="flex items-center gap-2 bg-black/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 shadow-inner">
-              <FontAwesomeIcon icon={rankCfg.icon} className="text-white text-lg" />
-              <span className="text-white font-bold text-sm tracking-wider uppercase">
+        {/* ══ HERO CARD (MINIMALIST) ════════════════════════════════════ */}
+        <div className="bg-white border border-gray-200">
+          {/* Banner */}
+          <div className={`w-full h-16 md:h-20 ${rankCfg.bgClass} flex items-center justify-end px-6 md:px-8`}>
+            <div className="flex items-center gap-2 text-white px-4 py-1.5 border border-white/30 backdrop-blur-sm">
+              <FontAwesomeIcon icon={rankCfg.icon} className="text-sm md:text-base" />
+              <span className="text-xs md:text-sm font-bold tracking-[0.2em] uppercase">
                 {rankCfg.label}
               </span>
             </div>
           </div>
 
-          {/* ── Card body ── */}
-          <div className="bg-white px-6 pb-5 rounded-b-lg">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-10 relative z-10">
+          {/* User Info & Stats */}
+          <div className="px-6 md:px-10 pb-8 flex flex-col md:flex-row md:items-end justify-between gap-8 -mt-10 md:-mt-12 relative z-10">
 
-              {/* Avatar + name */}
-              <div className="flex items-end gap-4">
-
-                {/* Avatar */}
-                <div className="relative">
-                  <div className="p-1 bg-white rounded-md shadow-md border border-gray-100">
-                    <img
-                      src={preview || `http://localhost:5000/${user.avatar || 'uploads/avatars/default-user.png'}`}
-                      className="w-24 h-24 object-cover block rounded-sm"
-                      alt="Avatar"
-                    />
-                  </div>
-                  <label className="absolute -bottom-2 -right-2 w-7 h-7 bg-white hover:bg-stone-100 text-stone-500 hover:text-black border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm transition rounded-full">
-                    <input type="file" onChange={onFileChange} className="hidden" accept="image/*" />
-                    <FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />
-                  </label>
+            {/* Left: Avatar + Name */}
+            <div className="flex flex-col sm:flex-row sm:items-end gap-5 md:gap-6">
+              <div className="relative shrink-0">
+                <div className="w-24 h-24 md:w-32 md:h-32 bg-white border border-gray-200 p-1">
+                  <img
+                    src={preview || `http://localhost:5000/${user.avatar || 'uploads/avatars/default-user.png'}`}
+                    className="w-full h-full object-cover"
+                    alt="Avatar"
+                  />
                 </div>
-
-                <div className="mb-1">
-                  {editingName ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        ref={nameInputRef}
-                        value={nameInput}
-                        onChange={e => setNameInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') cancelEditName(); }}
-                        className="text-lg font-bold text-gray-800 border-b-2 border-black outline-none bg-transparent w-44"
-                      />
-                      <button onClick={saveName} className="w-6 h-6 bg-stone-100 hover:bg-stone-200 text-black flex items-center justify-center transition border border-gray-200">
-                        <FontAwesomeIcon icon={['fas', 'check']} className="text-[10px]" />
-                      </button>
-                      <button onClick={cancelEditName} className="w-6 h-6 bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-black flex items-center justify-center transition border border-gray-200">
-                        <FontAwesomeIcon icon={['fas', 'xmark']} className="text-[10px]" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group">
-                      <h1 className="text-xl font-bold text-gray-800">{user.name || '—'}</h1>
-                      <button
-                        onClick={() => setEditingName(true)}
-                        className="w-6 h-6 bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-black flex items-center justify-center transition-all border border-gray-200"
-                        title="Chỉnh sửa tên"
-                      >
-                        <FontAwesomeIcon icon={['fas', 'pen']} className="text-xs" />
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-sm text-gray-400 mt-0.5">{user.email}</p>
-
-                  {/* Rank label under name */}
-                  <div className={`flex items-center gap-1.5 mt-1.5 ${rankCfg.textColor}`}>
-                    <FontAwesomeIcon icon={rankCfg.icon} className="text-[10px]" />
-                    <span className="text-xs font-semibold">Thành viên {rankCfg.label}</span>
-                  </div>
-                </div>
+                <label className="absolute -bottom-2 -right-2 w-8 h-8 md:w-10 md:h-10 bg-black text-white flex items-center justify-center cursor-pointer hover:bg-stone-800 transition-colors border border-white">
+                  <input type="file" onChange={onFileChange} className="hidden" accept="image/*" />
+                  <FontAwesomeIcon icon={['fas', 'pen']} className="text-xs md:text-sm" />
+                </label>
               </div>
 
-              {/* Stats */}
-              <div className="flex gap-5 text-center mb-1 bg-gray-50 px-4 py-2 rounded-md border border-gray-100">
-                <div>
-                  <p className="text-lg font-bold text-black">{addresses.length}</p>
-                  <p className="text-xs text-gray-400">Địa chỉ</p>
-                </div>
-                <div className="w-px bg-gray-200" />
-                <div>
-                  <p className="text-lg font-bold text-black">{vouchers.length}</p>
-                  <p className="text-xs text-gray-400">Voucher</p>
-                </div>
-                <div className="w-px bg-gray-200" />
-                <div>
-                  <p className="text-lg font-bold text-green-500">Active</p>
-                  <p className="text-xs text-gray-400">Trạng thái</p>
-                </div>
+              <div className="pb-1 mt-2 sm:mt-0">
+                {editingName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={nameInputRef}
+                      value={nameInput}
+                      onChange={e => setNameInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                      className="text-lg md:text-xl font-bold text-black border-b-2 border-black outline-none bg-transparent w-44 md:w-56"
+                    />
+                    <button onClick={saveName} className="w-7 h-7 md:w-8 md:h-8 bg-black text-white flex items-center justify-center transition-colors">
+                      <FontAwesomeIcon icon={['fas', 'check']} className="text-[10px] md:text-xs" />
+                    </button>
+                    <button onClick={() => setEditingName(false)} className="w-7 h-7 md:w-8 md:h-8 border border-gray-300 text-stone-500 hover:text-black flex items-center justify-center transition-colors bg-white">
+                      <FontAwesomeIcon icon={['fas', 'xmark']} className="text-[10px] md:text-xs" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 group">
+                    <h1 className="text-2xl md:text-3xl font-black text-black uppercase tracking-tight">{user.name || '—'}</h1>
+                    <button
+                      onClick={() => setEditingName(true)}
+                      className="w-7 h-7 bg-stone-100 text-stone-400 hover:bg-black hover:text-white flex items-center justify-center transition-colors border border-gray-200"
+                    >
+                      <FontAwesomeIcon icon={['fas', 'pen']} className="text-[10px]" />
+                    </button>
+                  </div>
+                )}
+                <p className="text-sm md:text-base text-stone-500 mt-1">{user.email}</p>
               </div>
             </div>
+
+            {/* Right: Stats */}
+            <div className="flex gap-8 border-t md:border-t-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-8 text-center">
+              <div>
+                <p className="text-xl md:text-2xl font-black text-black">{addresses.length}</p>
+                <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-[0.2em] mt-1">Địa chỉ</p>
+              </div>
+              <div className="w-px bg-gray-200" />
+              <div>
+                <p className="text-xl md:text-2xl font-black text-black">{vouchers.length}</p>
+                <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-[0.2em] mt-1">Voucher</p>
+              </div>
+              <div className="w-px bg-gray-200" />
+              <div>
+                <p className="text-xl md:text-2xl font-black text-emerald-600"><FontAwesomeIcon icon={['fas', 'check']} className="text-lg md:text-xl" /></p>
+                <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-[0.2em] mt-1">Active</p>
+              </div>
+            </div>
+
           </div>
         </div>
-        {/* ══ END HERO CARD ══════════════════════════════════════════════════ */}
 
-        {/* ── TAB BAR ── */}
-        <div className="bg-white border border-gray-100 p-1.5 flex gap-1 rounded-md shadow-sm select-none">
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-sm font-medium transition-all rounded-sm
-                ${tab === t.id ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
-            >
-              <FontAwesomeIcon icon={['fas', t.icon]} className="text-xs" />
-              <span className="hidden sm:inline">{t.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* ── MAIN CONTENT ── */}
+        <div className="bg-white border border-gray-200 p-6 md:p-8 min-h-[400px]">
 
-        {/* ── CONTENT ── */}
-        <div className="bg-white border border-gray-100 p-6 min-h-[380px] rounded-md shadow-sm">
+          {/* TAB BAR (Minimalist) */}
+          <div className="flex border-b border-gray-200 mb-8 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            {tabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex-1 min-w-[120px] py-4 flex items-center justify-center gap-2 text-xs md:text-sm font-bold uppercase tracking-[0.15em] transition-colors border-b-2
+                  ${tab === t.id ? 'border-black text-black' : 'border-transparent text-stone-400 hover:text-black hover:border-stone-300'}`}
+              >
+                <FontAwesomeIcon icon={['fas', t.icon]} />
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
 
           {/* TAB: BẢO MẬT */}
           {tab === 'security' && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-base font-bold text-gray-800">Bảo mật tài khoản</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Quản lý email và mật khẩu đăng nhập</p>
-              </div>
-              <hr className="border-gray-100" />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Cột trái: Email */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              {/* Email */}
+              <div className="space-y-5">
+                <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                  <FontAwesomeIcon icon={['fas', 'envelope']} className="text-stone-400 text-lg md:text-xl" />
+                  <h2 className="text-base md:text-lg font-bold text-black uppercase tracking-wide">Cập nhật Email</h2>
+                </div>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-stone-100 flex items-center justify-center rounded-sm">
-                      <FontAwesomeIcon icon={['fas', 'envelope']} className="text-stone-500 text-sm" />
-                    </div>
-                    <p className="text-sm font-semibold text-gray-700">Cập nhật Email</p>
+                  <div>
+                    <label className="block text-[10px] md:text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Email hiện tại</label>
+                    <input value={user.email} disabled className={`${inputClass} opacity-50 cursor-not-allowed`} />
                   </div>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Email hiện tại</label>
-                      <input value={user.email} disabled className={`${inputClass} opacity-50 cursor-not-allowed`} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Email mới</label>
-                      <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" className={inputClass} placeholder="Nhập email mới" />
-                    </div>
-                    <button className="p-2 hover-flip-btn w-full">Cập nhật email</button>
+                  <div>
+                    <label className="block text-[10px] md:text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Email mới</label>
+                    <input value={newEmail} onChange={e => setNewEmail(e.target.value)} type="email" className={inputClass} placeholder="Nhập email mới" />
                   </div>
+                  <button className={btnClass}>Cập nhật email</button>
                 </div>
+              </div>
 
-                {/* Cột phải: Mật khẩu */}
-                <div className="space-y-4 md:border-l md:border-gray-100 md:pl-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-stone-100 flex items-center justify-center rounded-sm">
-                      <FontAwesomeIcon icon={['fas', 'lock']} className="text-stone-500 text-sm" />
-                    </div>
-                    <p className="text-sm font-semibold text-gray-700">Đổi mật khẩu</p>
-                  </div>
-                  <div className="space-y-3">
-                    <input
-                      value={form.currentPassword}
-                      onChange={e => setForm({ ...form, currentPassword: e.target.value })}
-                      type="password"
-                      placeholder="Mật khẩu hiện tại"
-                      className={inputClass}
-                    />
-                    <input
-                      value={form.newPassword}
-                      onChange={e => setForm({ ...form, newPassword: e.target.value })}
-                      type="password"
-                      placeholder="Mật khẩu mới"
-                      className={inputClass}
-                    />
-                    <div>
-                      <input
-                        value={form.confirmPassword}
-                        onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                        type="password"
-                        placeholder="Nhập lại mật khẩu mới"
-                        className={`${inputClass} ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-400' : ''}`}
-                      />
-                      {form.confirmPassword && form.newPassword !== form.confirmPassword && (
-                        <p className="text-xs text-red-500 mt-1">Mật khẩu không khớp</p>
-                      )}
-                    </div>
-                    <button onClick={changePassword} className="p-2 hover-flip-btn w-full">Đổi mật khẩu</button>
-                    {pwMessage && <p className={`text-sm font-medium ${pwMessageClass}`}>{pwMessage}</p>}
-                  </div>
+              {/* Password */}
+              <div className="space-y-5 lg:border-l lg:border-gray-100 lg:pl-10">
+                <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                  <FontAwesomeIcon icon={['fas', 'lock']} className="text-stone-400 text-lg md:text-xl" />
+                  <h2 className="text-base md:text-lg font-bold text-black uppercase tracking-wide">Đổi mật khẩu</h2>
                 </div>
-
+                <div className="space-y-4">
+                  <input
+                    value={form.currentPassword} onChange={e => setForm({ ...form, currentPassword: e.target.value })}
+                    type="password" placeholder="Mật khẩu hiện tại" className={inputClass}
+                  />
+                  <input
+                    value={form.newPassword} onChange={e => setForm({ ...form, newPassword: e.target.value })}
+                    type="password" placeholder="Mật khẩu mới" className={inputClass}
+                  />
+                  <div>
+                    <input
+                      value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                      type="password" placeholder="Nhập lại mật khẩu mới"
+                      className={`${inputClass} ${form.confirmPassword && form.newPassword !== form.confirmPassword ? 'border-red-400' : ''}`}
+                    />
+                    {form.confirmPassword && form.newPassword !== form.confirmPassword && (
+                      <p className="text-[10px] md:text-xs text-red-500 mt-1.5 font-bold uppercase tracking-widest">Mật khẩu không khớp</p>
+                    )}
+                  </div>
+                  <button onClick={changePassword} className={btnClass}>Đổi mật khẩu</button>
+                  {pwMessage && <p className={`text-xs md:text-sm font-bold uppercase tracking-widest mt-2 ${pwMessageClass}`}>{pwMessage}</p>}
+                </div>
               </div>
             </div>
           )}
 
           {/* TAB: ĐỊA CHỈ */}
           {tab === 'address' && (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center select-none">
-                <div>
-                  <h2 className="text-base font-bold text-gray-800">Địa chỉ giao hàng</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">{addresses.length} địa chỉ đã lưu</p>
-                </div>
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+                <h2 className="text-base md:text-lg font-bold text-black uppercase tracking-wide">Danh sách địa chỉ</h2>
                 {!showAddressForm && (
-                  <button onClick={() => setShowAddressForm(true)} className="p-2 px-4 hover-flip-btn text-sm select-none">+ Thêm mới</button>
+                  <button onClick={() => setShowAddressForm(true)} className="px-5 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors text-xs md:text-sm font-bold uppercase tracking-widest">
+                    + Thêm mới
+                  </button>
                 )}
               </div>
-              <hr className="border-gray-100" />
 
               {showAddressForm ? (
-                <div className="bg-stone-50 border border-stone-200 p-5 space-y-4 select-none">
-                  <p className="text-sm font-semibold text-gray-700">{isEditing ? 'Chỉnh sửa địa chỉ' : 'Thêm địa chỉ mới'}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-stone-50 border border-gray-200 p-6 md:p-8 space-y-5">
+                  <p className="text-sm md:text-base font-bold text-black uppercase tracking-widest mb-2">{isEditing ? 'Sửa địa chỉ' : 'Địa chỉ mới'}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input placeholder="Họ và tên" value={addressForm.fullName} onChange={e => setAddressForm({ ...addressForm, fullName: e.target.value })} className={inputClass} />
                     <input placeholder="Số điện thoại" value={addressForm.phone} onChange={e => setAddressForm({ ...addressForm, phone: e.target.value })} className={inputClass} />
                     <select onChange={handleProvinceChange} className={inputClass}><option value="">-- Tỉnh / Thành --</option>{provinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>
@@ -460,36 +399,33 @@ const Profile = () => {
                     <select onChange={(e) => setAddressForm({ ...addressForm, ward: wards.find(w => w.code == e.target.value)?.name })} disabled={!wards.length} className={inputClass}><option value="">-- Phường / Xã --</option>{wards.map(w => <option key={w.code} value={w.code}>{w.name}</option>)}</select>
                     <input placeholder="Số nhà, tên đường" value={addressForm.street} onChange={e => setAddressForm({ ...addressForm, street: e.target.value })} className={inputClass} />
                   </div>
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={saveAddress} className="p-2 px-4 bg-black text-white hover:bg-gray-800 transition">Lưu</button>
-                    <button onClick={resetAddressForm} className="p-2 px-4 border border-gray-300 hover:bg-gray-100 transition">Hủy</button>
+                  <div className="flex gap-3 pt-3">
+                    <button onClick={saveAddress} className="px-8 py-3 bg-black text-white text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors">Lưu</button>
+                    <button onClick={resetAddressForm} className="px-8 py-3 border border-gray-300 text-stone-600 text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-stone-100 transition-colors">Hủy</button>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 select-none">
+                <div className="space-y-4">
                   {addresses.length > 0 ? addresses.map(addr => (
-                    <div key={addr._id} className="flex justify-between items-center p-4 border border-gray-100 hover:border-stone-700 hover:bg-stone-100 transition-all group">
-                      <div className="flex gap-3 items-start">
-                        <div className="w-9 h-9 bg-stone-100 flex items-center justify-center mt-0.5 shrink-0 rounded-full">
-                          <FontAwesomeIcon icon={['fas', 'map-marker-alt']} className="text-stone-500 text-sm" />
-                        </div>
+                    <div key={addr._id} className="flex flex-col sm:flex-row sm:items-start justify-between p-5 md:p-6 border border-gray-200 hover:border-black transition-colors group">
+                      <div className="flex gap-4 items-start">
+                        <FontAwesomeIcon icon={['fas', 'map-pin']} className="text-stone-300 text-sm md:text-base mt-1 shrink-0" />
                         <div>
-                          <p className="font-semibold text-gray-800 text-sm">
-                            {addr.fullName} <span className="text-gray-300 mx-1">|</span>
-                            <span className="font-normal text-gray-500">{addr.phone}</span>
+                          <p className="font-bold text-black text-sm md:text-base tracking-wide">
+                            {addr.fullName} <span className="text-stone-300 mx-2 font-normal">|</span> <span className="text-stone-500 font-medium">{addr.phone}</span>
                           </p>
-                          <p className="text-xs text-gray-400 mt-0.5">{addr.street}, {addr.ward}, {addr.district}, {addr.city}</p>
+                          <p className="text-xs md:text-sm text-stone-500 mt-2 leading-relaxed">{addr.street}, {addr.ward}, {addr.district}, {addr.city}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
-                        <button onClick={() => editAddress(addr)} className="p-1 px-3 border border-gray-200 hover:bg-gray-100 text-sm">Sửa</button>
-                        {!addr.isDefault && <button className="p-1 px-3 border border-gray-200 hover:bg-gray-100 text-sm text-red-500">Xóa</button>}
+                      <div className="flex gap-3 mt-4 sm:mt-0 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => editAddress(addr)} className="px-4 py-1.5 border border-gray-200 text-stone-600 hover:border-black hover:text-black transition-colors text-xs md:text-sm font-bold uppercase tracking-widest">Sửa</button>
+                        {!addr.isDefault && <button className="px-4 py-1.5 border border-red-200 text-red-500 hover:bg-red-50 transition-colors text-xs md:text-sm font-bold uppercase tracking-widest">Xóa</button>}
                       </div>
                     </div>
                   )) : (
-                    <div className="text-center py-16 text-gray-300">
-                      <FontAwesomeIcon icon={['fas', 'map-marker-alt']} className="text-5xl mb-3" />
-                      <p className="text-sm text-gray-400">Chưa có địa chỉ nào</p>
+                    <div className="text-center py-20 text-stone-400">
+                      <FontAwesomeIcon icon={['fas', 'map']} className="text-4xl md:text-5xl mb-4 opacity-50" />
+                      <p className="text-sm md:text-base font-medium">Chưa có địa chỉ giao hàng nào.</p>
                     </div>
                   )}
                 </div>
@@ -499,50 +435,45 @@ const Profile = () => {
 
           {/* TAB: VOUCHER */}
           {tab === 'vouchers' && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-base font-bold text-gray-800">Kho Voucher</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Các mã giảm giá đang có hiệu lực</p>
+            <div className="space-y-6">
+              <div className="border-b border-gray-100 pb-4">
+                <h2 className="text-base md:text-lg font-bold text-black uppercase tracking-wide">Kho Voucher của bạn</h2>
               </div>
-              <hr className="border-gray-100" />
 
               {vouchers.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {vouchers.map(v => (
-                    <div key={v._id} className="flex overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all h-24 rounded-md select-none">
-                      <div className="w-[88px] bg-black text-white flex flex-col justify-center items-center shrink-0 relative">
-                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full z-10 select-none" />
-                        <span className="text-xl font-black leading-none">
+                    <div key={v._id} className="flex border border-gray-200 hover:border-black transition-colors h-28 md:h-32 bg-white">
+                      {/* Left: Giảm giá */}
+                      <div className="w-24 md:w-32 bg-black text-white flex flex-col justify-center items-center shrink-0">
+                        <span className="text-xl md:text-3xl font-black tracking-tighter">
                           {v.discountType === 'percent' ? `${v.discountValue}%` : `${v.discountValue / 1000}K`}
                         </span>
-                        <span className="text-[9px] mt-1 opacity-60 uppercase tracking-widest">Giảm</span>
+                        <span className="text-[9px] md:text-[10px] mt-1 opacity-60 uppercase tracking-[0.2em] font-bold">Giảm</span>
                       </div>
-                      <div className="border-l border-dashed border-gray-200" />
-                      <div className="flex-1 px-4 flex items-center justify-between bg-white">
-                        <div>
-                          <p className="font-bold text-gray-800 text-sm tracking-wide">{v.code}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Đơn tối thiểu {v.minOrderValue?.toLocaleString()}đ</p>
 
-                          {/* Thêm phần hiển thị giảm tối đa ở đây */}
+                      {/* Right: Info */}
+                      <div className="flex-1 p-4 md:p-5 flex flex-col justify-center relative">
+                        <div className="pr-16 md:pr-20">
+                          <p className="font-bold text-black text-sm md:text-base tracking-widest uppercase">{v.code}</p>
+                          <p className="text-xs md:text-sm text-stone-500 mt-1">Đơn tối thiểu {v.minOrderValue?.toLocaleString()}đ</p>
                           {v.discountType === 'percent' && v.maxDiscountAmount && (
-                            <p className="text-[10px] font-medium text-amber-600 mt-0.5">
-                              Giảm tối đa {v.maxDiscountAmount.toLocaleString('vi-VN')}đ
-                            </p>
+                            <p className="text-[10px] md:text-xs font-bold text-stone-600 mt-0.5">Giảm tối đa {v.maxDiscountAmount.toLocaleString('vi-VN')}đ</p>
                           )}
-
-                          <p className="text-[10px] text-red-400 mt-0.5">HSD: {new Date(v.expirationDate).toLocaleDateString('vi-VN')}</p>
                         </div>
-                        <Link to='/cart' className="p-2 px-3 border border-black text-black hover:bg-black hover:text-white transition text-xs shrink-0 ml-2">
-                          Dùng ngay
+                        <p className="text-[9px] md:text-[10px] text-stone-400 mt-3 md:mt-4 uppercase tracking-widest font-bold">HSD: {new Date(v.expirationDate).toLocaleDateString('vi-VN')}</p>
+
+                        <Link to='/cart' className="absolute right-4 md:right-5 top-1/2 -translate-y-1/2 px-3 py-1.5 md:px-4 md:py-2 bg-black text-white hover:bg-stone-800 transition-colors text-[10px] md:text-xs font-bold uppercase tracking-widest text-center">
+                          Dùng
                         </Link>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <FontAwesomeIcon icon={['fas', 'ticket-alt']} className="text-5xl text-gray-200 mb-3" />
-                  <p className="text-sm text-gray-400">Chưa có voucher nào</p>
+                <div className="text-center py-20 text-stone-400">
+                  <FontAwesomeIcon icon={['fas', 'ticket']} className="text-4xl md:text-5xl mb-4 opacity-50" />
+                  <p className="text-sm md:text-base font-medium">Hiện không có mã giảm giá nào.</p>
                 </div>
               )}
             </div>

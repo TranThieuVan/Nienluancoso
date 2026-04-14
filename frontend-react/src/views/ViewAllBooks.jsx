@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Pagination from '../components/Pagination';
 import { useFavorites } from '../composables/useFavorites';
-import { useCart } from '../composables/useCart';
+import BookCard from '../components/BookCard'; // ✅ 1. Import BookCard vào
 
 const ViewAllBooks = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const genreFromUrl = searchParams.get('genre') || '';
 
-  // Thay đổi state để lưu metadata từ backend
   const [books, setBooks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -21,8 +19,8 @@ const ViewAllBooks = () => {
   const [isLoading, setIsLoading] = useState(true);
   const booksPerPage = 21;
 
-  const { isFavorite, toggleFavorite, fetchFavorites } = useFavorites();
-  const { addToCart } = useCart();
+  // ✅ 2. Xóa useNavigate, useCart, isFavorite... Chỉ giữ lại fetchFavorites
+  const { fetchFavorites } = useFavorites();
 
   useEffect(() => {
     fetchFavorites();
@@ -43,7 +41,6 @@ const ViewAllBooks = () => {
 
         const { data } = await axios.get(apiUrl);
 
-        // Cập nhật state với cấu trúc dữ liệu mới từ backend
         setBooks(data.books);
         setTotalPages(data.totalPages);
         setTotalBooksCount(data.totalBooks);
@@ -55,7 +52,7 @@ const ViewAllBooks = () => {
       }
     };
     fetchBooks();
-  }, [genreFromUrl, currentPage]); // Thêm currentPage vào dependency array
+  }, [genreFromUrl, currentPage]);
 
   // Reset về trang 1 nếu đổi thể loại
   useEffect(() => {
@@ -101,16 +98,9 @@ const ViewAllBooks = () => {
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-5">
-              {books.map((book, i) => (
-                <BookGridCard
-                  key={book._id}
-                  book={book}
-                  isFavorite={isFavorite}
-                  toggleFavorite={toggleFavorite}
-                  addToCart={addToCart}
-                  navigate={navigate}
-                  index={i}
-                />
+              {/* ✅ 3. Xóa BookGridCard cồng kềnh, chỉ cần gọi BookCard và truyền đúng data book */}
+              {books.map((book) => (
+                <BookCard key={book._id} book={book} />
               ))}
             </div>
 
@@ -123,58 +113,6 @@ const ViewAllBooks = () => {
             </div>
           </>
         )}
-      </div>
-    </div>
-  );
-};
-
-/* ── Extracted Book Card Component (Giữ nguyên không đổi) ── */
-const BookGridCard = ({ book, isFavorite, toggleFavorite, addToCart, navigate, index }) => {
-  // ... Nội dung Component này giữ nguyên như code cũ của bạn
-  const [hovered, setHovered] = useState(false);
-  const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
-
-  return (
-    <div
-      className="group bg-white flex flex-col transition-all duration-300"
-      style={{ animationDelay: `${index * 30}ms` }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div className="relative overflow-hidden bg-stone-50 aspect-[2/3]">
-        <img
-          src={imgSrc}
-          alt={book.title}
-          className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
-          onClick={() => navigate(`/books/${book._id}`)}
-        />
-        <div className={`absolute inset-0 bg-black/40 flex items-end justify-center pb-4 gap-3 transition-opacity duration-300 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-          <button
-            onClick={(e) => { e.stopPropagation(); toggleFavorite(book); }}
-            className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
-            title={isFavorite(book._id) ? 'Bỏ yêu thích' : 'Yêu thích'}
-          >
-            <FontAwesomeIcon
-              icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
-              className={isFavorite(book._id) ? 'text-red-500 text-sm' : 'text-stone-600 text-sm'}
-            />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); addToCart(book); }}
-            className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
-            title="Thêm vào giỏ"
-          >
-            <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-stone-700 text-sm" />
-          </button>
-        </div>
-      </div>
-      <div
-        className="py-3 cursor-pointer flex-1 flex flex-col"
-        onClick={() => navigate(`/books/${book._id}`)}
-      >
-        <h3 className="text-xs font-semibold text-black line-clamp-2 leading-snug">{book.title}</h3>
-        <p className="text-[11px] text-stone-400 mt-1 truncate">{book.author}</p>
-        <p className="text-sm font-bold text-black mt-2">{book.price.toLocaleString('vi-VN')}₫</p>
       </div>
     </div>
   );

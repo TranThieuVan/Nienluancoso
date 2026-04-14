@@ -98,7 +98,7 @@ const NotificationBell = () => {
                     className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-stone-50 transition-colors text-stone-600 hover:text-black focus:outline-none"
                 >
                     {/* Dùng FontAwesome giống hệt các icon kia với size 18px */}
-                    <FontAwesomeIcon icon={['far', 'bell']} className="text-[18px]" />
+                    <FontAwesomeIcon icon={['far', 'bell']} className="text-[20px]" />
 
                     {unreadCount > 0 && (
                         <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 text-[8px] font-bold text-white bg-red-600 rounded-full shadow-sm">

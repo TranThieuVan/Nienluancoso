@@ -11,13 +11,16 @@ const BookList = () => {
 
   const queryParams = new URLSearchParams(location.search);
   const filterParam = queryParams.get('filter');
+  const genreParam = queryParams.get('genre'); // ✅ ĐỌC PARAMETER THỂ LOẠI TỪ URL
 
   const [books, setBooks] = useState([]);
   const [genres, setGenres] = useState([]);
   const [promotions, setPromotions] = useState([]);
 
   const [searchTitle, setSearchTitle] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('');
+
+  // ✅ NẾU CÓ PARAM TRÊN URL THÌ GÁN NGAY VÀO STATE
+  const [selectedGenre, setSelectedGenre] = useState(genreParam || '');
   const [selectedPromoId, setSelectedPromoId] = useState('');
 
   const [isSaleFilter, setIsSaleFilter] = useState(filterParam === 'sale');
@@ -28,9 +31,14 @@ const BookList = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const perPage = 20;
 
+  // ✅ ĐỒNG BỘ LIÊN TỤC NẾU USER CLICK TỪ NAVBAR VÀO
   useEffect(() => {
     setIsSaleFilter(filterParam === 'sale');
-  }, [filterParam]);
+    if (genreParam !== null) {
+      setSelectedGenre(genreParam);
+      setPage(1); // Chuyển thể loại thì reset về trang 1
+    }
+  }, [filterParam, genreParam]);
 
   const fetchBooks = async () => {
     setIsLoading(true);
@@ -173,7 +181,6 @@ const BookList = () => {
         <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
           <button
             onClick={() => { setSelectedGenre(''); setPage(1); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            // ✅ ĐÃ SỬA: Loại bỏ font-bold, thống nhất dùng font-medium để tránh chữ bự ra ép rớt dòng gây giật layout
             className={`text-left px-3 py-2 text-sm font-medium transition-all rounded-md ${selectedGenre === '' ? 'bg-black text-white' : 'text-stone-600 hover:bg-stone-50'}`}
           >
             Tất cả
@@ -181,7 +188,6 @@ const BookList = () => {
           {genres.map(genre => (
             <button
               key={genre}
-              // ✅ ĐÃ SỬA: Thêm scroll mượt lên top để không bị hụt hẫng khi kết quả lọc quá ít
               onClick={() => { setSelectedGenre(genre); setPage(1); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className={`text-left px-3 py-2 text-sm font-medium transition-all rounded-md ${selectedGenre === genre ? 'bg-black text-white' : 'text-stone-600 hover:bg-stone-50'}`}
             >
@@ -211,7 +217,6 @@ const BookList = () => {
             <div className="sticky top-28">{filterContent}</div>
           </aside>
 
-          {/* ✅ ĐÃ SỬA: Thêm min-h-[60vh] để chống sập chiều cao web khi mảng rỗng hoặc ít sách */}
           <div className="flex-1 min-w-0 min-h-[60vh]">
             <div className="flex items-center justify-between mb-10 gap-4">
               <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 text-xs font-bold border border-gray-200 px-4 py-2 uppercase tracking-widest hover:border-black transition-all">

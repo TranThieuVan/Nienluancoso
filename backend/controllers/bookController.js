@@ -275,45 +275,65 @@ exports.getRecommendations = async (req, res) => {
 
         let allSorted = [];
 
-        // 1. Kiểm tra Cache RAM
+        // 1. Cache
         if (recommendationCache.has(bookId)) {
             const cached = recommendationCache.get(bookId);
-            if ((Date.now() - cached.timestamp) <= CACHE_TTL) {
+            if (Date.now() - cached.timestamp <= CACHE_TTL) {
                 allSorted = cached.data;
             } else {
                 recommendationCache.delete(bookId);
             }
         }
 
-        // 2. Nếu không có Cache, gọi Database & Tính toán
+        // 2. Nếu chưa có cache
         if (allSorted.length === 0) {
             const currentBook = await Book.findById(bookId).select('+embedding');
-            if (!currentBook || !currentBook.embedding || currentBook.embedding.length === 0) {
+
+            if (!currentBook || !currentBook.embedding?.length) {
                 return res.json({ books: [], hasMore: false });
             }
 
-            // 👉 FIX 4: Giới hạn tập Candidate theo Genre trước cho nhẹ và chính xác
-            const candidates = await Book.find({
-                _id: { $ne: currentBook._id },
-                genre: currentBook.genre
-            }).limit(100).select('+embedding');
+            // ⚡ Query song song
+            const [sameGenreBooks, otherBooks] = await Promise.all([
+                Book.find({
+                    _id: { $ne: currentBook._id },
+                    genre: currentBook.genre
+                }).limit(100).select('+embedding'),
 
-            // 3. Tính điểm (AI Vector + Luật Kinh Doanh)
+                Book.find({
+                    _id: { $ne: currentBook._id },
+                    genre: { $ne: currentBook.genre }
+                }).limit(50).select('+embedding')
+            ]);
+
+            // 🧹 Deduplicate
+            const map = new Map();
+            [...sameGenreBooks, ...otherBooks].forEach(b => {
+                map.set(b._id.toString(), b);
+            });
+            const candidates = Array.from(map.values());
+
+            // 🧠 Dynamic threshold
+            const threshold = candidates.length < 50 ? 0.2 : 0.3;
+
+            // ⚡ Scoring
             const scoredBooks = candidates.map(book => {
-                if (!book.embedding || book.embedding.length === 0) return { book, score: 0 };
+                if (!book.embedding?.length) return { book, score: 0 };
 
                 let score = cosineSimilarity(currentBook.embedding, book.embedding);
 
+                // 🔥 Business rules
                 if (book.author === currentBook.author) score += 0.15;
+                if (book.genre === currentBook.genre) score += 0.05;
                 if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) score += 0.03;
                 if (book.stock < 5) score -= 0.05;
 
                 return { book, score };
             });
 
-            // 4. Lọc
+            // 🎯 Filter + sort
             allSorted = scoredBooks
-                .filter(item => item.score > 0.25) // 👉 FIX 3: Hạ chuẩn độ khó xuống 0.25
+                .filter(item => item.score > threshold)
                 .sort((a, b) => b.score - a.score)
                 .slice(0, MAX_CACHE)
                 .map(item => {
@@ -322,31 +342,36 @@ exports.getRecommendations = async (req, res) => {
                     return obj;
                 });
 
-            // 👉 FIX 4 (Nâng cao): Nếu filter xong mà rỗng (vì AI kén chọn), lấy luôn sách cùng thể loại làm Fallback cho đỡ gọi DB lần 2.
+            // 🔄 Fallback nếu rỗng (KHÔNG random nữa)
             if (allSorted.length === 0) {
-                allSorted = candidates.slice(0, 10).map(b => {
-                    const obj = b.toObject();
-                    delete obj.embedding;
-                    return obj;
-                });
+                allSorted = scoredBooks
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 10)
+                    .map(item => {
+                        const obj = item.book.toObject();
+                        delete obj.embedding;
+                        return obj;
+                    });
             }
 
-            // Lưu Cache
-            recommendationCache.set(bookId, { data: allSorted, timestamp: Date.now() });
+            // 💾 Cache
+            recommendationCache.set(bookId, {
+                data: allSorted,
+                timestamp: Date.now()
+            });
         }
 
-        // 5. Cắt lát Phân trang cho Frontend
+        // 📄 Pagination
         const start = (page - 1) * limit;
         const end = page * limit;
 
-        // Cắt lấy mảng sách theo trang hiện tại
-        const paginatedBooks = allSorted.slice(start, end);
+        const paginated = allSorted.slice(start, end);
 
-        // ✅ FIX BUG: Bắt buộc phải cho chạy qua PricingService để tính toán lại giá thật ở thời điểm hiện tại (xóa khuyến mãi đã hết hạn)
-        const booksWithPrice = PricingService.applyPricing(paginatedBooks);
+        // 💰 Apply pricing (QUAN TRỌNG)
+        const booksWithPrice = PricingService.applyPricing(paginated);
 
         res.json({
-            books: booksWithPrice, // Trả về mảng đã được lọc giá chuẩn xác
+            books: booksWithPrice,
             hasMore: end < allSorted.length
         });
 
@@ -355,7 +380,6 @@ exports.getRecommendations = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi hệ thống gợi ý' });
     }
 };
-
 exports.getAllGenres = async (req, res) => {
     const genres = [
         'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',

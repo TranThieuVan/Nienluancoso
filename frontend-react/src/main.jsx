@@ -11,7 +11,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 // Import Icon Solid (fas)
 import {
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear,
-    faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faChartPie, faUsers,
+    faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faChartPie, faUsers, faFileInvoice, faClipboardCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faCircleXmark, faBolt,
     faMedal, faCrown, faGem, faCircleCheck, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
     faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus, faChevronRight,
@@ -34,7 +34,7 @@ import { faFacebookF, faInstagram, faXTwitter } from '@fortawesome/free-brands-s
 library.add(
     // Solid Icons
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear,
-    faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck,
+    faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck, faFileInvoice, faClipboardCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faChartPie, faUsers, faBolt,
     faMedal, faCrown, faGem, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
     faAngleLeft, faAngleRight, faChartLine, fasStar, faTruck, faShieldHalved, faMinus, faChevronRight, faCircleXmark,

@@ -25,20 +25,31 @@ const TopSellingBooks = ({ books = [] }) => {
                 />
               </div>
 
-              <div className="flex gap-4 items-center px-3 mt-2">
-                <div className="text-black text-6xl font-bold">
+              <div className="flex gap-4 items-start px-3 mt-2">
+                <div className="text-black text-7xl font-bold leading-none pt-1">
                   {index + 1}
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium line-clamp-2 break-words">
+
+                {/* ✅ SỬA Ở ĐÂY: Thêm min-w-0 vào cạnh flex-1 */}
+                <div className="flex-1 min-w-0">
+
+                  {/* Đã sửa: Đổi thành truncate và xóa min-h-[56px] */}
+                  <h3 className="text-[14px] font-medium truncate">
                     {book.title}
                   </h3>
-                  <p className="text-xs text-gray-500 truncate">Tác giả: {book.author}</p>
-                  <p className="text-xs font-semibold text-gray-500">
+
+                  <p className="text-sm text-gray-500 truncate mt-1">
+                    Tác giả: {book.author}
+                  </p>
+
+                  <p className="text-[15px] font-semibold text-gray-500 truncate">
                     {Number(book.price || 0).toLocaleString('vi-VN')}₫
                   </p>
-                  {/* ✅ 2. Xử lý an toàn: Có thể API trả về totalSold hoặc sold */}
-                  <p className="text-sm text-red-800">Đã bán: {book.totalSold ?? book.sold ?? 0}</p>
+
+                  <p className="text-[17px]  text-red-800 truncate">
+                    Đã bán: {book.totalSold ?? book.sold ?? 0}
+                  </p>
+
                 </div>
               </div>
             </Link>

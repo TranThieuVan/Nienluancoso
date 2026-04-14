@@ -10,6 +10,11 @@ const Orders = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
+  // States cho bộ lọc thời gian
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
@@ -38,10 +43,68 @@ const Orders = () => {
     }
   };
 
+  // Hàm tính toán khoảng thời gian dựa trên filter
+  const getDateRange = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let start = new Date(today);
+    let end = new Date();
+
+    switch (timeFilter) {
+      case 'today':
+        break;
+      case 'yesterday':
+        start.setDate(start.getDate() - 1);
+        end = new Date(start);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case '3days':
+        start.setDate(start.getDate() - 3);
+        break;
+      case '7days':
+        start.setDate(start.getDate() - 7);
+        break;
+      case '30days':
+        start.setDate(start.getDate() - 30);
+        break;
+      case '365days':
+        start.setDate(start.getDate() - 365);
+        break;
+      case 'custom':
+        if (!customStartDate || !customEndDate) return null;
+        return {
+          startDate: customStartDate,
+          endDate: customEndDate
+        };
+      default:
+        return null;
+    }
+
+    const formatISO = (date) => {
+      const d = new Date(date);
+      let month = '' + (d.getMonth() + 1);
+      let day = '' + d.getDate();
+      const year = d.getFullYear();
+      if (month.length < 2) month = '0' + month;
+      if (day.length < 2) day = '0' + day;
+      return [year, month, day].join('-');
+    }
+
+    return { startDate: formatISO(start), endDate: formatISO(end) };
+  };
+
   const loadOrders = async () => {
     setIsLoading(true);
     try {
-      const { data } = await axios.get(`/api/orders?page=${currentPage}&limit=5`, {
+      let url = `/api/orders?page=${currentPage}&limit=5`;
+      const dates = getDateRange();
+
+      if (dates) {
+        url += `&startDate=${dates.startDate}&endDate=${dates.endDate}`;
+      }
+
+      const { data } = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(data.orders || []);
@@ -53,7 +116,23 @@ const Orders = () => {
     }
   };
 
-  useEffect(() => { loadOrders(); }, [currentPage]);
+  useEffect(() => {
+    if (timeFilter !== 'custom') {
+      setCurrentPage(1);
+      loadOrders();
+    } else if (timeFilter === 'all') {
+      loadOrders();
+    }
+  }, [currentPage, timeFilter]);
+
+  const handleCustomFilter = () => {
+    if (!customStartDate || !customEndDate) {
+      alert("Vui lòng chọn đầy đủ từ ngày và đến ngày.");
+      return;
+    }
+    setCurrentPage(1);
+    loadOrders();
+  };
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -66,8 +145,52 @@ const Orders = () => {
       {/* ── HEADER ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Tài khoản</p>
-          <h1 className="text-3xl font-bold text-black">Đơn Hàng Của Tôi</h1>
+          <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-stone-400 mb-1">Tài khoản</p>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <h1 className="text-3xl md:text-4xl font-bold text-black">Đơn Hàng Của Tôi</h1>
+
+            {/* ── BỘ LỌC THỜI GIAN ── */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="text-sm md:text-base border border-gray-200 focus:border-black outline-none px-4 py-2.5 bg-white transition-colors cursor-pointer"
+              >
+                <option value="all">Tất cả thời gian</option>
+                <option value="today">Hôm nay</option>
+                <option value="yesterday">Hôm qua</option>
+                <option value="3days">3 ngày qua</option>
+                <option value="7days">7 ngày qua</option>
+                <option value="30days">30 ngày qua</option>
+                <option value="365days">1 năm qua</option>
+                <option value="custom">Thời gian cụ thể</option>
+              </select>
+
+              {timeFilter === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="text-sm md:text-base border border-gray-200 focus:border-black outline-none px-3 py-2 bg-white"
+                  />
+                  <span className="text-stone-400">-</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="text-sm md:text-base border border-gray-200 focus:border-black outline-none px-3 py-2 bg-white"
+                  />
+                  <button
+                    onClick={handleCustomFilter}
+                    className="bg-black text-white px-4 py-2 text-sm md:text-base font-bold hover:bg-stone-800 transition-colors"
+                  >
+                    Lọc
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -77,7 +200,7 @@ const Orders = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-40">
             <div className="w-10 h-10 border-4 border-stone-100 border-t-black rounded-full animate-spin mb-4" />
-            <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400">Đang tải...</p>
+            <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-stone-400">Đang tải...</p>
           </div>
 
           /* ── EMPTY ── */
@@ -85,12 +208,12 @@ const Orders = () => {
           <div className="bg-white border border-gray-100 flex flex-col items-center justify-center py-24 gap-4">
             <FontAwesomeIcon icon={['fas', 'box-open']} className="text-4xl text-stone-200" />
             <div className="text-center">
-              <p className="font-semibold text-black mb-1">Chưa có đơn hàng nào</p>
-              <p className="text-stone-400 text-sm">Hãy khám phá và đặt mua những cuốn sách hay nhé.</p>
+              <p className="text-base md:text-lg font-semibold text-black mb-1">Chưa có đơn hàng nào</p>
+              <p className="text-sm md:text-base text-stone-400">Không tìm thấy đơn hàng trong khoảng thời gian này.</p>
             </div>
             <button
               onClick={() => navigate('/books')}
-              className="mt-2 px-8 py-3 hover-flip-btn"
+              className="mt-2 px-8 py-3 bg-black text-white text-sm md:text-base font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
             >
               Khám phá sách
             </button>
@@ -113,20 +236,20 @@ const Orders = () => {
                   <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-stone-50/60">
                     <div className="flex items-center gap-5">
                       <div>
-                        <span className="text-[9px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Mã đơn</span>
-                        <span className="font-mono text-sm font-bold text-black">
+                        <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Mã đơn</span>
+                        <span className="font-mono text-sm md:text-base font-bold text-black">
                           #{order._id.slice(-6).toUpperCase()}
                         </span>
                       </div>
                       <div className="w-px h-5 bg-gray-200" />
                       <div>
-                        <span className="text-[9px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Ngày đặt</span>
-                        <span className="text-sm font-medium text-black">{formatDate(order.createdAt)}</span>
+                        <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Ngày đặt</span>
+                        <span className="text-sm md:text-base font-medium text-black">{formatDate(order.createdAt)}</span>
                       </div>
                     </div>
 
                     {/* Status Badge */}
-                    <span className={`px-3 py-1 text-[10px] font-bold border uppercase tracking-widest ${sc.bg} ${sc.text} ${sc.border}`}>
+                    <span className={`px-3 py-1 text-[10px] md:text-xs font-bold border uppercase tracking-widest ${sc.bg} ${sc.text} ${sc.border}`}>
                       {sc.label}
                     </span>
                   </div>
@@ -145,17 +268,17 @@ const Orders = () => {
                                 : `http://localhost:5000${firstItem.book.image}`
                             }
                             alt={firstItem.book.title}
-                            className="w-12 h-18 object-cover flex-shrink-0 border border-gray-100"
+                            className="w-12 h-18 md:w-16 md:h-24 object-cover flex-shrink-0 border border-gray-100"
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-black line-clamp-2 leading-snug">
+                            <p className="text-sm md:text-base font-semibold text-black line-clamp-2 leading-snug">
                               {firstItem.book.title}
                             </p>
-                            <p className="text-xs text-stone-400 mt-1">
+                            <p className="text-xs md:text-sm text-stone-400 mt-1">
                               x{firstItem.quantity}
                             </p>
                             {moreCount > 0 && (
-                              <p className="text-xs font-bold text-stone-500 mt-1">
+                              <p className="text-xs md:text-sm font-bold text-stone-500 mt-1">
                                 + {moreCount} sản phẩm khác
                               </p>
                             )}
@@ -167,14 +290,14 @@ const Orders = () => {
                     {/* Total + CTA */}
                     <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-2 border-t sm:border-t-0 border-gray-100 pt-4 sm:pt-0">
                       <div className="sm:text-right">
-                        <p className="text-[10px] text-stone-400 uppercase tracking-widest mb-0.5">Tổng tiền</p>
-                        <p className="text-base font-black text-black">
+                        <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-widest mb-0.5">Tổng tiền</p>
+                        <p className="text-base md:text-lg font-black text-black">
                           {formatPrice(order.totalPrice)}
                         </p>
                       </div>
                       <button
                         onClick={() => navigate(`/orders/${order._id}`)}
-                        className="px-5 py-2 border border-black text-black text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all"
+                        className="px-5 py-2 md:py-2.5 border border-black text-black text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all"
                       >
                         Xem chi tiết
                       </button>
@@ -185,7 +308,7 @@ const Orders = () => {
                   {order.paymentStatus === 'Hoàn tiền' && (
                     <div className="mx-5 mb-5 px-4 py-3 bg-amber-50 border border-amber-200 flex items-center gap-2.5">
                       <FontAwesomeIcon icon={['fas', 'circle-info']} className="text-amber-500 flex-shrink-0" />
-                      <p className="text-amber-800 text-xs font-bold">
+                      <p className="text-amber-800 text-xs md:text-sm font-bold">
                         Hệ thống sẽ hoàn tiền trong thời gian sớm nhất, vui lòng chờ!
                       </p>
                     </div>

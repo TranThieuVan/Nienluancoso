@@ -198,16 +198,16 @@ const Cart = () => {
                           <h3 className="font-semibold text-sm text-black line-clamp-2 cursor-pointer hover:underline underline-offset-2" onClick={() => navigate(`/books/${item.book._id}`)}>
                             {item.book.title}
                           </h3>
-                          <p className="text-xs text-stone-400 mt-1">{item.book.author}</p>
+                          <p className="text-sm text-stone-400 mt-1">{item.book.author}</p>
                           {outOfStock ? (
                             <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 px-2 py-0.5">Hết hàng</span>
                           ) : (
-                            <p className="text-xs text-stone-400 mt-1">Còn {item.book.stock} sản phẩm</p>
+                            <p className="text-sm text-stone-400 mt-1">Còn {item.book.stock} sản phẩm</p>
                           )}
                           {item.book.discountedPrice ? (
                             <div className="mt-2 flex items-baseline gap-2">
                               <p className="text-sm font-bold text-rose-600">{formatPrice(item.book.discountedPrice)}₫</p>
-                              <p className="text-xs text-stone-400 line-through">{formatPrice(item.book.price)}₫</p>
+                              <p className="text-sm text-stone-400 line-through">{formatPrice(item.book.price)}₫</p>
                             </div>
                           ) : (
                             <p className="text-sm font-bold text-black mt-2">{formatPrice(item.book.price)}₫</p>
@@ -220,17 +220,17 @@ const Cart = () => {
                         {!outOfStock && (
                           <div className="flex border border-gray-200 flex-shrink-0 h-8">
                             <button onClick={() => item.quantity > 1 && updateQuantity(item.book._id, item.quantity - 1)} className="w-8 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600 disabled:opacity-30" disabled={item.quantity <= 1}>
-                              <FontAwesomeIcon icon={['fas', 'minus']} className="text-xs" />
+                              <FontAwesomeIcon icon={['fas', 'minus']} className="text-sm" />
                             </button>
                             <div className="w-10 flex items-center justify-center text-sm font-semibold border-x border-gray-200">{item.quantity}</div>
                             <button onClick={() => updateQuantity(item.book._id, item.quantity + 1)} disabled={item.quantity >= item.book.stock} className="w-8 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-600 disabled:opacity-30 disabled:cursor-not-allowed">
-                              <FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" />
+                              <FontAwesomeIcon icon={['fas', 'plus']} className="text-sm" />
                             </button>
                           </div>
                         )}
 
                         <div className="flex flex-col items-end md:items-center gap-1 md:gap-2 flex-shrink-0 min-w-[88px]">
-                          <p className="text-xs text-stone-400 hidden md:block">Thành tiền</p>
+                          <p className="text-sm text-stone-400 hidden md:block">Thành tiền</p>
                           <p className={`font-bold text-sm md:text-base ${outOfStock ? 'text-stone-300' : 'text-black'}`}>
                             {outOfStock ? '—' : `${formatPrice(currentPrice * item.quantity)}₫`}
                           </p>
@@ -261,7 +261,7 @@ const Cart = () => {
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-stone-500">Phí vận chuyển</span>
-                    <span className="text-green-600 font-medium">Tính lúc đặt hàng</span>
+                    <span className="text-black font-medium">40.000đ</span>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-4 mb-6">
@@ -271,7 +271,7 @@ const Cart = () => {
                   </div>
                 </div>
                 <button onClick={proceedToCheckout} className="w-full py-3.5 hover-flip-btn uppercase tracking-widest text-sm font-bold">Thanh toán</button>
-                <button onClick={() => navigate('/books')} className="w-full mt-3 py-2.5 text-xs text-stone-400 hover:text-black transition-colors tracking-wide">← Tiếp tục mua sắm</button>
+                <button onClick={() => navigate('/books')} className="w-full mt-3 py-2.5 text-sm text-stone-400 hover:text-black transition-colors tracking-wide">← Tiếp tục mua sắm</button>
               </div>
             </div>
           )}

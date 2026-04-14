@@ -89,10 +89,6 @@ const AdminNavbar = () => {
                         <>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-4">Quản trị cấp cao</p>
 
-                            <Link to="/admin" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${location.pathname === '/admin' ? 'bg-green-200 font-medium' : ''}`}>
-                                <FontAwesomeIcon icon={['fas', 'chart-pie']} className="w-5" />Dashboard
-                            </Link>
-
                             <Link to="/admin/revenue" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/revenue')}`}>
                                 <FontAwesomeIcon icon={['fas', 'chart-line']} className="w-5" />Doanh thu
                             </Link>
