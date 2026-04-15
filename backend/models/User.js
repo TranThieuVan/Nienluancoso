@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema({
         default: 'Khách hàng'
     },
     lastPurchaseDate: { type: Date, default: null },
+    rankUpdatedAt: { type: Date, default: Date.now },
+    totalSpent: { type: Number, default: 0 },
 
     // HỆ THỐNG TRỪNG PHẠT
     failedDeliveryCount: { type: Number, default: 0 },

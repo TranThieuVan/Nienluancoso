@@ -136,20 +136,61 @@ exports.cancelOrder = async (req, res) => {
     } catch (error) { res.status(500).json({ message: 'Lỗi server' }); }
 };
 
-// Cập nhật trạng thái đơn hàng thành "Đã thanh toán" (Gọi từ VNPAY)
 exports.updateOrderToPaid = async (req, res) => {
     try {
         const orderId = req.params.id;
         const { vnpayTransactionNo, vnpayPayDate } = req.body;
 
-        const updatedOrder = await Order.findByIdAndUpdate(
-            orderId,
-            { paymentStatus: 'Đã thanh toán', vnpayTransactionNo: vnpayTransactionNo, vnpayPayDate: vnpayPayDate },
-            { new: true }
-        );
+        // 🔥 Lấy order trước (để check trạng thái)
+        const order = await Order.findById(orderId);
 
-        if (!updatedOrder) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-        res.json({ message: "Cập nhật thanh toán thành công", order: updatedOrder });
+        if (!order) {
+            return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+        }
+
+        // ❗ Tránh cộng tiền 2 lần
+        if (order.paymentStatus === 'Đã thanh toán') {
+            return res.status(400).json({ message: "Đơn hàng đã được thanh toán trước đó" });
+        }
+
+        // ✅ Update trạng thái thanh toán
+        order.paymentStatus = 'Đã thanh toán';
+        order.vnpayTransactionNo = vnpayTransactionNo;
+        order.vnpayPayDate = vnpayPayDate;
+
+        await order.save();
+
+        // 🔥 UPDATE USER (QUAN TRỌNG NHẤT)
+        const user = await User.findById(order.user);
+
+        if (user) {
+            // 👉 Cộng tiền
+            user.totalSpent = (user.totalSpent || 0) + order.totalPrice;
+
+            // 👉 Update thời gian
+            user.lastPurchaseDate = new Date();
+            user.rankUpdatedAt = new Date();
+
+            // 👉 Hàm tính rank
+            const calculateRank = (total) => {
+                if (total >= 10000000) return 'Kim cương';
+                if (total >= 5000000) return 'Bạch kim';
+                if (total >= 2000000) return 'Vàng';
+                if (total >= 500000) return 'Bạc';
+                return 'Khách hàng';
+            };
+
+            // 👉 Set rank mới
+            user.rank = calculateRank(user.totalSpent);
+
+            await user.save();
+        }
+
+        res.json({
+            message: "Cập nhật thanh toán thành công & đã cập nhật hạng user",
+            order
+        });
+
     } catch (error) {
         console.error("Lỗi cập nhật thanh toán:", error);
         res.status(500).json({ message: "Lỗi server" });

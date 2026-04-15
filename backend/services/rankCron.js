@@ -1,19 +1,18 @@
 const cron = require('node-cron');
-const User = require('../models/User');
+const User = require('../models/User'); // Nhớ check lại đường dẫn model
 
 // ✅ Chạy ngầm mỗi ngày vào lúc 3:00 Sáng
 cron.schedule('0 3 * * *', async () => {
     try {
         console.log('[Cron] Đang kiểm tra rớt hạng tài khoản...');
 
-        // Mốc thời gian: 30 ngày trước so với hiện tại
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Tìm các user có rank KHÁC "Khách hàng" VÀ đã quá 30 ngày không mua gì
+        // ✅ SỬA LỖI 1: Quét theo rankUpdatedAt, KHÔNG quét theo lastPurchaseDate
         const inactiveUsers = await User.find({
             rank: { $ne: 'Khách hàng' },
-            lastPurchaseDate: { $lt: thirtyDaysAgo }
+            rankUpdatedAt: { $lt: thirtyDaysAgo }
         });
 
         for (let user of inactiveUsers) {
@@ -25,9 +24,8 @@ cron.schedule('0 3 * * *', async () => {
                 case 'Bạc': user.rank = 'Khách hàng'; break;
             }
 
-            // ✅ QUAN TRỌNG: Cập nhật lại lastPurchaseDate thành ngày hôm nay
-            // Để cho họ thêm đúng 30 ngày nữa, nếu vẫn không mua thì mới giáng chức tiếp
-            user.lastPurchaseDate = new Date();
+            // ✅ SỬA LỖI 2: Chỉ reset mốc thời gian rank, giữ nguyên lịch sử mua hàng thật
+            user.rankUpdatedAt = new Date();
 
             await user.save();
         }

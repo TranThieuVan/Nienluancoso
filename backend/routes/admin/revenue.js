@@ -3,11 +3,9 @@ const router = express.Router();
 const adminRevenueController = require('../../controllers/admin/adminRevenueController');
 const { verifyToken, verifyAdmin } = require('../../middleware/authMiddleware');
 
-// Bảo vệ tất cả route trong file này
 router.use(verifyToken, verifyAdmin);
 
-// GET /api/admin/revenue/monthly?year=2025
-router.get('/comparison', adminRevenueController.getRevenueComparison);
-router.get('/monthly', adminRevenueController.getMonthlyRevenue);
-router.get('/weekly', adminRevenueController.getWeeklyRevenue);
+// ✅ CHỈ CẦN 1 API DUY NHẤT CHO TOÀN BỘ DASHBOARD
+router.get('/dashboard', adminRevenueController.getRevenueDashboard);
+
 module.exports = router;

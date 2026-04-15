@@ -5,49 +5,41 @@ const axios = require('axios');
 const moment = require('moment');
 const crypto = require('crypto');
 const PricingService = require('../../services/pricingService');
-/* ─── Helper: build date range từ preset hoặc from/to ─── */
-const buildDateRange = (preset, from, to) => {
-    const now = new Date();
+// ⚙️ LÕI XỬ LÝ MÚI GIỜ VIỆT NAM (UTC+7) - ĐÚNG TỚI TỪNG MILI-GIÂY
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-    if (from && to) {
-        return {
-            $gte: new Date(from + 'T00:00:00.000'),
-            $lte: new Date(to + 'T23:59:59.999'),
-        };
+const getVnTimeBoundary = (daysOffset = 0, isStart = true, monthOffset = null) => {
+    const now = new Date(Date.now() + VN_OFFSET_MS);
+    if (monthOffset !== null) {
+        now.setUTCDate(1);
+        now.setUTCMonth(monthOffset);
+        if (!isStart) { now.setUTCMonth(now.getUTCMonth() + 1); now.setUTCDate(0); }
+    } else {
+        now.setUTCDate(now.getUTCDate() + daysOffset);
     }
-
-    switch (preset) {
-        case 'today': {
-            const start = new Date(now); start.setHours(0, 0, 0, 0);
-            const end = new Date(now); end.setHours(23, 59, 59, 999);
-            return { $gte: start, $lte: end };
-        }
-        case 'yesterday': {
-            const start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
-            const end = new Date(now); end.setDate(end.getDate() - 1); end.setHours(23, 59, 59, 999);
-            return { $gte: start, $lte: end };
-        }
-        case 'last3': {
-            const start = new Date(now); start.setDate(start.getDate() - 2); start.setHours(0, 0, 0, 0);
-            return { $gte: start, $lte: now };
-        }
-        case 'last7': {
-            const start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
-            return { $gte: start, $lte: now };
-        }
-        case 'last30': {
-            const start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0);
-            return { $gte: start, $lte: now };
-        }
-        case 'last365': {
-            const start = new Date(now); start.setDate(start.getDate() - 364); start.setHours(0, 0, 0, 0);
-            return { $gte: start, $lte: now };
-        }
-        default:
-            return null; // Toàn thời gian (all time)
-    }
+    if (isStart) now.setUTCHours(0, 0, 0, 0);
+    else now.setUTCHours(23, 59, 59, 999);
+    return new Date(now.getTime() - VN_OFFSET_MS);
 };
 
+// ⚙️ BỘ LỌC THỜI GIAN
+const buildDateRange = (preset, from, to) => {
+    if (preset === 'custom' && from && to) {
+        return {
+            $gte: new Date(`${from}T00:00:00.000+07:00`),
+            $lte: new Date(`${to}T23:59:59.999+07:00`)
+        };
+    }
+    switch (preset) {
+        case 'today': return { $gte: getVnTimeBoundary(0, true), $lte: getVnTimeBoundary(0, false) };
+        case 'yesterday': return { $gte: getVnTimeBoundary(-1, true), $lte: getVnTimeBoundary(-1, false) };
+        case 'last7': return { $gte: getVnTimeBoundary(-6, true), $lte: getVnTimeBoundary(0, false) };
+        case 'thisMonth': return { $gte: getVnTimeBoundary(0, true, new Date(Date.now() + VN_OFFSET_MS).getUTCMonth()), $lte: getVnTimeBoundary(0, false, new Date(Date.now() + VN_OFFSET_MS).getUTCMonth()) };
+        case 'last30':
+        default:
+            return { $gte: getVnTimeBoundary(-29, true), $lte: getVnTimeBoundary(0, false) };
+    }
+};
 /* ─── Helper: build status query ─── */
 const buildStatusQuery = (statusFilter) => {
     if (!statusFilter || statusFilter === 'all') return {};
@@ -59,98 +51,80 @@ const buildStatusQuery = (statusFilter) => {
 
 exports.getOrderStats = async (req, res) => {
     try {
-        const { preset, from, to } = req.query;
-        const dateRange = buildDateRange(preset, from, to);
-        const dateQuery = dateRange ? { createdAt: dateRange } : {};
+        const { preset = 'last30', from, to } = req.query;
+        const dateFilter = buildDateRange(preset, from, to);
 
-        // 1. LẤY THÔNG KÊ TỔNG QUAN & LOGISTICS (Áp dụng dateQuery)
-        const [generalStats] = await Order.aggregate([
-            { $match: dateQuery },
-            {
-                $group: {
-                    _id: null,
-                    total: { $sum: 1 },
-                    revenue: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalPrice', 0] } },
-                    pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-                    delivering: { $sum: { $cond: [{ $eq: ['$status', 'delivering'] }, 1, 0] } },
-                    delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
-                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-                    cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
-                    failed_delivery: { $sum: { $cond: [{ $eq: ['$status', 'failed_delivery'] }, 1, 0] } },
-                    returned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
-                    pendingRefund: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'Hoàn tiền'] }, 1, 0] } },
-                    doneRefund: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'Đã hoàn tiền'] }, 1, 0] } },
-                    totalDeliveryTime: {
-                        $sum: {
-                            $cond: [
-                                { $and: [{ $in: ['$status', ['delivered', 'completed']] }, { $ne: ['$deliveredAt', null] }] },
-                                { $subtract: ['$deliveredAt', '$createdAt'] },
-                                0
-                            ]
-                        }
-                    }
+        // Lấy toàn bộ đơn hàng trong chu kỳ lọc (Lọc theo createdAt)
+        const orders = await Order.find({ createdAt: dateFilter });
+
+        const totalOrders = orders.length;
+        const deliveredOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
+        const cancelledOrders = orders.filter(o => o.status === 'cancelled' || o.status === 'failed_delivery').length;
+        const refundedOrders = orders.filter(o => o.paymentStatus === 'Hoàn tiền' || o.paymentStatus === 'Đã hoàn tiền').length;
+
+        // Tính tỷ lệ
+        const deliverySuccessRate = totalOrders ? ((deliveredOrders / totalOrders) * 100).toFixed(1) : 0;
+        const cancelRate = totalOrders ? ((cancelledOrders / totalOrders) * 100).toFixed(1) : 0;
+        const refundRate = totalOrders ? ((refundedOrders / totalOrders) * 100).toFixed(1) : 0;
+
+        // Thống kê phân bổ trạng thái
+        const byStatus = orders.reduce((acc, curr) => {
+            acc[curr.status] = (acc[curr.status] || 0) + 1;
+            return acc;
+        }, {});
+
+        // Tạo mảng dữ liệu cho biểu đồ (Fill mảng ngày trống để biểu đồ không bị gãy)
+        const dailyDataMap = {};
+        const startRange = new Date(dateFilter.$gte.getTime() + VN_OFFSET_MS);
+        const endRange = new Date(dateFilter.$lte.getTime() + VN_OFFSET_MS);
+
+        let currD = new Date(Date.UTC(startRange.getUTCFullYear(), startRange.getUTCMonth(), startRange.getUTCDate()));
+        const endIter = new Date(Date.UTC(endRange.getUTCFullYear(), endRange.getUTCMonth(), endRange.getUTCDate()));
+
+        while (currD <= endIter) {
+            const dd = String(currD.getUTCDate()).padStart(2, '0');
+            const mm = String(currD.getUTCMonth() + 1).padStart(2, '0');
+            dailyDataMap[`${dd}/${mm}`] = { date: `${dd}/${mm}`, orders: 0 };
+            currD.setUTCDate(currD.getUTCDate() + 1);
+        }
+
+        let avgDeliveryDays = 0;
+        let deliveryCount = 0;
+
+        // Map dữ liệu
+        orders.forEach(o => {
+            const vnTime = new Date(o.createdAt.getTime() + VN_OFFSET_MS);
+            const dd = String(vnTime.getUTCDate()).padStart(2, '0');
+            const mm = String(vnTime.getUTCMonth() + 1).padStart(2, '0');
+            if (dailyDataMap[`${dd}/${mm}`]) {
+                dailyDataMap[`${dd}/${mm}`].orders += 1;
+            }
+
+            // Tính thời gian giao hàng trung bình
+            if (o.status === 'completed' || o.status === 'delivered') {
+                if (o.deliveredAt) {
+                    const diffTime = Math.abs(new Date(o.deliveredAt) - o.createdAt);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    avgDeliveryDays += diffDays;
+                    deliveryCount++;
                 }
             }
-        ]);
-
-        const cur = generalStats || {
-            total: 0, revenue: 0, pending: 0, delivering: 0, delivered: 0, completed: 0,
-            cancelled: 0, failed_delivery: 0, returned: 0, pendingRefund: 0, doneRefund: 0, totalDeliveryTime: 0
-        };
-
-        const aov = cur.completed > 0 ? Math.round(cur.revenue / cur.completed) : 0;
-        const cancelRate = cur.total > 0 ? ((cur.cancelled / cur.total) * 100).toFixed(1) : 0;
-        const deliverySuccessRate = (cur.delivered + cur.completed + cur.failed_delivery + cur.returned) > 0
-            ? (((cur.delivered + cur.completed) / (cur.delivered + cur.completed + cur.failed_delivery + cur.returned)) * 100).toFixed(1)
-            : 0;
-        const refundRate = cur.total > 0 ? (((cur.pendingRefund + cur.doneRefund) / cur.total) * 100).toFixed(1) : 0;
-        const avgDeliveryDays = (cur.delivered + cur.completed) > 0
-            ? (cur.totalDeliveryTime / (cur.delivered + cur.completed) / (1000 * 60 * 60 * 24)).toFixed(1)
-            : 0;
-
-        // 3. TÌM TREND CHART (Áp dụng dateQuery để biểu đồ tự co giãn theo thời gian)
-        const dailyTrends = await Order.aggregate([
-            { $match: dateQuery },
-            {
-                $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: { $add: ["$createdAt", 7 * 60 * 60 * 1000] } } },
-                    orders: { $sum: 1 },
-                    revenue: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalPrice', 0] } }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
-
-        // 4. TÌM CUSTOMER INSIGHTS
-        const customerStats = await Order.aggregate([
-            { $match: { ...dateQuery, user: { $ne: null } } },
-            { $group: { _id: "$user", orderCount: { $sum: 1 } } },
-            {
-                $group: {
-                    _id: null,
-                    totalUniqueCustomers: { $sum: 1 },
-                    repeatCustomers: { $sum: { $cond: [{ $gt: ["$orderCount", 1] }, 1, 0] } }
-                }
-            }
-        ]);
-        const cust = customerStats[0] || { totalUniqueCustomers: 0, repeatCustomers: 0 };
-        const repeatRate = cust.totalUniqueCustomers > 0 ? ((cust.repeatCustomers / cust.totalUniqueCustomers) * 100).toFixed(1) : 0;
-
-        res.json({
-            summary: { total: cur.total, revenue: cur.revenue, aov },
-            rates: { cancelRate: Number(cancelRate), deliverySuccessRate: Number(deliverySuccessRate), refundRate: Number(refundRate), repeatRate: Number(repeatRate) },
-            logistics: { avgDeliveryDays: Number(avgDeliveryDays) },
-            byStatus: {
-                pending: cur.pending, delivering: cur.delivering, delivered: cur.delivered,
-                completed: cur.completed, cancelled: cur.cancelled, failed_delivery: cur.failed_delivery,
-                returned: cur.returned, pendingRefund: cur.pendingRefund
-            },
-            chartData: dailyTrends.map(d => ({ date: d._id, orders: d.orders, revenue: d.revenue }))
         });
 
+        if (deliveryCount > 0) {
+            avgDeliveryDays = (avgDeliveryDays / deliveryCount).toFixed(1);
+        }
+
+        res.json({
+            totalOrders,
+            rates: { deliverySuccessRate, cancelRate, refundRate },
+            logistics: { avgDeliveryDays },
+            byStatus,
+            dailyData: Object.values(dailyDataMap)
+        });
     } catch (err) {
-        console.error('Lỗi getOrderStats:', err);
-        res.status(500).json({ message: 'Lỗi server khi lấy thống kê đơn hàng' });
+        console.error(err);
+        res.status(500).json({ msg: 'Lỗi server' });
     }
 };
 
@@ -250,8 +224,34 @@ exports.updateOrderStatus = async (req, res) => {
 
             if (status === 'cancelled' && order.paymentStatus === 'Đã thanh toán') order.paymentStatus = 'Hoàn tiền';
 
+            // TRONG FILE: adminOrderController.js (Hàm updateOrderStatus)
             if (status === 'completed') {
+                // 1. Cộng lượt bán cho sách
                 await Promise.all(order.items.map(item => Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } })));
+
+                // 2. ✅ FIX LỖI RANK: Cập nhật dòng tiền & Rank cho đơn COD
+                if (order.paymentMethod === 'cod' && order.paymentStatus !== 'Đã thanh toán') {
+                    order.paymentStatus = 'Đã thanh toán'; // Chốt tiền
+
+                    const userObj = await User.findById(order.user);
+                    if (userObj) {
+                        // Cộng dồn tiền chi tiêu
+                        userObj.totalSpent = (userObj.totalSpent || 0) + order.totalPrice;
+                        userObj.lastPurchaseDate = new Date();
+                        userObj.rankUpdatedAt = new Date();
+
+                        // Tính lại hạng
+                        const calculateRank = (total) => {
+                            if (total >= 10000000) return 'Kim cương';
+                            if (total >= 5000000) return 'Bạch kim';
+                            if (total >= 2000000) return 'Vàng';
+                            if (total >= 500000) return 'Bạc';
+                            return 'Khách hàng';
+                        };
+                        userObj.rank = calculateRank(userObj.totalSpent);
+                        await userObj.save();
+                    }
+                }
             }
 
             if (status === 'failed_delivery') {
@@ -362,6 +362,26 @@ exports.confirmRefund = async (req, res) => {
 
         order.paymentStatus = 'Đã hoàn tiền';
         await order.save();
+        const user = await User.findById(order.user);
+
+        if (user) {
+            // 🔥 Trừ lại tiền
+            user.totalSpent = Math.max(0, (user.totalSpent || 0) - order.totalPrice);
+
+            // 🔥 Update lại rank
+            const calculateRank = (total) => {
+                if (total >= 10000000) return 'Kim cương';
+                if (total >= 5000000) return 'Bạch kim';
+                if (total >= 2000000) return 'Vàng';
+                if (total >= 500000) return 'Bạc';
+                return 'Khách hàng';
+            };
+
+            user.rank = calculateRank(user.totalSpent);
+            user.rankUpdatedAt = new Date();
+
+            await user.save();
+        }
 
         const io = req.app.get('io');
         if (io) {
