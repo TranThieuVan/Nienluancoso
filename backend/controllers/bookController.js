@@ -390,14 +390,38 @@ exports.getAllGenres = async (req, res) => {
 
 exports.getTopSellingBooks = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
+        const { preset = '30days' } = req.query;
         const matchStage = { status: "completed" };
 
-        if (startDate && endDate) {
-            matchStage.createdAt = {
-                $gte: new Date(startDate),
-                $lte: new Date(endDate)
-            };
+        // Xử lý bộ lọc thời gian
+        if (preset && preset !== 'all') {
+            const now = new Date();
+            const startDate = new Date(now);
+            startDate.setUTCHours(-7, 0, 0, 0);
+
+            const endDate = new Date(now);
+            endDate.setUTCHours(16, 59, 59, 999);
+
+            switch (preset) {
+                case 'today': break;
+                case 'yesterday':
+                    startDate.setDate(startDate.getDate() - 1);
+                    endDate.setDate(endDate.getDate() - 1);
+                    break;
+                case '3days':
+                    startDate.setDate(startDate.getDate() - 2);
+                    break;
+                case '7days':
+                    startDate.setDate(startDate.getDate() - 6);
+                    break;
+                case '30days':
+                    startDate.setDate(startDate.getDate() - 29);
+                    break;
+                case '365days':
+                    startDate.setDate(startDate.getDate() - 364);
+                    break;
+            }
+            matchStage.createdAt = { $gte: startDate, $lte: endDate };
         }
 
         const result = await Order.aggregate([
@@ -406,7 +430,8 @@ exports.getTopSellingBooks = async (req, res) => {
             {
                 $group: {
                     _id: "$items.book",
-                    totalSold: { $sum: "$items.quantity" }
+                    totalSold: { $sum: "$items.quantity" },
+                    revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } }
                 }
             },
             { $sort: { totalSold: -1 } },
@@ -426,15 +451,19 @@ exports.getTopSellingBooks = async (req, res) => {
                     title: "$book.title",
                     author: "$book.author",
                     image: "$book.image",
+                    genre: "$book.genre", // 🔥 FIX: Bắt buộc lấy genre để PricingService chạy khuyến mãi theo thể loại
                     price: "$book.price",
-                    discountedPrice: "$book.discountedPrice",
                     stock: "$book.stock",
-                    totalSold: 1
+                    totalSold: 1,
+                    revenue: 1
                 }
             }
         ]);
 
-        res.json(result);
+        // 🔥 FIX TRỌNG TÂM: Đưa mảng kết quả qua PricingService để tính toán realtime (Giải quyết triệt để lỗi 50k -> 11%)
+        const finalBooks = PricingService.applyPricing(result);
+
+        res.json(finalBooks);
     } catch (err) {
         console.error("Lỗi getTopSellingBooks:", err);
         res.status(500).json({ message: 'Lỗi khi lấy top sách bán chạy' });
@@ -457,33 +486,11 @@ exports.getLowStockBooks = async (req, res) => {
 
 exports.getBookManagementAnalytics = async (req, res) => {
     try {
-        const [allBooks, topByRevenue] = await Promise.all([
-            Book.find().select('title stock sold price importPrice discountedPrice genre createdAt'),
+        // Lấy data thô (Bổ sung trường genre)
+        const allBooksRaw = await Book.find().select('title stock sold price importPrice genre createdAt');
 
-            Order.aggregate([
-                { $match: { status: "delivered" } },
-                { $unwind: "$items" },
-                { $lookup: { from: 'books', localField: 'items.book', foreignField: '_id', as: 'bookData' } },
-                { $unwind: "$bookData" },
-                {
-                    $group: {
-                        _id: "$bookData._id",
-                        title: { $first: "$bookData.title" },
-                        unitsSold: { $sum: "$items.quantity" },
-                        totalRevenue: {
-                            $sum: {
-                                $multiply: [
-                                    { $ifNull: ["$bookData.discountedPrice", "$bookData.price"] },
-                                    "$items.quantity"
-                                ]
-                            }
-                        }
-                    }
-                },
-                { $sort: { totalRevenue: -1 } },
-                { $limit: 5 }
-            ])
-        ]);
+        // 🔥 FIX TRỌNG TÂM: Bắt buộc map qua PricingService để render đúng 100% data khuyến mãi hiện tại
+        const allBooks = PricingService.applyPricing(allBooksRaw.map(b => b.toObject()));
 
         let totalInventoryValue = 0;
         let potentialProfit = 0;
@@ -505,7 +512,7 @@ exports.getBookManagementAnalytics = async (req, res) => {
 
         const promotions = {
             discountedCount: allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price).length,
-            poorPromoPerformance: allBooks.filter(b => b.discountedPrice && b.sold < 2).length
+            poorPromoPerformance: allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price && b.sold < 2).length
         };
 
         res.json({
@@ -514,17 +521,80 @@ exports.getBookManagementAnalytics = async (req, res) => {
                 potentialProfit: Math.round(potentialProfit),
                 inventory,
                 promotions
-            },
-            topRevenueBooks: topByRevenue.map(item => ({
-                title: item.title,
-                revenue: item.totalRevenue,
-                sold: item.unitsSold
-            })),
-            deadStockList: allBooks.filter(b => b.sold === 0).slice(0, 5)
+            }
         });
 
     } catch (err) {
         console.error("🔥 Lỗi API Analytics:", err);
         res.status(500).json({ message: "Lỗi tính toán báo cáo sách", error: err.message });
+    }
+};
+
+exports.getBookManagementAnalytics = async (req, res) => {
+    try {
+        // ✅ FIX: Bổ sung _id vào select để PricingService có thể khớp chương trình khuyến mãi
+        const allBooksRaw = await Book.find().select('_id title stock sold price importPrice genre createdAt');
+        const allBooks = PricingService.applyPricing(allBooksRaw.map(b => b.toObject()));
+
+        let totalInventoryValue = 0;
+        let totalPotentialRevenue = 0;
+        let totalSoldQuantity = 0;
+        let totalStockQuantity = 0;
+        const genreStats = {};
+
+        allBooks.forEach(book => {
+            const currentPrice = book.discountedPrice || book.price || 0;
+            const costPrice = book.importPrice || (book.price * 0.6);
+
+            totalInventoryValue += (book.stock * costPrice);
+            totalPotentialRevenue += (book.stock * currentPrice);
+            totalSoldQuantity += (book.sold || 0);
+            totalStockQuantity += book.stock;
+
+            if (!genreStats[book.genre]) {
+                genreStats[book.genre] = { revenue: 0, profit: 0, sold: 0 };
+            }
+            const unitProfit = currentPrice - costPrice;
+            genreStats[book.genre].revenue += (book.sold * currentPrice);
+            genreStats[book.genre].profit += (book.sold * unitProfit);
+            genreStats[book.genre].sold += book.sold;
+        });
+
+        // 1. Tỷ lệ quay vòng vốn
+        const turnoverRate = (totalSoldQuantity + totalStockQuantity) > 0
+            ? ((totalSoldQuantity / (totalSoldQuantity + totalStockQuantity)) * 100).toFixed(1)
+            : 0;
+
+        // 2. Biên lợi nhuận gộp (%)
+        const totalCostOfSold = allBooks.reduce((acc, b) => acc + (b.sold * (b.importPrice || b.price * 0.6)), 0);
+        const totalRevenueSoFar = allBooks.reduce((acc, b) => acc + (b.sold * (b.discountedPrice || b.price)), 0);
+        const grossMargin = totalRevenueSoFar > 0
+            ? (((totalRevenueSoFar - totalCostOfSold) / totalRevenueSoFar) * 100).toFixed(1)
+            : 0;
+
+        // 3. Tìm thể loại bán chạy nhất
+        const sortedGenres = Object.entries(genreStats).sort((a, b) => b[1].profit - a[1].profit);
+        const topGenre = sortedGenres[0] ? { name: sortedGenres[0][0], profit: sortedGenres[0][1].profit } : null;
+
+        // ✅ FIX: Đếm chính xác số lượng đang giảm giá (nếu giá KM nhỏ hơn giá gốc)
+        const discountedCount = allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price).length;
+
+        res.json({
+            summary: {
+                totalInventoryValue: Math.round(totalInventoryValue),
+                potentialProfit: Math.round(totalPotentialRevenue - totalInventoryValue),
+                turnoverRate,
+                grossMargin,
+                topGenre,
+                discountedCount, // ✅ Trả về số lượng KM chính xác
+                inventory: {
+                    lowStock: allBooks.filter(b => b.stock > 0 && b.stock <= 5).length,
+                    outOfStock: allBooks.filter(b => b.stock === 0).length
+                }
+            }
+        });
+    } catch (err) {
+        console.error("🔥 Lỗi Analytics:", err);
+        res.status(500).json({ message: "Lỗi tính toán báo cáo" });
     }
 };

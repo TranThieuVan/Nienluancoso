@@ -6,6 +6,7 @@ const AdminMessages = () => {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // ✨ Thêm state tìm kiếm
   const messageContainerRef = useRef(null);
 
   useEffect(() => {
@@ -36,7 +37,14 @@ const AdminMessages = () => {
           seen.add(user._id);
         }
       }
+
       setConversations(unique);
+
+      // ✨ Auto focus vào khách hàng đầu tiên khi vừa tải xong danh sách
+      if (unique.length > 0 && !selectedConversation) {
+        selectConversation(unique[0]);
+      }
+
     } catch (err) {
       console.error('Lỗi fetch conversations:', err);
     }
@@ -88,7 +96,6 @@ const AdminMessages = () => {
     }
   };
 
-  // ✨ Hàm cho phép Admin bật/tắt Bot
   const toggleBot = async () => {
     try {
       const newStatus = !selectedConversation.isBotActive;
@@ -107,33 +114,59 @@ const AdminMessages = () => {
     }
   };
 
+  // ✨ Lọc danh sách khách hàng dựa trên từ khóa tìm kiếm
+  const filteredConversations = conversations.filter(conv =>
+    conv.participant?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="flex bg-white" style={{ height: 'calc(100vh - 50px)' }}>
       {/* Sidebar */}
-      <div className="w-1/3 border-r overflow-y-auto p-4">
+      <div className="w-1/3 border-r flex flex-col p-4">
         <h2 className="text-xl font-bold mb-4">Khách hàng</h2>
-        {conversations.map((conv) => (
-          <div
-            key={conv._id}
-            onClick={() => selectConversation(conv)}
-            className={`p-3 rounded cursor-pointer hover:bg-gray-100 flex select-none items-center justify-between ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''
-              }`}
-          >
-            <div className="flex items-center gap-3">
-              <img src={`/${conv.participants[0]?.avatar || 'default-avatar.png'}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
-              <div className="flex flex-col">
-                <span className="truncate font-medium">{conv.participant?.name || 'Người dùng'}</span>
-                {/* Báo hiệu AI đang tắt (Cần người trực) */}
-                {conv.isBotActive === false && <span className="text-xs text-red-500 font-semibold mt-0.5">⚠️ Đang gọi Admin</span>}
+
+        {/* ✨ Input Search */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Tìm tên khách hàng..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+          />
+        </div>
+
+        {/* Danh sách cuộn được */}
+        <div className="overflow-y-auto flex-1 pr-1 -mr-1">
+          {filteredConversations.map((conv) => (
+            <div
+              key={conv._id}
+              onClick={() => selectConversation(conv)}
+              className={`p-3 mb-1 rounded cursor-pointer hover:bg-gray-100 flex select-none items-center justify-between transition-colors ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <img src={`/${conv.participants[0]?.avatar || 'default-avatar.png'}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                <div className="flex flex-col">
+                  <span className="truncate font-medium">{conv.participant?.name || 'Người dùng'}</span>
+                  {conv.isBotActive === false && <span className="text-xs text-red-500 font-semibold mt-0.5">⚠️ Đang gọi Admin</span>}
+                </div>
               </div>
+              {conv.unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {conv.unreadCount}
+                </span>
+              )}
             </div>
-            {conv.unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {conv.unreadCount}
-              </span>
-            )}
-          </div>
-        ))}
+          ))}
+
+          {/* Hiển thị khi không tìm thấy kết quả */}
+          {filteredConversations.length === 0 && (
+            <div className="text-center text-gray-500 mt-4 text-sm">
+              Không tìm thấy khách hàng "{searchTerm}"
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Chat */}
@@ -141,7 +174,6 @@ const AdminMessages = () => {
         <div className="p-4 border-b font-bold text-lg bg-gray-50 flex justify-between items-center">
           <span>{selectedConversation?.participant?.name || 'Chọn hội thoại'}</span>
 
-          {/* ✨ Nút điều khiển Bot dành cho Admin */}
           {selectedConversation && (
             <button
               onClick={toggleBot}

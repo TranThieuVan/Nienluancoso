@@ -1,170 +1,207 @@
 const Order = require('../../models/Order');
 
-// Helper: Xử lý múi giờ VN (UTC+7)
-const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
-const getVnTimeBoundary = (daysOffset = 0, isStart = true, monthOffset = null) => {
-    const now = new Date(Date.now() + VN_OFFSET_MS);
-    if (monthOffset !== null) {
-        now.setUTCDate(1);
-        now.setUTCMonth(monthOffset);
-        if (!isStart) { now.setUTCMonth(now.getUTCMonth() + 1); now.setUTCDate(0); }
-    } else {
-        now.setUTCDate(now.getUTCDate() + daysOffset);
-    }
-    if (isStart) now.setUTCHours(0, 0, 0, 0);
-    else now.setUTCHours(23, 59, 59, 999);
-    return new Date(now.getTime() - VN_OFFSET_MS);
-};
-
+// Helper: Lấy khoảng thời gian hiển thị (Dùng cho Chart Xu hướng & Summary)
 const buildDateRange = (preset, from, to) => {
+    const now = new Date();
+    const startDate = new Date(now);
+    const endDate = new Date(now);
+
     if (preset === 'custom' && from && to) {
-        return { start: new Date(`${from}T00:00:00.000+07:00`), end: new Date(`${to}T23:59:59.999+07:00`) };
+        return {
+            startDate: new Date(`${from}T00:00:00.000+07:00`),
+            endDate: new Date(`${to}T23:59:59.999+07:00`)
+        };
     }
+
+    startDate.setUTCHours(-7, 0, 0, 0);
+    endDate.setUTCHours(16, 59, 59, 999);
+
     switch (preset) {
-        case 'today': return { start: getVnTimeBoundary(0, true), end: getVnTimeBoundary(0, false) };
-        case 'yesterday': return { start: getVnTimeBoundary(-1, true), end: getVnTimeBoundary(-1, false) };
-        case 'last7': return { start: getVnTimeBoundary(-6, true), end: getVnTimeBoundary(0, false) };
-        case 'thisMonth': return { start: getVnTimeBoundary(0, true, new Date(Date.now() + VN_OFFSET_MS).getUTCMonth()), end: getVnTimeBoundary(0, false, new Date(Date.now() + VN_OFFSET_MS).getUTCMonth()) };
-        case 'last30': default: return { start: getVnTimeBoundary(-29, true), end: getVnTimeBoundary(0, false) };
+        case 'today': break;
+        case 'yesterday':
+            startDate.setDate(startDate.getDate() - 1);
+            endDate.setDate(endDate.getDate() - 1);
+            break;
+        case 'last7': startDate.setDate(startDate.getDate() - 6); break;
+        case 'last30': startDate.setDate(startDate.getDate() - 29); break;
+        case 'thisMonth': startDate.setDate(1); break;
+        default: startDate.setDate(startDate.getDate() - 29);
     }
+    return { startDate, endDate };
 };
 
-// Khối tính toán dùng chung (Chỉ giữ Revenue và Profit)
-const financialFields = {
-    revenue: { $ifNull: ["$totalPrice", 0] },
-    cost: {
-        $reduce: {
-            input: { $ifNull: ["$items", []] },
-            initialValue: 0,
-            in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.quantity", 0] }, { $multiply: [{ $ifNull: ["$$this.price", 0] }, 0.6] }] }] }
-        }
+// Helper: Tính ngày "Kỳ này" vs "Kỳ trước" cho Khối So Sánh
+const getComparisonRanges = (compareBy) => {
+    const now = new Date();
+    const currentStart = new Date(now);
+    const currentEnd = new Date(now);
+    const previousStart = new Date(now);
+    const previousEnd = new Date(now);
+
+    currentStart.setUTCHours(-7, 0, 0, 0);
+    currentEnd.setUTCHours(16, 59, 59, 999);
+    previousStart.setUTCHours(-7, 0, 0, 0);
+    previousEnd.setUTCHours(16, 59, 59, 999);
+
+    if (compareBy === 'week') {
+        currentStart.setDate(currentStart.getDate() - 6); // Tuần này (7 ngày qua)
+        previousEnd.setDate(currentStart.getDate() - 1);  // Ngày kết thúc tuần trước
+        previousStart.setDate(previousEnd.getDate() - 6); // Ngày bắt đầu tuần trước
+    } else if (compareBy === 'month') {
+        currentStart.setDate(1); // Tháng này
+        previousStart.setMonth(previousStart.getMonth() - 1); // Tháng trước
+        previousStart.setDate(1);
+        previousEnd.setDate(0); // Ngày cuối cùng của tháng trước
+    } else if (compareBy === 'year') {
+        currentStart.setMonth(0, 1); // Năm nay
+        previousStart.setFullYear(previousStart.getFullYear() - 1, 0, 1); // Năm trước
+        previousEnd.setFullYear(previousEnd.getFullYear() - 1, 11, 31);
     }
+    return { currentStart, currentEnd, previousStart, previousEnd };
 };
 
 exports.getRevenueDashboard = async (req, res) => {
     try {
-        const { preset = 'last30', from, to, groupBy = 'day_of_week', compareBy = 'week' } = req.query;
-        const range = buildDateRange(preset, from, to);
-        const nowVN = new Date(Date.now() + VN_OFFSET_MS);
+        const { preset = 'last30', from, to, compareBy = 'week' } = req.query;
 
-        /* --- 1. CẤU HÌNH COMPARISON --- */
-        let cCurStart, cCurEnd, cPrevStart, cPrevEnd, cGroupExpr, cMax, cLabels;
-        const curY = nowVN.getUTCFullYear(); const curM = nowVN.getUTCMonth(); const curD = nowVN.getUTCDate();
+        // 1. DATA CHÍNH (Summary, Trend, Payment Breakdown)
+        const { startDate, endDate } = buildDateRange(preset, from, to);
+        const baseMatch = { createdAt: { $gte: startDate, $lte: endDate }, status: 'completed' };
 
-        if (compareBy === 'week') {
-            cCurStart = new Date(Date.UTC(curY, curM, curD - 6, 0, 0, 0) - VN_OFFSET_MS);
-            cCurEnd = new Date(Date.UTC(curY, curM, curD, 23, 59, 59, 999) - VN_OFFSET_MS);
-            cPrevStart = new Date(Date.UTC(curY, curM, curD - 13, 0, 0, 0) - VN_OFFSET_MS);
-            cPrevEnd = new Date(Date.UTC(curY, curM, curD - 7, 23, 59, 59, 999) - VN_OFFSET_MS);
-            cGroupExpr = { $isoDayOfWeek: { date: "$updatedAt", timezone: "+07:00" } };
-            cMax = 7; cLabels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-        } else if (compareBy === 'month') {
-            cCurStart = new Date(Date.UTC(curY, curM, 1, 0, 0, 0) - VN_OFFSET_MS);
-            cCurEnd = new Date(Date.UTC(curY, curM + 1, 0, 23, 59, 59, 999) - VN_OFFSET_MS);
-            cPrevStart = new Date(Date.UTC(curY, curM - 1, 1, 0, 0, 0) - VN_OFFSET_MS);
-            cPrevEnd = new Date(Date.UTC(curY, curM, 0, 23, 59, 59, 999) - VN_OFFSET_MS);
-            cGroupExpr = { $dayOfMonth: { date: "$updatedAt", timezone: "+07:00" } };
-            cMax = 31; cLabels = Array.from({ length: 31 }, (_, i) => `Ngày ${i + 1}`);
-        } else { // year
-            cCurStart = new Date(Date.UTC(curY, 0, 1, 0, 0, 0) - VN_OFFSET_MS);
-            cCurEnd = new Date(Date.UTC(curY, 11, 31, 23, 59, 59, 999) - VN_OFFSET_MS);
-            cPrevStart = new Date(Date.UTC(curY - 1, 0, 1, 0, 0, 0) - VN_OFFSET_MS);
-            cPrevEnd = new Date(Date.UTC(curY - 1, 11, 31, 23, 59, 59, 999) - VN_OFFSET_MS);
-            cGroupExpr = { $month: { date: "$updatedAt", timezone: "+07:00" } };
-            cMax = 12; cLabels = ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"];
-        }
-
-        /* --- 2. CẤU HÌNH PERFORMANCE --- */
-        const perfGroupExpr = groupBy === 'month_of_year'
-            ? { $month: { date: "$updatedAt", timezone: "+07:00" } }
-            : { $isoDayOfWeek: { date: "$updatedAt", timezone: "+07:00" } };
-
-        /* --- 3. EXECUTE AGGREGATION --- */
-        const [mainData, compData] = await Promise.all([
-            Order.aggregate([
-                { $match: { status: 'completed', updatedAt: { $gte: range.start, $lte: range.end } } },
-                { $addFields: financialFields },
-                { $addFields: { profit: { $subtract: ["$revenue", "$cost"] } } },
-                {
-                    $facet: {
-                        summary: [{ $group: { _id: null, revenue: { $sum: "$revenue" }, profit: { $sum: "$profit" } } }],
-                        trend: [
-                            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt", timezone: "+07:00" } }, revenue: { $sum: "$revenue" }, profit: { $sum: "$profit" } } },
-                            { $sort: { "_id": 1 } }
-                        ],
-                        performance: [{ $group: { _id: perfGroupExpr, revenue: { $sum: "$revenue" }, profit: { $sum: "$profit" } } }]
+        const mainAgg = await Order.aggregate([
+            { $match: baseMatch },
+            { $unwind: "$items" },
+            {
+                $lookup: { from: "books", localField: "items.book", foreignField: "_id", as: "book" }
+            },
+            { $unwind: { path: "$book", preserveNullAndEmptyArrays: true } },
+            {
+                $group: {
+                    _id: "$_id",
+                    createdAt: { $first: "$createdAt" },
+                    paymentMethod: { $first: "$paymentMethod" },
+                    revenue: { $first: "$totalPrice" },
+                    cost: {
+                        $sum: {
+                            $multiply: [
+                                "$items.quantity",
+                                { $ifNull: ["$book.importPrice", { $multiply: ["$items.price", 0.6] }] }
+                            ]
+                        }
                     }
                 }
-            ]),
-            Order.aggregate([
-                {
-                    $facet: {
-                        current: [
-                            { $match: { status: 'completed', updatedAt: { $gte: cCurStart, $lte: cCurEnd } } },
-                            { $addFields: financialFields },
-                            { $addFields: { profit: { $subtract: ["$revenue", "$cost"] } } },
-                            { $group: { _id: cGroupExpr, profit: { $sum: "$profit" } } }
-                        ],
-                        previous: [
-                            { $match: { status: 'completed', updatedAt: { $gte: cPrevStart, $lte: cPrevEnd } } },
-                            { $addFields: financialFields },
-                            { $addFields: { profit: { $subtract: ["$revenue", "$cost"] } } },
-                            { $group: { _id: cGroupExpr, profit: { $sum: "$profit" } } }
-                        ]
-                    }
+            },
+            { $addFields: { profit: { $subtract: ["$revenue", "$cost"] } } },
+            {
+                $facet: {
+                    summary: [
+                        { $group: { _id: null, totalCompleted: { $sum: 1 }, revenue: { $sum: "$revenue" }, profit: { $sum: "$profit" } } }
+                    ],
+                    trend: [
+                        {
+                            $group: {
+                                _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "+07:00" } },
+                                revenue: { $sum: "$revenue" },
+                                profit: { $sum: "$profit" }
+                            }
+                        },
+                        { $sort: { _id: 1 } },
+                        { $project: { _id: 0, date: "$_id", revenue: 1, profit: 1 } }
+                    ],
+                    paymentBreakdown: [
+                        { $group: { _id: "$paymentMethod", count: { $sum: 1 }, revenue: { $sum: "$revenue" } } }
+                    ]
                 }
-            ])
+            }
         ]);
 
-        const data = mainData[0];
+        // 2. DATA SO SÁNH TĂNG TRƯỞNG
+        const { currentStart, currentEnd, previousStart, previousEnd } = getComparisonRanges(compareBy);
 
-        /* --- 4. FORMAT RESPONSE --- */
-        // A. Summary
-        const sum = data.summary[0] || { revenue: 0, profit: 0 };
+        const compareAgg = await Order.aggregate([
+            {
+                $match: {
+                    status: 'completed',
+                    createdAt: { $gte: previousStart, $lte: currentEnd }
+                }
+            },
+            { $unwind: "$items" },
+            { $lookup: { from: "books", localField: "items.book", foreignField: "_id", as: "book" } },
+            { $unwind: { path: "$book", preserveNullAndEmptyArrays: true } },
+            {
+                $group: {
+                    _id: "$_id",
+                    createdAt: { $first: "$createdAt" },
+                    revenue: { $first: "$totalPrice" },
+                    cost: {
+                        $sum: {
+                            $multiply: ["$items.quantity", { $ifNull: ["$book.importPrice", { $multiply: ["$items.price", 0.6] }] }]
+                        }
+                    }
+                }
+            },
+            { $addFields: { profit: { $subtract: ["$revenue", "$cost"] } } },
+            {
+                $facet: {
+                    current: [
+                        { $match: { createdAt: { $gte: currentStart, $lte: currentEnd } } },
+                        { $group: { _id: null, revenue: { $sum: "$revenue" }, profit: { $sum: "$profit" } } }
+                    ],
+                    previous: [
+                        { $match: { createdAt: { $gte: previousStart, $lte: previousEnd } } },
+                        { $group: { _id: null, revenue: { $sum: "$revenue" }, profit: { $sum: "$profit" } } }
+                    ]
+                }
+            }
+        ]);
+
+        /* ─── XỬ LÝ KẾT QUẢ ĐẦU RA ─── */
+        const mainResult = mainAgg[0];
+        const sumData = mainResult.summary[0] || { totalCompleted: 0, revenue: 0, profit: 0 };
+
         const summary = {
-            revenue: sum.revenue,
-            profit: sum.profit,
-            profitMargin: sum.revenue > 0 ? Math.round((sum.profit / sum.revenue) * 100) : 0
+            revenue: sumData.revenue,
+            profit: sumData.profit,
+            profitMargin: sumData.revenue > 0 ? (sumData.profit / sumData.revenue) * 100 : 0,
+            totalCompleted: sumData.totalCompleted,
+            aov: sumData.totalCompleted > 0 ? sumData.revenue / sumData.totalCompleted : 0
         };
 
-        // B. Trend (Fill mảng ngày trống)
-        const trend = [];
-        let currD = new Date(range.start.getTime() + VN_OFFSET_MS);
-        const endD = new Date(range.end.getTime() + VN_OFFSET_MS);
-        const trendMap = data.trend.reduce((acc, cur) => { acc[cur._id] = cur; return acc; }, {});
+        const paymentMap = { cod: 'Tiền mặt (COD)', vnpay: 'Chuyển khoản VNPay', transfer: 'Chuyển khoản thủ công' };
+        const paymentBreakdown = mainResult.paymentBreakdown.map(p => ({
+            name: paymentMap[p._id] || p._id,
+            count: p.count,
+            revenue: p.revenue
+        }));
 
-        while (currD <= endD) {
-            const dateStr = currD.toISOString().split('T')[0];
-            const d = trendMap[dateStr] || { revenue: 0, profit: 0 };
-            trend.push({ date: dateStr, revenue: d.revenue, profit: d.profit });
-            currD.setUTCDate(currD.getUTCDate() + 1);
-        }
+        const compResult = compareAgg[0];
+        const currentData = compResult.current[0] || { revenue: 0, profit: 0 };
+        const previousData = compResult.previous[0] || { revenue: 0, profit: 0 };
 
-        // C. Performance
-        const perfMap = data.performance.reduce((acc, cur) => { acc[cur._id] = cur; return acc; }, {});
-        let performance = [];
-        if (groupBy === 'month_of_year') {
-            const mLabels = ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"];
-            performance = mLabels.map((lbl, i) => ({ label: lbl, revenue: perfMap[i + 1]?.revenue || 0, profit: perfMap[i + 1]?.profit || 0 }));
-        } else {
-            const dLabels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-            performance = dLabels.map((lbl, i) => ({ label: lbl, revenue: perfMap[i + 1]?.revenue || 0, profit: perfMap[i + 1]?.profit || 0 }));
-        }
+        const calcPercentChange = (curr, prev) => prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
 
-        // D. Comparison
-        const curComp = Array(cMax).fill(0);
-        const prevComp = Array(cMax).fill(0);
-        compData[0].current.forEach(i => { if (i._id <= cMax) curComp[i._id - 1] = i.profit; });
-        compData[0].previous.forEach(i => { if (i._id <= cMax) prevComp[i._id - 1] = i.profit; });
+        const comparison = {
+            revenue: {
+                current: currentData.revenue,
+                previous: previousData.revenue,
+                percentChange: calcPercentChange(currentData.revenue, previousData.revenue)
+            },
+            profit: {
+                current: currentData.profit,
+                previous: previousData.profit,
+                percentChange: calcPercentChange(currentData.profit, previousData.profit)
+            }
+        };
 
         res.json({
             summary,
-            trend,
-            performance,
-            comparison: { labels: cLabels, current: curComp, previous: prevComp }
+            trend: mainResult.trend,
+            paymentBreakdown,
+            comparison
         });
 
-    } catch (err) {
-        console.error(err); res.status(500).json({ msg: 'Lỗi server' });
+    } catch (error) {
+        console.error('Revenue Dashboard Error:', error);
+        res.status(500).json({ message: 'Lỗi server khi lấy dữ liệu doanh thu' });
     }
 };

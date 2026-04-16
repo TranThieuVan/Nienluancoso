@@ -33,19 +33,23 @@ const AdminVouchers = () => {
 
     const now = new Date();
 
+    // ✨ Stats cập nhật bg-200
     const stats = [
-        { label: 'Tổng voucher', dot: 'bg-indigo-500', value: vouchers.length },
+        { label: 'Tổng voucher', dot: 'bg-indigo-600', value: vouchers.length, bg: 'bg-indigo-200', border: 'border-indigo-300', textLabel: 'text-indigo-700', textVal: 'text-indigo-900' },
         {
             label: 'Đang hoạt động',
-            dot: 'bg-green-500',
+            dot: 'bg-green-600',
+            bg: 'bg-green-200', border: 'border-green-300', textLabel: 'text-green-700', textVal: 'text-green-900',
             value: vouchers.filter(v => v.isActive && new Date(v.expirationDate) >= now && v.usedCount < v.usageLimit).length
         },
         {
             label: 'Đã khóa / Hết hạn',
-            dot: 'bg-red-500',
+            dot: 'bg-red-600',
+            bg: 'bg-red-200', border: 'border-red-300', textLabel: 'text-red-700', textVal: 'text-red-900',
             value: vouchers.filter(v => !v.isActive || new Date(v.expirationDate) < now || v.usedCount >= v.usageLimit).length
         },
     ];
+
     const fetchVouchers = async () => {
         try {
             const res = await axios.get('/api/admin/vouchers', { headers: { Authorization: `Bearer ${token}` } });
@@ -132,68 +136,67 @@ const AdminVouchers = () => {
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
 
-            {/* ── Header ── */}
             <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Quản lý Voucher</h1>
                 </div>
                 <button onClick={handleOpenAdd}
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
                 >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
                     Thêm mã mới
                 </button>
             </div>
 
-            {/* ── Stats ── */}
+            {/* ✨ Khối thống kê bg-200 */}
             <div className="grid grid-cols-3 gap-3 mb-5">
                 {stats.map(s => (
-                    <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold flex items-center gap-1.5">
+                    <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 shadow-sm`}>
+                        <p className={`text-xs uppercase tracking-widest ${s.textLabel} font-bold flex items-center gap-1.5`}>
                             <span className={`w-2 h-2 rounded-full ${s.dot}`} />{s.label}
                         </p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1.5 font-mono">{s.value}</p>
+                        <p className={`text-3xl font-bold ${s.textVal} mt-1.5 font-mono`}>{s.value}</p>
                     </div>
                 ))}
             </div>
 
-            {/* ── Table Card ── */}
+            {/* ✨ Table tăng cỡ chữ */}
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <span className="text-xs text-gray-400">
-                        Tổng <strong className="text-gray-700">{vouchers.length}</strong> mã giảm giá
+                    <span className="text-sm text-gray-500">
+                        Tổng <strong className="text-gray-900">{vouchers.length}</strong> mã giảm giá
                     </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-base">
                         <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
                                 {['Mã voucher', 'Khuyến mãi', 'Đơn tối thiểu', 'Thời hạn', 'Lượt dùng', 'Trạng thái', 'Hành động'].map((h, i) => (
-                                    <th key={h} className={`px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold ${i >= 5 ? 'text-center' : 'text-left'}`}>{h}</th>
+                                    <th key={h} className={`px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold ${i >= 5 ? 'text-center' : 'text-left'}`}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {vouchers.length === 0 ? (
-                                <tr><td colSpan="7" className="py-16 text-center text-sm text-gray-400">Chưa có mã giảm giá nào.</td></tr>
+                                <tr><td colSpan="7" className="py-16 text-center text-base text-gray-400">Chưa có mã giảm giá nào.</td></tr>
                             ) : vouchers.map(v => (
                                 <tr key={v._id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-4 py-3 font-bold text-indigo-600 font-mono tracking-wide text-sm">{v.code}</td>
-                                    <td className="px-4 py-3 font-bold text-red-600 font-mono text-sm">
+                                    <td className="px-4 py-3 font-bold text-indigo-600 font-mono tracking-wider text-base">{v.code}</td>
+                                    <td className="px-4 py-3 font-bold text-red-600 font-mono text-base">
                                         {v.discountType === 'fixed' ? `Giảm ${formatPrice(v.discountValue)}` : `Giảm ${v.discountValue}%`}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-gray-700 font-mono">{formatPrice(v.minOrderValue)}</td>
-                                    <td className="px-4 py-3 text-xs text-gray-600 leading-relaxed">
+                                    <td className="px-4 py-3 text-base text-gray-700 font-mono">{formatPrice(v.minOrderValue)}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 leading-relaxed">
                                         <span className="text-gray-400 font-semibold">Từ: </span>{formatDate(v.startDate)}<br />
                                         <span className="text-gray-400 font-semibold">Đến: </span>{formatDate(v.expirationDate)}
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         {v.usageLimit >= 999999
-                                            ? <span className="text-xs font-bold text-indigo-600">Không giới hạn</span>
-                                            : <span className="text-sm font-mono text-gray-700">{v.usedCount} / {v.usageLimit}</span>
+                                            ? <span className="text-sm font-bold text-indigo-600">Không giới hạn</span>
+                                            : <span className="text-base font-mono text-gray-700">{v.usedCount} / {v.usageLimit}</span>
                                         }
                                     </td>
                                     <td className="px-4 py-3 text-center">
@@ -203,28 +206,28 @@ const AdminVouchers = () => {
 
                                             if (!v.isActive) {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-700 border border-red-200 rounded-full text-[10px] font-bold">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-700 border border-red-200 rounded-full text-xs font-bold">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Đã khóa
                                                     </span>
                                                 );
                                             }
                                             if (isExpired) {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-[10px] font-bold">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-xs font-bold">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />Hết hạn
                                                     </span>
                                                 );
                                             }
                                             if (isOut) {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-100 text-orange-700 border border-orange-200 rounded-full text-[10px] font-bold">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-100 text-orange-700 border border-orange-200 rounded-full text-xs font-bold">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Hết lượt
                                                     </span>
                                                 );
                                             }
 
                                             return (
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 border border-green-200 rounded-full text-[10px] font-bold">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 border border-green-200 rounded-full text-xs font-bold">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Hoạt động
                                                 </span>
                                             );
@@ -233,18 +236,18 @@ const AdminVouchers = () => {
                                     <td className="px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             <button onClick={() => handleOpenEdit(v)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
                                             >
-                                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                                 </svg>
                                                 Sửa
                                             </button>
                                             <button onClick={() => handleDelete(v._id)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                                             >
-                                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                     <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" />
                                                     <path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" />
                                                 </svg>
@@ -268,7 +271,7 @@ const AdminVouchers = () => {
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
                             <h2 className="text-base font-bold text-gray-900">{isEditing ? 'Chỉnh sửa mã giảm giá' : 'Thêm mã mới'}</h2>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 transition-colors p-1">
-                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                                 </svg>
                             </button>
@@ -295,14 +298,14 @@ const AdminVouchers = () => {
                                 <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-1.5 border-b border-gray-100">Thông tin mã</p>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Mã voucher *</label>
+                                        <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Mã voucher *</label>
                                         <input required placeholder="VD: TET2026"
                                             className={`${inputCls} font-mono font-bold text-indigo-600 tracking-wider uppercase`}
                                             value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Loại giảm giá</label>
+                                        <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Loại giảm giá</label>
                                         <select className={inputCls} value={form.discountType} onChange={e => setForm(f => ({ ...f, discountType: e.target.value }))}>
                                             <option value="fixed">Tiền mặt (₫)</option>
                                             <option value="percent">Phần trăm (%)</option>
@@ -311,7 +314,7 @@ const AdminVouchers = () => {
 
                                     {/* Discount value */}
                                     <div>
-                                        <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá trị giảm *</label>
+                                        <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giá trị giảm *</label>
                                         <div className="relative">
                                             {form.discountType === 'percent' ? (
                                                 <>
@@ -319,7 +322,7 @@ const AdminVouchers = () => {
                                                         className={`${inputCls} pr-7`}
                                                         value={form.discountValue} onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))}
                                                     />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">%</span>
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-bold pointer-events-none">%</span>
                                                 </>
                                             ) : (
                                                 <>
@@ -328,7 +331,7 @@ const AdminVouchers = () => {
                                                         value={form.discountValue !== '' ? Number(form.discountValue).toLocaleString('vi-VN') : ''}
                                                         onChange={e => handleCurrency('discountValue', e.target.value)}
                                                     />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₫</span>
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-bold pointer-events-none">₫</span>
                                                 </>
                                             )}
                                         </div>
@@ -336,28 +339,28 @@ const AdminVouchers = () => {
 
                                     {/* Min order */}
                                     <div>
-                                        <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Đơn tối thiểu</label>
+                                        <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Đơn tối thiểu</label>
                                         <div className="relative">
                                             <input placeholder="0"
                                                 className={`${inputCls} pr-7 font-mono`}
                                                 value={form.minOrderValue !== '' ? Number(form.minOrderValue).toLocaleString('vi-VN') : ''}
                                                 onChange={e => handleCurrency('minOrderValue', e.target.value)}
                                             />
-                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₫</span>
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-bold pointer-events-none">₫</span>
                                         </div>
                                     </div>
 
                                     {/* Max discount (percent only) */}
                                     {form.discountType === 'percent' && (
                                         <div className="col-span-2">
-                                            <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giảm tối đa (bỏ trống = không giới hạn)</label>
+                                            <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Giảm tối đa (bỏ trống = không giới hạn)</label>
                                             <div className="relative">
                                                 <input placeholder="Không giới hạn"
                                                     className={`${inputCls} pr-7 font-mono`}
                                                     value={form.maxDiscountAmount !== '' && form.maxDiscountAmount !== null ? Number(form.maxDiscountAmount).toLocaleString('vi-VN') : ''}
                                                     onChange={e => handleCurrency('maxDiscountAmount', e.target.value)}
                                                 />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₫</span>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-bold pointer-events-none">₫</span>
                                             </div>
                                         </div>
                                     )}
@@ -367,13 +370,13 @@ const AdminVouchers = () => {
                                 <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-1.5 border-b border-gray-100">Thời hạn</p>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Ngày bắt đầu *</label>
+                                        <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Ngày bắt đầu *</label>
                                         <input type="date" required max={form.expirationDate} className={inputCls}
                                             value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Ngày kết thúc *</label>
+                                        <label className="block text-xs uppercase tracking-wide font-bold text-gray-500 mb-1.5">Ngày kết thúc *</label>
                                         <input type="date" required min={form.startDate} className={inputCls}
                                             value={form.expirationDate} onChange={e => setForm(f => ({ ...f, expirationDate: e.target.value }))}
                                         />
@@ -384,12 +387,12 @@ const AdminVouchers = () => {
                                 <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold pb-1.5 border-b border-gray-100">Giới hạn sử dụng</p>
                                 <div className="flex items-center gap-3">
                                     <input type="number" min="1" max="999999" disabled={form.isUnlimitedUsage}
-                                        className={`${inputCls} flex-1 font-mono font-semibold ${form.isUnlimitedUsage ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
+                                        className={`${inputCls} flex-1 font-mono font-semibold text-base ${form.isUnlimitedUsage ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                                         value={form.isUnlimitedUsage ? 999999 : form.usageLimit}
                                         onChange={e => { let v = parseInt(e.target.value, 10); if (v > 999999) v = 999999; setForm(f => ({ ...f, usageLimit: v || '' })); }}
                                     />
-                                    <label className="flex items-center gap-2 cursor-pointer px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors flex-shrink-0 text-sm font-semibold text-gray-700">
-                                        <input type="checkbox" className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                                    <label className="flex items-center gap-2 cursor-pointer px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors flex-shrink-0 text-sm font-semibold text-gray-700">
+                                        <input type="checkbox" className="w-4 h-4 cursor-pointer accent-indigo-600"
                                             checked={form.isUnlimitedUsage}
                                             onChange={e => setForm(f => ({ ...f, isUnlimitedUsage: e.target.checked }))}
                                         />
@@ -410,9 +413,9 @@ const AdminVouchers = () => {
                                     <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-100 rounded-xl">
                                         {ALL_RANKS.map(rank => (
                                             <label key={rank}
-                                                className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${form.applicableRanks.includes(rank) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white'}`}
+                                                className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-full border text-sm font-semibold transition-all ${form.applicableRanks.includes(rank) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white'}`}
                                             >
-                                                <input type="checkbox" className="w-3 h-3 cursor-pointer accent-indigo-600"
+                                                <input type="checkbox" className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
                                                     checked={form.applicableRanks.includes(rank)}
                                                     onChange={() => handleRankToggle(rank)}
                                                 />
@@ -420,7 +423,7 @@ const AdminVouchers = () => {
                                             </label>
                                         ))}
                                     </div>
-                                    <p className="text-[10px] text-gray-400 italic mt-2">* Mã giá trị cao nên giới hạn cho hạng Vàng trở lên.</p>
+                                    <p className="text-xs text-gray-400 italic mt-2">* Mã giá trị cao nên giới hạn cho hạng Vàng trở lên.</p>
                                 </div>
                             </form>
                         </div>
@@ -428,7 +431,7 @@ const AdminVouchers = () => {
                         {/* Modal Footer */}
                         <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
                             <button onClick={() => setShowModal(false)}
-                                className="px-5 py-2.5 text-sm font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                             >Hủy</button>
                             <button type="submit" form="voucherForm"
                                 className="px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"

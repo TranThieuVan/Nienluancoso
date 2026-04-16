@@ -116,13 +116,21 @@ const Orders = () => {
     }
   };
 
+  const handleTimeFilterChange = (e) => {
+    const newFilter = e.target.value;
+    setTimeFilter(newFilter);
+    if (newFilter !== 'custom') {
+      setCurrentPage(1);
+    }
+  };
+
   useEffect(() => {
     if (timeFilter !== 'custom') {
-      setCurrentPage(1);
       loadOrders();
-    } else if (timeFilter === 'all') {
+    } else if (timeFilter === 'custom' && customStartDate && customEndDate) {
       loadOrders();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, timeFilter]);
 
   const handleCustomFilter = () => {
@@ -153,7 +161,7 @@ const Orders = () => {
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <select
                 value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
+                onChange={handleTimeFilterChange}
                 className="text-sm md:text-base border border-gray-200 focus:border-black outline-none px-4 py-2.5 bg-white transition-colors cursor-pointer"
               >
                 <option value="all">Tất cả thời gian</option>
@@ -194,131 +202,136 @@ const Orders = () => {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      {/* ── NỘI DUNG CHÍNH ĐÃ ĐƯỢC THÊM CẤU TRÚC GIỮ KHUNG (min-h-[80vh] flex flex-col) ── */}
+      <div className="max-w-4xl mx-auto px-6 py-8 min-h-[80vh] flex flex-col">
 
-        {/* ── LOADING ── */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-40">
-            <div className="w-10 h-10 border-4 border-stone-100 border-t-black rounded-full animate-spin mb-4" />
-            <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-stone-400">Đang tải...</p>
-          </div>
-
-          /* ── EMPTY ── */
-        ) : orders.length === 0 ? (
-          <div className="bg-white border border-gray-100 flex flex-col items-center justify-center py-24 gap-4">
-            <FontAwesomeIcon icon={['fas', 'box-open']} className="text-4xl text-stone-200" />
-            <div className="text-center">
-              <p className="text-base md:text-lg font-semibold text-black mb-1">Chưa có đơn hàng nào</p>
-              <p className="text-sm md:text-base text-stone-400">Không tìm thấy đơn hàng trong khoảng thời gian này.</p>
+        {/* Cục flex-1 này chứa nội dung, giúp đẩy Pagination luôn ghim ở dưới cùng */}
+        <div className="flex-1">
+          {/* ── LOADING ── */}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-40">
+              <div className="w-10 h-10 border-4 border-stone-100 border-t-black rounded-full animate-spin mb-4" />
+              <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-stone-400">Đang tải...</p>
             </div>
-            <button
-              onClick={() => navigate('/books')}
-              className="mt-2 px-8 py-3 bg-black text-white text-sm md:text-base font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
-            >
-              Khám phá sách
-            </button>
-          </div>
 
-          /* ── LIST ── */
-        ) : (
-          <div className="flex flex-col gap-3">
-            {orders.map((order) => {
-              const sc = statusConfig(order.status);
-              const firstItem = order.items[0];
-              const moreCount = order.items.length - 1;
+            /* ── EMPTY ── */
+          ) : orders.length === 0 ? (
+            <div className="bg-white border border-gray-100 flex flex-col items-center justify-center py-24 gap-4">
+              <FontAwesomeIcon icon={['fas', 'box-open']} className="text-4xl text-stone-200" />
+              <div className="text-center">
+                <p className="text-base md:text-lg font-semibold text-black mb-1">Chưa có đơn hàng nào</p>
+                <p className="text-sm md:text-base text-stone-400">Không tìm thấy đơn hàng trong khoảng thời gian này.</p>
+              </div>
+              <button
+                onClick={() => navigate('/books')}
+                className="mt-2 px-8 py-3 bg-black text-white text-sm md:text-base font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
+              >
+                Khám phá sách
+              </button>
+            </div>
 
-              return (
-                <div
-                  key={order._id}
-                  className="bg-white border border-gray-100 overflow-hidden hover:border-stone-300 transition-colors duration-200"
-                >
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-stone-50/60">
-                    <div className="flex items-center gap-5">
-                      <div>
-                        <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Mã đơn</span>
-                        <span className="font-mono text-sm md:text-base font-bold text-black">
-                          #{order._id.slice(-6).toUpperCase()}
-                        </span>
+            /* ── LIST ── */
+          ) : (
+            <div className="flex flex-col gap-3">
+              {orders.map((order) => {
+                const sc = statusConfig(order.status);
+                const firstItem = order.items[0];
+                const moreCount = order.items.length - 1;
+
+                return (
+                  <div
+                    key={order._id}
+                    className="bg-white border border-gray-100 overflow-hidden hover:border-stone-300 transition-colors duration-200"
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-stone-50/60">
+                      <div className="flex items-center gap-5">
+                        <div>
+                          <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Mã đơn</span>
+                          <span className="font-mono text-sm md:text-base font-bold text-black">
+                            #{order._id.slice(-6).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="w-px h-5 bg-gray-200" />
+                        <div>
+                          <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Ngày đặt</span>
+                          <span className="text-sm md:text-base font-medium text-black">{formatDate(order.createdAt)}</span>
+                        </div>
                       </div>
-                      <div className="w-px h-5 bg-gray-200" />
-                      <div>
-                        <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Ngày đặt</span>
-                        <span className="text-sm md:text-base font-medium text-black">{formatDate(order.createdAt)}</span>
-                      </div>
+
+                      {/* Status Badge */}
+                      <span className={`px-3 py-1 text-[10px] md:text-xs font-bold border uppercase tracking-widest ${sc.bg} ${sc.text} ${sc.border}`}>
+                        {sc.label}
+                      </span>
                     </div>
 
-                    {/* Status Badge */}
-                    <span className={`px-3 py-1 text-[10px] md:text-xs font-bold border uppercase tracking-widest ${sc.bg} ${sc.text} ${sc.border}`}>
-                      {sc.label}
-                    </span>
-                  </div>
+                    {/* Card Body */}
+                    <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 
-                  {/* Card Body */}
-                  <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-
-                    {/* Book preview */}
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      {firstItem && firstItem.book && (
-                        <>
-                          <img
-                            src={
-                              firstItem.book.image?.startsWith('http')
-                                ? firstItem.book.image
-                                : `http://localhost:5000${firstItem.book.image}`
-                            }
-                            alt={firstItem.book.title}
-                            className="w-12 h-18 md:w-16 md:h-24 object-cover flex-shrink-0 border border-gray-100"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm md:text-base font-semibold text-black line-clamp-2 leading-snug">
-                              {firstItem.book.title}
-                            </p>
-                            <p className="text-xs md:text-sm text-stone-400 mt-1">
-                              x{firstItem.quantity}
-                            </p>
-                            {moreCount > 0 && (
-                              <p className="text-xs md:text-sm font-bold text-stone-500 mt-1">
-                                + {moreCount} sản phẩm khác
+                      {/* Book preview */}
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        {firstItem && firstItem.book && (
+                          <>
+                            <img
+                              src={
+                                firstItem.book.image?.startsWith('http')
+                                  ? firstItem.book.image
+                                  : `http://localhost:5000${firstItem.book.image}`
+                              }
+                              alt={firstItem.book.title}
+                              className="w-12 h-18 md:w-16 md:h-24 object-cover flex-shrink-0 border border-gray-100"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm md:text-base font-semibold text-black line-clamp-2 leading-snug">
+                                {firstItem.book.title}
                               </p>
-                            )}
-                          </div>
-                        </>
-                      )}
+                              <p className="text-xs md:text-sm text-stone-400 mt-1">
+                                x{firstItem.quantity}
+                              </p>
+                              {moreCount > 0 && (
+                                <p className="text-xs md:text-sm font-bold text-stone-500 mt-1">
+                                  + {moreCount} sản phẩm khác
+                                </p>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Total + CTA */}
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-2 border-t sm:border-t-0 border-gray-100 pt-4 sm:pt-0">
+                        <div className="sm:text-right">
+                          <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-widest mb-0.5">Tổng tiền</p>
+                          <p className="text-base md:text-lg font-black text-black">
+                            {formatPrice(order.totalPrice)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => navigate(`/orders/${order._id}`)}
+                          className="px-5 py-2 md:py-2.5 border border-black text-black text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all"
+                        >
+                          Xem chi tiết
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Total + CTA */}
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-2 border-t sm:border-t-0 border-gray-100 pt-4 sm:pt-0">
-                      <div className="sm:text-right">
-                        <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-widest mb-0.5">Tổng tiền</p>
-                        <p className="text-base md:text-lg font-black text-black">
-                          {formatPrice(order.totalPrice)}
+                    {/* Refund Notice */}
+                    {order.paymentStatus === 'Hoàn tiền' && (
+                      <div className="mx-5 mb-5 px-4 py-3 bg-amber-50 border border-amber-200 flex items-center gap-2.5">
+                        <FontAwesomeIcon icon={['fas', 'circle-info']} className="text-amber-500 flex-shrink-0" />
+                        <p className="text-amber-800 text-xs md:text-sm font-bold">
+                          Hệ thống sẽ hoàn tiền trong thời gian sớm nhất, vui lòng chờ!
                         </p>
                       </div>
-                      <button
-                        onClick={() => navigate(`/orders/${order._id}`)}
-                        className="px-5 py-2 md:py-2.5 border border-black text-black text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all"
-                      >
-                        Xem chi tiết
-                      </button>
-                    </div>
+                    )}
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-                  {/* Refund Notice */}
-                  {order.paymentStatus === 'Hoàn tiền' && (
-                    <div className="mx-5 mb-5 px-4 py-3 bg-amber-50 border border-amber-200 flex items-center gap-2.5">
-                      <FontAwesomeIcon icon={['fas', 'circle-info']} className="text-amber-500 flex-shrink-0" />
-                      <p className="text-amber-800 text-xs md:text-sm font-bold">
-                        Hệ thống sẽ hoàn tiền trong thời gian sớm nhất, vui lòng chờ!
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
+        {/* ── PAGINATION (Luôn được đẩy xuống dưới cùng nhờ flex-1) ── */}
         {totalPages > 1 && (
           <div className="mt-10 border-t border-stone-100 pt-8 flex justify-center">
             <Pagination

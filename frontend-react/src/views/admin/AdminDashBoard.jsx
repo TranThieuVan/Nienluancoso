@@ -14,7 +14,6 @@ const fmtDate = (d) => new Date(d).toLocaleDateString('vi-VN');
 const MONTH_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
 const RANK_COLORS = { 'Khách hàng': '#94a3b8', 'Bạc': '#cbd5e1', 'Vàng': '#fbbf24', 'Bạch kim': '#818cf8', 'Kim cương': '#38bdf8' };
 
-// ✅ ĐÃ SỬA: Cập nhật toàn bộ các trạng thái mới
 const STATUS_MAP = {
   pending: { label: 'Đang xử lý', cls: 'bg-amber-100 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
   delivering: { label: 'Đang giao', cls: 'bg-blue-100 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
@@ -96,7 +95,6 @@ const RevenueChart = ({ data, year }) => {
 
 const OrderDonut = ({ counts }) => {
   const ref = useRef(null); const chartRef = useRef(null);
-  // ✅ ĐÃ SỬA: Gom nhóm chuẩn theo logic mới
   const labels = ['Đang xử lý', 'Đang giao', 'Hoàn tất', 'Hủy/Thất bại'];
   const colors = ['#f59e0b', '#3b82f6', '#10b981', '#f43f5e'];
   const values = [
@@ -151,7 +149,7 @@ const AdminDashBoard = () => {
   const [overview, setOverview] = useState(null);
   const year = new Date().getFullYear();
 
-  const [timeFilter, setTimeFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState('30days');
   const [filteredTopBooks, setFilteredTopBooks] = useState([]);
   const [topLoading, setTopLoading] = useState(false);
 
@@ -172,42 +170,21 @@ const AdminDashBoard = () => {
     fetchOverview();
   }, []);
 
-  const getDateRange = (filterType) => {
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    if (filterType === 'today') {
-      start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 999);
-    } else if (filterType === 'week') {
-      const first = now.getDate() - now.getDay() + 1;
-      start = new Date(now.setDate(first)); start.setHours(0, 0, 0, 0); end = new Date();
-    } else if (filterType === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1); start.setHours(0, 0, 0, 0); end = new Date();
-    } else {
-      return { startDate: null, endDate: null };
-    }
-    return { startDate: start.toISOString(), endDate: end.toISOString() };
-  };
-
   useEffect(() => {
     const fetchTopBooks = async () => {
       setTopLoading(true);
       try {
-        const { startDate, endDate } = getDateRange(timeFilter);
-        // ✅ Đổi về relative URL để dùng chung Proxy của dự án
-        let url = 'http://localhost:5000/api/books/top-selling';
-        if (startDate && endDate) url += `?startDate=${startDate}&endDate=${endDate}`;
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+        const res = await axios.get(`http://localhost:5000/api/books/top-selling?preset=${timeFilter}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-        const res = await axios.get(url);
-
-        // ✅ Bóc tách mảng an toàn
         const dataList = res.data.books || res.data.data || res.data;
         setFilteredTopBooks(Array.isArray(dataList) ? dataList : []);
 
       } catch (error) {
         console.error('Lỗi lấy sách bán chạy:', error);
-        setFilteredTopBooks([]); // Nếu lỗi mạng, gán mảng rỗng để không bị sập web
+        setFilteredTopBooks([]);
       } finally {
         setTopLoading(false);
       }
@@ -230,7 +207,11 @@ const AdminDashBoard = () => {
   const topMonth = maxMonthVal > 0 ? MONTH_LABELS[kpi.monthlyRevenue.indexOf(maxMonthVal)] : '—';
 
   const now = new Date();
+
+  // Lọc ra các khuyến mãi đang hoạt động
   const activePromotions = (promotions || []).filter(p => new Date(p.endDate) >= now && p.isActive !== false);
+
+  // Lọc ra các voucher đang hoạt động
   const activeVouchers = (vouchers || []).filter(v =>
     v.isActive !== false && new Date(v.expirationDate) >= now && (v.usedCount || 0) < (v.usageLimit || 999999)
   );
@@ -260,13 +241,15 @@ const AdminDashBoard = () => {
 
       {/* Block Top Books & Recent Orders */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+
+        {/* TOP 5 SÁCH BÁN CHẠY */}
         <div className="bg-amber-50/40 border border-amber-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
           <div className="px-6 py-4 border-b border-amber-200/60">
             <SectionTitle
               action={
                 <div className="flex bg-amber-100/50 p-1 rounded-lg border border-amber-200/50">
-                  {['today', 'week', 'month', 'all'].map((filter) => {
-                    const labels = { today: 'Hôm nay', week: 'Tuần này', month: 'Tháng này', all: 'Tất cả' };
+                  {['today', '7days', '30days', 'all'].map((filter) => {
+                    const labels = { today: 'Hôm nay', '7days': '7 ngày', '30days': '30 ngày', all: 'Tất cả' };
                     return (
                       <button
                         key={filter} onClick={() => setTimeFilter(filter)} disabled={topLoading}
@@ -282,11 +265,14 @@ const AdminDashBoard = () => {
               <span className="flex items-center gap-2"><i className="fa-solid fa-trophy text-amber-600" />Top 5 sách bán chạy</span>
             </SectionTitle>
           </div>
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
             <thead className="bg-amber-100/50 border-b border-amber-200/60">
-              <tr>{['#', 'Sách', 'Đã Bán', 'Giá'].map((h, i) => (
-                <th key={h} className={`px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold ${i >= 2 ? 'text-right' : 'text-left'}`}>{h}</th>
-              ))}</tr>
+              <tr>
+                <th className="w-[10%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-left">#</th>
+                <th className="w-[45%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-left">Sách</th>
+                <th className="w-[20%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-right">Đã Bán</th>
+                <th className="w-[25%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-right">Giá</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-amber-200/40">
               {topLoading ? (
@@ -299,11 +285,23 @@ const AdminDashBoard = () => {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt={book.title} className="w-8 h-11 object-cover border border-amber-100 rounded flex-shrink-0" />
-                      <div><p className="font-semibold text-gray-800 text-sm line-clamp-1">{book.title}</p><p className="text-xs text-gray-500 mt-0.5">{book.author}</p></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-800 text-sm truncate" title={book.title}>{book.title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate" title={book.author}>{book.author}</p>
+                      </div>
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold ?? 0}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-gray-700 text-sm">{(book.discountedPrice || book.price)?.toLocaleString('vi-VN')}₫</td>
+                  <td className="px-5 py-3.5 text-right font-mono text-sm">
+                    {book.discountedPrice && book.discountedPrice < book.price ? (
+                      <div className="flex flex-col items-end leading-tight">
+                        <span className="font-bold text-rose-600">{book.discountedPrice.toLocaleString('vi-VN')}₫</span>
+                        <span className="text-[10px] text-gray-400 line-through mt-0.5">{book.price.toLocaleString('vi-VN')}₫</span>
+                      </div>
+                    ) : (
+                      <span className="font-bold text-gray-800">{book.price?.toLocaleString('vi-VN')}₫</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -338,53 +336,176 @@ const AdminDashBoard = () => {
       </div>
 
       {/* Block 3 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-rose-50/40 border border-rose-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-rose-200/60"><SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-rose-600" />Sắp hết hàng</span></SectionTitle></div>
-          {lowStock.length === 0 ? <p className="px-6 py-10 text-center text-gray-400 text-sm">Không có sách nào sắp hết</p> : (
-            <div className="divide-y divide-rose-200/40">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+        {/* Card 1 */}
+        <div className="bg-rose-50/40 border border-rose-200 rounded-2xl overflow-hidden shadow-sm h-full flex flex-col">
+          <div className="px-6 py-4 border-b border-rose-200/60">
+            <SectionTitle>
+              <span className="flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation text-rose-600" />
+                Sắp hết hàng
+              </span>
+            </SectionTitle>
+          </div>
+
+          {lowStock.length === 0 ? (
+            <p className="px-6 py-10 text-center text-gray-400 text-sm flex-1 flex items-center justify-center">
+              Không có sách nào sắp hết
+            </p>
+          ) : (
+            <div className="divide-y divide-rose-200/40 overflow-y-auto">
               {lowStock.map(book => (
                 <div key={book._id} className="flex items-center gap-3 px-5 py-3 hover:bg-rose-100/30 transition-colors">
-                  <img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt={book.title} className="w-9 h-12 object-cover border border-rose-100 rounded flex-shrink-0" />
-                  <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 line-clamp-1">{book.title}</p><p className="text-xs text-gray-500 mt-0.5">{book.author}</p></div>
-                  <span className={`font-mono text-sm font-bold flex-shrink-0 ${book.stock <= 3 ? 'text-rose-600' : 'text-amber-600'}`}>còn {book.stock}</span>
+                  <img
+                    src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
+                    alt={book.title}
+                    className="w-9 h-12 object-cover border border-rose-100 rounded flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 line-clamp-1">{book.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{book.author}</p>
+                  </div>
+                  <span className={`font-mono text-sm font-bold flex-shrink-0 ${book.stock <= 3 ? 'text-rose-600' : 'text-amber-600'
+                    }`}>
+                    còn {book.stock}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="bg-purple-50/40 border border-purple-200 rounded-2xl p-6 shadow-sm">
-          <SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-ranking-star text-purple-600" />Phân hạng người dùng</span></SectionTitle>
-          <div className="flex flex-col gap-4">
+        {/* Card 2 */}
+        <div className="bg-purple-50/40 border border-purple-200 rounded-2xl p-6 shadow-sm h-full flex flex-col">
+          <SectionTitle>
+            <span className="flex items-center gap-2">
+              <i className="fa-solid fa-ranking-star text-purple-600" />
+              Phân hạng người dùng
+            </span>
+          </SectionTitle>
+
+          <div className="flex flex-col gap-4 flex-1 justify-center">
             {Object.entries(kpi.rankDist).map(([rank, count]) => {
               const pct = kpi.totalUsers > 0 ? Math.round((count / kpi.totalUsers) * 100) : 0;
               return (
                 <div key={rank}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: RANK_COLORS[rank] }} />{rank}</span>
-                    <span className="font-mono text-sm text-gray-500">{count} · {pct}%</span>
+                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ background: RANK_COLORS[rank] }}
+                      />
+                      {rank}
+                    </span>
+                    <span className="font-mono text-sm text-gray-500">
+                      {count} · {pct}%
+                    </span>
                   </div>
-                  <div className="h-2 bg-purple-100 rounded-full overflow-hidden"><div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: RANK_COLORS[rank] }} /></div>
+
+                  <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${pct}%`, background: RANK_COLORS[rank] }}
+                    />
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-emerald-50/40 border border-emerald-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-          <div className="px-6 py-4 border-b border-emerald-200/60">
-            <div className="flex items-center justify-between"><p className="text-base font-bold text-gray-700 flex items-center gap-2"><i className="fa-solid fa-bullhorn text-emerald-600" />Khuyến mãi & Voucher</p></div>
+        {/* Card 3 */}
+        <div className="bg-emerald-50/40 border border-emerald-200 rounded-2xl overflow-hidden shadow-sm h-full flex flex-col">
+          <div className="px-6 py-4 border-b border-emerald-200/60 shrink-0">
+            <div className="flex items-center justify-between">
+              <p className="text-base font-bold text-gray-700 flex items-center gap-2">
+                <i className="fa-solid fa-bullhorn text-emerald-600" />
+                Khuyến mãi & Voucher
+              </p>
+            </div>
           </div>
-          <div className="divide-y divide-emerald-200/40 flex-1">
-            {activePromotions.slice(0, 3).map(p => (
-              <div key={p._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-gray-800 line-clamp-1">{p.name}</p>
-                  <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">-{fmt(p.discountValue)}</span>
-                </div>
+
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* SALE */}
+            <div className="flex-1 overflow-y-auto border-b border-emerald-200/60 custom-scrollbar relative">
+              <div className="sticky top-0 bg-emerald-50/95 backdrop-blur-sm px-5 py-1.5 border-b border-emerald-100 z-10 flex justify-between items-center">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">
+                  Chương trình Sale
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                  {activePromotions.length}
+                </span>
               </div>
-            ))}
+
+              <div className="divide-y divide-emerald-200/40">
+                {activePromotions.length === 0 ? (
+                  <p className="px-5 py-6 text-center text-gray-400 text-xs">
+                    Không có Sale nào đang chạy
+                  </p>
+                ) : (
+                  activePromotions.map(p => (
+                    <div key={p._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase tracking-wide shrink-0">
+                            Sale
+                          </span>
+                          <p className="text-sm font-semibold text-gray-800 line-clamp-1" title={p.name}>
+                            {p.name}
+                          </p>
+                        </div>
+                        <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">
+                          -{fmt(p.discountValue)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* VOUCHER */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+              <div className="sticky top-0 bg-emerald-50/95 backdrop-blur-sm px-5 py-1.5 border-b border-emerald-100 z-10 flex justify-between items-center">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">
+                  Mã Giảm Giá
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                  {activeVouchers.length}
+                </span>
+              </div>
+
+              <div className="divide-y divide-emerald-200/40">
+                {activeVouchers.length === 0 ? (
+                  <p className="px-5 py-6 text-center text-gray-400 text-xs">
+                    Không có Mã nào đang chạy
+                  </p>
+                ) : (
+                  activeVouchers.map(v => (
+                    <div key={v._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded uppercase tracking-wide shrink-0">
+                            Mã
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-gray-800 line-clamp-1 uppercase" title={v.code}>
+                              {v.code}
+                            </p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">
+                              Còn {v.usageLimit - v.usedCount} lượt dùng
+                            </p>
+                          </div>
+                        </div>
+                        <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">
+                          -{v.discountType === 'percent' ? `${v.discountValue}%` : fmt(v.discountValue)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -5,122 +5,121 @@ const axios = require('axios');
 const moment = require('moment');
 const crypto = require('crypto');
 const PricingService = require('../../services/pricingService');
-// ⚙️ LÕI XỬ LÝ MÚI GIỜ VIỆT NAM (UTC+7) - ĐÚNG TỚI TỪNG MILI-GIÂY
+
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-const getVnTimeBoundary = (daysOffset = 0, isStart = true, monthOffset = null) => {
-    const now = new Date(Date.now() + VN_OFFSET_MS);
-    if (monthOffset !== null) {
-        now.setUTCDate(1);
-        now.setUTCMonth(monthOffset);
-        if (!isStart) { now.setUTCMonth(now.getUTCMonth() + 1); now.setUTCDate(0); }
-    } else {
-        now.setUTCDate(now.getUTCDate() + daysOffset);
-    }
-    if (isStart) now.setUTCHours(0, 0, 0, 0);
-    else now.setUTCHours(23, 59, 59, 999);
-    return new Date(now.getTime() - VN_OFFSET_MS);
-};
-
-// ⚙️ BỘ LỌC THỜI GIAN
 const buildDateRange = (preset, from, to) => {
+    if (preset === 'all') return {};
+
+    const now = new Date();
+    const startDate = new Date(now);
+    const endDate = new Date(now);
+
     if (preset === 'custom' && from && to) {
+        // ✅ Tạo mốc thời gian chuẩn UTC để query
         return {
-            $gte: new Date(`${from}T00:00:00.000+07:00`),
-            $lte: new Date(`${to}T23:59:59.999+07:00`)
+            $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0) - VN_OFFSET_MS),
+            $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999) - VN_OFFSET_MS)
         };
     }
+
+    startDate.setUTCHours(-7, 0, 0, 0);
+    endDate.setUTCHours(16, 59, 59, 999);
+
     switch (preset) {
-        case 'today': return { $gte: getVnTimeBoundary(0, true), $lte: getVnTimeBoundary(0, false) };
-        case 'yesterday': return { $gte: getVnTimeBoundary(-1, true), $lte: getVnTimeBoundary(-1, false) };
-        case 'last7': return { $gte: getVnTimeBoundary(-6, true), $lte: getVnTimeBoundary(0, false) };
-        case 'thisMonth': return { $gte: getVnTimeBoundary(0, true, new Date(Date.now() + VN_OFFSET_MS).getUTCMonth()), $lte: getVnTimeBoundary(0, false, new Date(Date.now() + VN_OFFSET_MS).getUTCMonth()) };
-        case 'last30':
-        default:
-            return { $gte: getVnTimeBoundary(-29, true), $lte: getVnTimeBoundary(0, false) };
+        case 'today': break;
+        case 'yesterday':
+            startDate.setDate(startDate.getDate() - 1);
+            endDate.setDate(endDate.getDate() - 1);
+            break;
+        case 'last7': startDate.setDate(startDate.getDate() - 6); break;
+        case 'last30': startDate.setDate(startDate.getDate() - 29); break;
+        case 'thisMonth': startDate.setDate(1); break;
+        default: startDate.setDate(startDate.getDate() - 29);
     }
-};
-/* ─── Helper: build status query ─── */
-const buildStatusQuery = (statusFilter) => {
-    if (!statusFilter || statusFilter === 'all') return {};
-    if (statusFilter === 'pending_refund') return { status: 'cancelled', paymentStatus: 'Hoàn tiền' };
-    if (statusFilter === 'done_refund') return { status: 'cancelled', paymentStatus: 'Đã hoàn tiền' };
-    if (statusFilter === 'cod_cancelled') return { status: 'cancelled', paymentStatus: { $nin: ['Hoàn tiền', 'Đã hoàn tiền'] } };
-    return { status: statusFilter };
+    return { $gte: startDate, $lte: endDate };
 };
 
 exports.getOrderStats = async (req, res) => {
     try {
-        const { preset = 'last30', from, to } = req.query;
+        let { preset = 'last30', from, to } = req.query;
+
+        // Ép preset về custom nếu có ngày từ-đến
+        if (from && to) preset = 'custom';
+
         const dateFilter = buildDateRange(preset, from, to);
 
-        // Lấy toàn bộ đơn hàng trong chu kỳ lọc (Lọc theo createdAt)
-        const orders = await Order.find({ createdAt: dateFilter });
+        let query = {};
+        if (Object.keys(dateFilter).length > 0) {
+            query.createdAt = dateFilter;
+        }
+
+        const orders = await Order.find(query);
+        const needRefundCount = await Order.countDocuments({ paymentStatus: 'Hoàn tiền' });
 
         const totalOrders = orders.length;
-        const deliveredOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
-        const cancelledOrders = orders.filter(o => o.status === 'cancelled' || o.status === 'failed_delivery').length;
-        const refundedOrders = orders.filter(o => o.paymentStatus === 'Hoàn tiền' || o.paymentStatus === 'Đã hoàn tiền').length;
-
-        // Tính tỷ lệ
-        const deliverySuccessRate = totalOrders ? ((deliveredOrders / totalOrders) * 100).toFixed(1) : 0;
-        const cancelRate = totalOrders ? ((cancelledOrders / totalOrders) * 100).toFixed(1) : 0;
-        const refundRate = totalOrders ? ((refundedOrders / totalOrders) * 100).toFixed(1) : 0;
-
-        // Thống kê phân bổ trạng thái
         const byStatus = orders.reduce((acc, curr) => {
             acc[curr.status] = (acc[curr.status] || 0) + 1;
             return acc;
         }, {});
 
-        // Tạo mảng dữ liệu cho biểu đồ (Fill mảng ngày trống để biểu đồ không bị gãy)
+        // ✅ LOGIC VẼ BIỂU ĐỒ CHUẨN XÁC THEO BỘ LỌC TÙY CHỌN
         const dailyDataMap = {};
-        const startRange = new Date(dateFilter.$gte.getTime() + VN_OFFSET_MS);
-        const endRange = new Date(dateFilter.$lte.getTime() + VN_OFFSET_MS);
+        let startRange, endRange;
 
-        let currD = new Date(Date.UTC(startRange.getUTCFullYear(), startRange.getUTCMonth(), startRange.getUTCDate()));
-        const endIter = new Date(Date.UTC(endRange.getUTCFullYear(), endRange.getUTCMonth(), endRange.getUTCDate()));
-
-        while (currD <= endIter) {
-            const dd = String(currD.getUTCDate()).padStart(2, '0');
-            const mm = String(currD.getUTCMonth() + 1).padStart(2, '0');
-            dailyDataMap[`${dd}/${mm}`] = { date: `${dd}/${mm}`, orders: 0 };
-            currD.setUTCDate(currD.getUTCDate() + 1);
+        if (preset === 'custom' && from && to) {
+            startRange = new Date(from);
+            endRange = new Date(to);
+        } else if (Object.keys(dateFilter).length > 0) {
+            startRange = new Date(dateFilter.$gte.getTime() + VN_OFFSET_MS);
+            endRange = new Date(dateFilter.$lte.getTime() + VN_OFFSET_MS);
+        } else {
+            // Trường hợp "Tất cả": Lấy từ đơn cũ nhất đến hiện tại
+            if (orders.length > 0) {
+                const sorted = [...orders].sort((a, b) => a.createdAt - b.createdAt);
+                startRange = new Date(sorted[0].createdAt.getTime() + VN_OFFSET_MS);
+            } else {
+                startRange = new Date();
+            }
+            endRange = new Date(Date.now() + VN_OFFSET_MS);
         }
 
-        let avgDeliveryDays = 0;
-        let deliveryCount = 0;
+        // Chuẩn hóa về 00:00:00 để chạy vòng lặp ngày
+        let currD = new Date(startRange);
+        currD.setHours(0, 0, 0, 0);
+        const lastD = new Date(endRange);
+        lastD.setHours(0, 0, 0, 0);
 
-        // Map dữ liệu
+        // Tạo khung ngày tháng
+        while (currD <= lastD) {
+            const dd = String(currD.getDate()).padStart(2, '0');
+            const mm = String(currD.getMonth() + 1).padStart(2, '0');
+            const yyyy = currD.getFullYear();
+
+            const key = `${dd}/${mm}/${yyyy}`;
+            const displayDate = (preset === 'all' || preset === 'custom') ? `${dd}/${mm}/${yyyy}` : `${dd}/${mm}`;
+
+            dailyDataMap[key] = { date: displayDate, orders: 0 };
+            currD.setDate(currD.getDate() + 1);
+        }
+
+        // Đổ dữ liệu thật vào
         orders.forEach(o => {
             const vnTime = new Date(o.createdAt.getTime() + VN_OFFSET_MS);
-            const dd = String(vnTime.getUTCDate()).padStart(2, '0');
-            const mm = String(vnTime.getUTCMonth() + 1).padStart(2, '0');
-            if (dailyDataMap[`${dd}/${mm}`]) {
-                dailyDataMap[`${dd}/${mm}`].orders += 1;
-            }
-
-            // Tính thời gian giao hàng trung bình
-            if (o.status === 'completed' || o.status === 'delivered') {
-                if (o.deliveredAt) {
-                    const diffTime = Math.abs(new Date(o.deliveredAt) - o.createdAt);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    avgDeliveryDays += diffDays;
-                    deliveryCount++;
-                }
-            }
+            const key = `${String(vnTime.getUTCDate()).padStart(2, '0')}/${String(vnTime.getUTCMonth() + 1).padStart(2, '0')}/${vnTime.getUTCFullYear()}`;
+            if (dailyDataMap[key]) dailyDataMap[key].orders += 1;
         });
-
-        if (deliveryCount > 0) {
-            avgDeliveryDays = (avgDeliveryDays / deliveryCount).toFixed(1);
-        }
 
         res.json({
             totalOrders,
-            rates: { deliverySuccessRate, cancelRate, refundRate },
-            logistics: { avgDeliveryDays },
+            needRefundCount,
             byStatus,
-            dailyData: Object.values(dailyDataMap)
+            dailyData: Object.values(dailyDataMap),
+            rates: {
+                deliverySuccessRate: totalOrders ? ((orders.filter(o => o.status === 'completed' || o.status === 'delivered').length / totalOrders) * 100).toFixed(1) : 0,
+                cancelRate: totalOrders ? ((orders.filter(o => o.status === 'cancelled').length / totalOrders) * 100).toFixed(1) : 0,
+                refundRate: totalOrders ? ((orders.filter(o => o.paymentStatus?.includes('hoàn tiền')).length / totalOrders) * 100).toFixed(1) : 0
+            }
         });
     } catch (err) {
         console.error(err);
@@ -133,63 +132,61 @@ exports.getAllOrders = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
 
-        // 1. Khởi tạo object query trống để chứa các điều kiện lọc
+        // ✅ FIX LOGIC: Lấy preset, from, to từ query
+        let { preset, from, to, status } = req.query;
+
+        // ✅ QUAN TRỌNG: Nếu có from và to thì bắt buộc preset phải là 'custom' 
+        // để buildDateRange không nhảy vào case default (last30)
+        if (from && to && (!preset || preset === 'all')) {
+            preset = 'custom';
+        }
+
         let query = {};
 
-        // 2. Lọc theo trạng thái (status)
-        if (req.query.status && req.query.status !== 'all') {
-            if (req.query.status === 'pending_refund') {
+        // 1. Lọc theo trạng thái
+        if (status && status !== 'all') {
+            if (status === 'need_refund') {
                 query.paymentStatus = 'Hoàn tiền';
-            } else if (req.query.status === 'done_refund') {
+            } else if (status === 'done_refund') {
                 query.paymentStatus = 'Đã hoàn tiền';
             } else {
-                query.status = req.query.status;
+                query.status = status;
             }
         }
 
-        // 3. Lọc theo ngày tháng (từ và đến)
-        if (req.query.from && req.query.to) {
-            query.createdAt = {
-                $gte: new Date(req.query.from),
-                $lte: new Date(req.query.to + 'T23:59:59.999Z') // Lấy tới cuối ngày
-            };
-        } else if (req.query.preset && req.query.preset !== 'all') {
-            // Xử lý nhanh các preset ngày (Ví dụ: last30, last7...)
-            const pastDate = new Date();
-            const daysToSubtract = req.query.preset.replace('last', '');
-            if (!isNaN(daysToSubtract)) {
-                pastDate.setDate(pastDate.getDate() - parseInt(daysToSubtract));
-                query.createdAt = { $gte: pastDate };
-            } else if (req.query.preset === 'today') {
-                pastDate.setHours(0, 0, 0, 0);
-                query.createdAt = { $gte: pastDate };
-            }
+        // 2. Lọc theo ngày tháng (Sử dụng preset đã được chuẩn hóa ở trên)
+        const dateRange = buildDateRange(preset || 'all', from, to);
+        if (Object.keys(dateRange).length > 0) {
+            query.createdAt = dateRange;
         }
 
-        // 4. Áp dụng query vào Mongoose (Của bạn viết rất chuẩn rồi, chỉ cần nhét query vào)
+        // 3. Thực thi Query
         const orders = await Order.find(query)
-            .populate('user', 'name email')
+            .populate('user', 'name email avatar')
             .populate('items.book')
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit);
 
-        // Đếm tổng số đơn MỚI theo query (Để thanh phân trang chạy đúng)
         const total = await Order.countDocuments(query);
 
-        res.json({ orders, totalPages: Math.ceil(total / limit), totalOrders: total });
+        res.json({
+            orders,
+            totalPages: Math.ceil(total / limit),
+            totalOrders: total
+        });
     } catch (err) {
-        console.error("Lỗi getAdminOrders:", err);
+        console.error('Lỗi getAllOrders:', err);
         res.status(500).json({ message: 'Lỗi server' });
     }
 };
+
 exports.getOrderById = async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id).populate('user', 'name email').populate('items.book');
+        const order = await Order.findById(req.params.id).populate('user', 'name email avatar').populate('items.book');
         res.json(order);
     } catch (err) { res.status(500).json({ message: 'Lỗi' }); }
 };
-
 
 exports.updateOrderStatus = async (req, res) => {
     try {
@@ -224,23 +221,18 @@ exports.updateOrderStatus = async (req, res) => {
 
             if (status === 'cancelled' && order.paymentStatus === 'Đã thanh toán') order.paymentStatus = 'Hoàn tiền';
 
-            // TRONG FILE: adminOrderController.js (Hàm updateOrderStatus)
             if (status === 'completed') {
-                // 1. Cộng lượt bán cho sách
                 await Promise.all(order.items.map(item => Book.findByIdAndUpdate(item.book, { $inc: { sold: item.quantity } })));
 
-                // 2. ✅ FIX LỖI RANK: Cập nhật dòng tiền & Rank cho đơn COD
                 if (order.paymentMethod === 'cod' && order.paymentStatus !== 'Đã thanh toán') {
-                    order.paymentStatus = 'Đã thanh toán'; // Chốt tiền
+                    order.paymentStatus = 'Đã thanh toán';
 
                     const userObj = await User.findById(order.user);
                     if (userObj) {
-                        // Cộng dồn tiền chi tiêu
                         userObj.totalSpent = (userObj.totalSpent || 0) + order.totalPrice;
                         userObj.lastPurchaseDate = new Date();
                         userObj.rankUpdatedAt = new Date();
 
-                        // Tính lại hạng
                         const calculateRank = (total) => {
                             if (total >= 10000000) return 'Kim cương';
                             if (total >= 5000000) return 'Bạch kim';
@@ -275,7 +267,6 @@ exports.updateOrderStatus = async (req, res) => {
             if (trackingLink) order.trackingLink = trackingLink;
             if (reason) order.cancelReason = reason;
 
-            // BẮN SOCKET THÔNG BÁO
             const io = req.app.get('io');
             if (io) {
                 const shortId = order._id.toString().slice(-6).toUpperCase();
@@ -293,7 +284,6 @@ exports.updateOrderStatus = async (req, res) => {
         res.json({ msg: 'Cập nhật thành công', order });
     } catch (err) { res.status(500).json({ msg: 'Lỗi server' }); }
 };
-
 
 exports.deleteOrder = async (req, res) => {
     try {
@@ -365,10 +355,8 @@ exports.confirmRefund = async (req, res) => {
         const user = await User.findById(order.user);
 
         if (user) {
-            // 🔥 Trừ lại tiền
             user.totalSpent = Math.max(0, (user.totalSpent || 0) - order.totalPrice);
 
-            // 🔥 Update lại rank
             const calculateRank = (total) => {
                 if (total >= 10000000) return 'Kim cương';
                 if (total >= 5000000) return 'Bạch kim';
@@ -394,5 +382,3 @@ exports.confirmRefund = async (req, res) => {
         res.json({ message: 'Hoàn tiền thành công!', order });
     } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 };
-
-

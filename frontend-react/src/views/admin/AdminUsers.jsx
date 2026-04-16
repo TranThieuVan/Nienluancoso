@@ -60,7 +60,7 @@ const STATUS_ORDER_LABEL = {
 const RankBadge = ({ rank }) => {
   const s = RANK_STYLE[rank] || RANK_STYLE['Khách hàng'];
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${s.bg} ${s.text} ${s.border}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${s.bg} ${s.text} ${s.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
       {rank || 'Khách hàng'}
     </span>
@@ -103,7 +103,6 @@ const UserDetailModal = ({ userId, onClose }) => {
   const { user, orderStats, recentOrders } = data;
   const s = orderStats;
 
-  // Vòng tròn tỉ lệ thành công
   const rate = s.deliverySuccessRate;
   const radius = 36;
   const circumference = 2 * Math.PI * radius;
@@ -115,14 +114,12 @@ const UserDetailModal = ({ userId, onClose }) => {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h2 className="text-lg font-bold text-gray-900">Chi tiết người dùng</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none">✕</button>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Profile Card */}
           <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
             <img
               src={getAvatarUrl(user.avatar)}
@@ -140,24 +137,21 @@ const UserDetailModal = ({ userId, onClose }) => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">{user.email}</p>
-              <p className="text-[10px] text-gray-400 font-mono mt-1">
+              <p className="text-sm text-gray-500 mt-0.5">{user.email}</p>
+              <p className="text-xs text-gray-400 font-mono mt-1">
                 #{user._id.slice(-8)} · Tham gia {formatDate(user.createdAt)}
               </p>
             </div>
           </div>
 
-          {/* Order Stats Grid */}
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Thống kê đơn hàng</p>
             <div className="grid grid-cols-2 gap-3">
-              {/* Tổng đơn */}
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
                 <p className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Tổng đơn hàng</p>
                 <p className="text-3xl font-bold text-indigo-700 mt-1 font-mono">{s.totalOrders}</p>
               </div>
 
-              {/* Tỉ lệ thành công - vòng tròn */}
               <div className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4">
                 <svg width="88" height="88" viewBox="0 0 88 88" className="flex-shrink-0">
                   <circle cx="44" cy="44" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="8" />
@@ -184,7 +178,6 @@ const UserDetailModal = ({ userId, onClose }) => {
               </div>
             </div>
 
-            {/* Status breakdown */}
             <div className="grid grid-cols-3 gap-2 mt-3">
               {[
                 { label: 'Hoàn tất', value: s.completed, color: 'text-green-700 bg-green-50 border-green-100' },
@@ -201,14 +194,12 @@ const UserDetailModal = ({ userId, onClose }) => {
               ))}
             </div>
 
-            {/* Tổng chi tiêu */}
             <div className="mt-3 bg-gradient-to-r from-indigo-500 to-violet-600 rounded-xl p-4 text-white">
               <p className="text-[10px] uppercase tracking-widest opacity-70 font-bold">Tổng chi tiêu (đơn hoàn tất)</p>
               <p className="text-2xl font-bold mt-1">{formatCurrency(s.totalSpent)}</p>
             </div>
           </div>
 
-          {/* Recent Orders */}
           {recentOrders && recentOrders.length > 0 && (
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">5 đơn hàng gần nhất</p>
@@ -218,12 +209,12 @@ const UserDetailModal = ({ userId, onClose }) => {
                   return (
                     <div key={order._id} className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded-lg border border-gray-100">
                       <div>
-                        <p className="text-[10px] font-mono text-gray-400">#{order._id.slice(-8)}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{formatDateTime(order.createdAt)}</p>
+                        <p className="text-xs font-mono text-gray-400">#{order._id.slice(-8)}</p>
+                        <p className="text-sm text-gray-500 mt-0.5">{formatDateTime(order.createdAt)}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-700">{formatCurrency(order.totalPrice)}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${st.color}`}>
+                        <span className="text-sm font-semibold text-gray-700">{formatCurrency(order.totalPrice)}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${st.color}`}>
                           {st.label}
                         </span>
                       </div>
@@ -247,12 +238,10 @@ const AdminUsers = () => {
   const [locking, setLocking] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
-  // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
 
-  // Bộ lọc
   const [rankFilter, setRankFilter] = useState('all');
   const [datePreset, setDatePreset] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -286,7 +275,6 @@ const AdminUsers = () => {
     }
   }, [buildParams]);
 
-  // Reset về page 1 khi đổi filter
   useEffect(() => { setCurrentPage(1); }, [rankFilter, datePreset, fromDate, toDate]);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -348,20 +336,31 @@ const AdminUsers = () => {
     }
   };
 
+  // ✨ Cập nhật lại màu sắc cho các thẻ Stats (độ đậm 200)
   const stats = useMemo(() => [
-    { label: 'Tổng người dùng', dot: 'bg-indigo-500', value: totalUsers },
-    { label: 'Đang hoạt động', dot: 'bg-green-500', value: users.filter(u => !u.isLocked).length },
-    { label: 'Đã khóa', dot: 'bg-red-500', value: users.filter(u => u.isLocked).length },
+    {
+      label: 'Tổng người dùng', value: totalUsers,
+      bg: 'bg-indigo-200', border: 'border-indigo-300',
+      textLabel: 'text-indigo-700', textVal: 'text-indigo-900', dot: 'bg-indigo-600'
+    },
+    {
+      label: 'Đang hoạt động', value: users.filter(u => !u.isLocked).length,
+      bg: 'bg-green-200', border: 'border-green-300',
+      textLabel: 'text-green-700', textVal: 'text-green-900', dot: 'bg-green-600'
+    },
+    {
+      label: 'Đã khóa', value: users.filter(u => u.isLocked).length,
+      bg: 'bg-red-200', border: 'border-red-300',
+      textLabel: 'text-red-700', textVal: 'text-red-900', dot: 'bg-red-600'
+    },
   ], [users, totalUsers]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      {/* Modal chi tiết */}
       {selectedUserId && (
         <UserDetailModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
       )}
 
-      {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Người dùng</h1>
@@ -369,36 +368,35 @@ const AdminUsers = () => {
         <button
           onClick={fetchUsers}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           {loading ? 'Đang tải...' : 'Làm mới'}
         </button>
       </div>
 
-      {/* Stats */}
+      {/* ✨ Thẻ Stats với bg-200 */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         {stats.map(s => (
-          <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold flex items-center gap-1.5">
+          <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 shadow-sm`}>
+            <p className={`text-xs uppercase tracking-widest ${s.textLabel} font-bold flex items-center gap-1.5`}>
               <span className={`w-2 h-2 rounded-full ${s.dot}`} />
               {s.label}
             </p>
-            <p className="text-2xl font-bold text-gray-900 mt-1.5 font-mono">{s.value}</p>
+            <p className={`text-3xl font-bold ${s.textVal} mt-1.5 font-mono`}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* ── Bộ lọc ── */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 mb-4 flex flex-wrap items-end gap-4">
-        {/* Lọc theo rank */}
         <div>
-          <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1.5">Hạng thành viên</label>
+          <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Hạng thành viên</label>
           <div className="flex gap-1.5 flex-wrap">
             {['all', ...RANKS].map(r => (
               <button
                 key={r}
                 onClick={() => setRankFilter(r)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${rankFilter === r
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${rankFilter === r
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                   }`}
@@ -409,15 +407,14 @@ const AdminUsers = () => {
           </div>
         </div>
 
-        {/* Lọc theo ngày tham gia */}
         <div>
-          <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1.5">Ngày tham gia</label>
+          <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Ngày tham gia</label>
           <div className="flex gap-1.5 flex-wrap">
             {DATE_PRESETS.map(p => (
               <button
                 key={p.value}
                 onClick={() => { setDatePreset(p.value); setFromDate(''); setToDate(''); }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${datePreset === p.value
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${datePreset === p.value
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                   }`}
@@ -428,67 +425,63 @@ const AdminUsers = () => {
           </div>
         </div>
 
-        {/* Custom date range */}
         {datePreset === 'custom' && (
           <div className="flex items-center gap-2">
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1.5">Từ ngày</label>
+              <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Từ ngày</label>
               <input
                 type="date"
                 value={fromDate}
                 onChange={e => setFromDate(e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
               />
             </div>
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1.5">Đến ngày</label>
+              <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Đến ngày</label>
               <input
                 type="date"
                 value={toDate}
                 onChange={e => setToDate(e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
               />
             </div>
           </div>
         )}
 
-        {/* Reset */}
         {(rankFilter !== 'all' || datePreset) && (
           <button
             onClick={() => { setRankFilter('all'); setDatePreset(''); setFromDate(''); setToDate(''); }}
-            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-gray-400 border border-gray-200 hover:text-red-500 hover:border-red-200 transition-colors self-end mb-0.5"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 border border-gray-200 hover:text-red-500 hover:border-red-200 transition-colors self-end mb-0.5"
           >
             ✕ Xóa bộ lọc
           </button>
         )}
       </div>
 
-      {/* Table Card */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        {/* Toolbar */}
         <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 border-b border-gray-100">
-          <span className="text-xs text-gray-400">
-            Hiển thị <strong className="text-gray-700">{users.length}</strong> / {totalUsers} người dùng
+          <span className="text-sm text-gray-500">
+            Hiển thị <strong className="text-gray-900">{users.length}</strong> / {totalUsers} người dùng
           </span>
         </div>
 
-        {/* Table */}
+        {/* ✨ Table với font chữ được phóng to */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm table-fixed">
+          <table className="w-full text-base table-fixed">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="w-[28%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-left">Người dùng</th>
-                <th className="w-[22%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-left">Email</th>
-                <th className="w-[12%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-center">Hạng</th>
-                <th className="w-[13%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-center">Ngày tham gia</th>
-                <th className="w-[12%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-center">Trạng thái</th>
-                <th className="w-[13%] px-4 py-3 text-[10px] uppercase tracking-widest text-gray-400 font-bold text-center">Hành động</th>
+                <th className="w-[28%] px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold text-left">Người dùng</th>
+                <th className="w-[22%] px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold text-left">Email</th>
+                <th className="w-[12%] px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold text-center">Hạng</th>
+                <th className="w-[13%] px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold text-center">Ngày tham gia</th>
+                <th className="w-[12%] px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold text-center">Trạng thái</th>
+                <th className="w-[13%] px-4 py-3 text-xs uppercase tracking-widest text-gray-500 font-bold text-center">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-16 text-center text-sm text-gray-400">
+                  <td colSpan="6" className="py-16 text-center text-base text-gray-400">
                     👤 Không tìm thấy người dùng nào.
                   </td>
                 </tr>
@@ -505,17 +498,17 @@ const AdminUsers = () => {
                           src={getAvatarUrl(user.avatar)}
                           onError={e => { e.target.src = DEFAULT_AVATAR; }}
                           alt="avatar"
-                          className="w-9 h-9 rounded-full border border-gray-200 object-cover flex-shrink-0"
+                          className="w-10 h-10 rounded-full border border-gray-200 object-cover flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-gray-900 truncate">{user.name}</div>
-                          <div className="text-[10px] text-gray-400 font-mono mt-0.5">#{user._id.slice(-8)}</div>
+                          <div className="text-base font-semibold text-gray-900 truncate">{user.name}</div>
+                          <div className="text-xs text-gray-400 font-mono mt-0.5">#{user._id.slice(-8)}</div>
                         </div>
                       </div>
                     </td>
 
                     <td className="px-4 py-3 align-middle whitespace-nowrap overflow-hidden text-ellipsis">
-                      <span className="text-xs text-gray-500">{user.email}</span>
+                      <span className="text-sm text-gray-500">{user.email}</span>
                     </td>
 
                     <td className="px-4 py-3 text-center align-middle whitespace-nowrap">
@@ -523,22 +516,22 @@ const AdminUsers = () => {
                     </td>
 
                     <td className="px-4 py-3 text-center align-middle whitespace-nowrap">
-                      <span className="text-xs text-gray-400 font-mono">{formatDate(user.createdAt)}</span>
+                      <span className="text-sm text-gray-400 font-mono">{formatDate(user.createdAt)}</span>
                     </td>
 
                     <td className="px-4 py-3 text-center align-middle whitespace-nowrap">
                       {user.isLocked ? (
                         <div className="flex flex-col items-center gap-1">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
                             Đã khóa
                           </span>
-                          <span className="text-[9px] text-red-500 font-medium tracking-wide">
+                          <span className="text-[10px] text-red-500 font-medium tracking-wide">
                             {user.lockedUntil ? `Đến: ${formatDateTime(user.lockedUntil)}` : 'Vĩnh viễn'}
                           </span>
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                           Hoạt động
                         </span>
@@ -547,21 +540,19 @@ const AdminUsers = () => {
 
                     <td className="px-4 py-3 text-center align-middle whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1.5">
-                        {/* Nút xem chi tiết */}
                         <button
                           onClick={() => setSelectedUserId(user._id)}
-                          className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 text-[11px] font-semibold hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
+                          className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 text-xs font-semibold hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
                           title="Xem chi tiết"
                         >
                           Chi tiết
                         </button>
 
-                        {/* Nút khóa / mở khóa */}
                         {user.isLocked ? (
                           <button
                             onClick={() => handleToggleLock(user)}
                             disabled={locking === user._id}
-                            className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg border border-transparent bg-indigo-600 text-white text-[11px] font-semibold hover:bg-indigo-700 shadow-sm transition-colors disabled:opacity-50"
+                            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-transparent bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 shadow-sm transition-colors disabled:opacity-50"
                           >
                             {locking === user._id ? '...' : 'Mở khóa'}
                           </button>
@@ -569,7 +560,7 @@ const AdminUsers = () => {
                           <button
                             onClick={() => handleToggleLock(user)}
                             disabled={locking === user._id}
-                            className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg border border-red-200 bg-white text-red-600 text-[11px] font-semibold hover:bg-red-50 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-red-200 bg-white text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50"
                           >
                             {locking === user._id ? '...' : 'Khóa'}
                           </button>
@@ -583,7 +574,6 @@ const AdminUsers = () => {
           </table>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-4 py-4 border-t border-gray-100">
             <Pagination

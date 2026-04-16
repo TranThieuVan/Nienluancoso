@@ -49,8 +49,6 @@ const VndInput = ({ value, onChange, required, placeholder = '50', size = 'lg', 
                 aria-hidden="true"
                 className={`absolute invisible whitespace-pre font-medium pointer-events-none ${numCls}`}
             />
-
-            {/* input area */}
             <div
                 className={`flex items-center flex-1 min-w-0 cursor-text ${isSm ? 'pl-2.5' : 'pl-3.5'
                     }`}
@@ -101,10 +99,8 @@ const VndInput = ({ value, onChange, required, placeholder = '50', size = 'lg', 
                 </span>
             </div>
 
-            {/* divider */}
             <div className="w-px bg-gray-100 my-2 flex-shrink-0" />
 
-            {/* spinner */}
             <div className={`flex flex-col flex-shrink-0 ${isSm ? 'w-6' : 'w-8'}`}>
                 <button
                     type="button"
@@ -178,12 +174,10 @@ const AdminPromotions = () => {
         try {
             const [pRes, bRes] = await Promise.all([
                 axios.get(`${API_URL}/admin/promotions`, { headers: { Authorization: `Bearer ${token}` } }),
-                // ✨ SỬA Ở ĐÂY: Ép tải hết sách
                 axios.get(`${API_URL}/books?limit=1000`),
             ]);
             setPromotions(pRes.data);
 
-            // ✨ SỬA Ở ĐÂY: Hứng đúng mảng dữ liệu sách
             const booksArray = bRes.data.books || bRes.data || [];
             setBooks(booksArray);
             setGenres([...new Set(booksArray.map(b => b.genre).filter(Boolean))]);
@@ -194,7 +188,6 @@ const AdminPromotions = () => {
     };
     useEffect(() => { fetchData(); }, []);
 
-    // giá nhỏ nhất trong phạm vi hiện tại — dùng để validate & clamp fixed discount
     const getMinBookPrice = () => {
         let pool = books;
         if (form.targetType === 'genre' && form.targetValue)
@@ -203,7 +196,6 @@ const AdminPromotions = () => {
         return Math.min(...pool.map(b => b.price).filter(Boolean));
     };
 
-    // max cho VndInput khi fixed: luôn < giá sách nhỏ nhất
     const fixedDiscountMax = (() => {
         if (form.discountType !== 'fixed' || form.targetType === 'book') return undefined;
         const min = getMinBookPrice();
@@ -214,7 +206,7 @@ const AdminPromotions = () => {
         c.name.toLowerCase().includes(searchPromo.toLowerCase()) &&
         (filterStatus === 'all' || getStatus(c) === filterStatus)
     );
-    const stats = {
+    const statsData = {
         active: promotions.filter(c => getStatus(c) === 'active').length,
         upcoming: promotions.filter(c => getStatus(c) === 'upcoming').length,
         total: promotions.length,
@@ -248,7 +240,6 @@ const AdminPromotions = () => {
         if (form.targetType === 'genre' && !form.targetValue)
             return Swal.fire('Lỗi', 'Vui lòng chọn thể loại.', 'warning');
 
-        // validate: fixed discount phải < giá sách nhỏ nhất trong phạm vi
         if (form.targetType !== 'book' && form.discountType === 'fixed') {
             const minPrice = getMinBookPrice();
             if (minPrice != null && Number(form.discountValue) >= minPrice) {
@@ -287,19 +278,22 @@ const AdminPromotions = () => {
         <div className="flex flex-col p-6 w-full bg-gray-50 min-h-screen">
 
             <div className="mb-7">
-                <h1 className="text-2xl font-bold text-gray-900">Chiến Dịch <span className="text-blue-600">Giảm Giá</span></h1>
-                <p className="text-sm text-gray-400 mt-1">Quản lý và thiết lập Flash Sale tự động.</p>
+                <h1 className="text-3xl font-bold text-gray-900">Chiến Dịch <span className="text-blue-600">Giảm Giá</span></h1>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {/* ✨ Stats Cards cập nhật UI bg-200 và bỏ icon */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
                 {[
-                    { l: 'Đang diễn ra', v: stats.active, i: '⚡', c: 'text-green-600', b: 'bg-green-50', br: 'border-green-100' },
-                    { l: 'Sắp diễn ra', v: stats.upcoming, i: '⏳', c: 'text-amber-600', b: 'bg-amber-50', br: 'border-amber-100' },
-                    { l: 'Tổng', v: stats.total, i: '📋', c: 'text-blue-600', b: 'bg-blue-50', br: 'border-blue-100' },
+                    { l: 'Đang diễn ra', v: statsData.active, bg: 'bg-green-200', br: 'border-green-300', textLabel: 'text-green-700', textVal: 'text-green-900', dot: 'bg-green-600' },
+                    { l: 'Sắp diễn ra', v: statsData.upcoming, bg: 'bg-amber-200', br: 'border-amber-300', textLabel: 'text-amber-700', textVal: 'text-amber-900', dot: 'bg-amber-600' },
+                    { l: 'Tổng chiến dịch', v: statsData.total, bg: 'bg-blue-200', br: 'border-blue-300', textLabel: 'text-blue-700', textVal: 'text-blue-900', dot: 'bg-blue-600' },
                 ].map((s, i) => (
-                    <div key={i} className={`bg-white border ${s.br} rounded-xl p-5 flex items-center gap-4`}>
-                        <div className={`w-11 h-11 rounded-lg flex items-center justify-center text-xl ${s.b}`}>{s.i}</div>
-                        <div><div className={`text-2xl font-bold ${s.c}`}>{s.v}</div><div className="text-xs font-medium text-gray-400 mt-0.5">{s.l}</div></div>
+                    <div key={i} className={`${s.bg} border ${s.br} rounded-xl p-4 shadow-sm`}>
+                        <p className={`text-xs uppercase tracking-widest ${s.textLabel} font-bold flex items-center gap-1.5`}>
+                            <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+                            {s.l}
+                        </p>
+                        <p className={`text-3xl font-bold ${s.textVal} mt-1.5 font-mono`}>{s.v}</p>
                     </div>
                 ))}
             </div>
@@ -317,8 +311,8 @@ const AdminPromotions = () => {
                 <div>
                     <div className="flex flex-wrap justify-between gap-3 mb-4 items-center">
                         <div className="flex gap-2 flex-1 min-w-0">
-                            <input className={`${INPUT_CLS} px-3 py-2 flex-1 max-w-xs`} placeholder="Tìm tên chiến dịch..." value={searchPromo} onChange={e => setSearchPromo(e.target.value)} />
-                            <select className={`${INPUT_CLS} px-3 py-2`} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                            <input className={`${INPUT_CLS} px-3 py-2 flex-1 max-w-xs text-base`} placeholder="Tìm tên chiến dịch..." value={searchPromo} onChange={e => setSearchPromo(e.target.value)} />
+                            <select className={`${INPUT_CLS} px-3 py-2 text-base`} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                                 <option value="all">Tất cả</option><option value="active">Đang chạy</option>
                                 <option value="upcoming">Sắp diễn ra</option><option value="ended">Đã kết thúc</option><option value="paused">Tạm ngưng</option>
                             </select>
@@ -327,27 +321,29 @@ const AdminPromotions = () => {
                             <FontAwesomeIcon icon={['fas', 'plus']} />Tạo chiến dịch
                         </button>
                     </div>
+
+                    {/* ✨ Table cập nhật font chữ to hơn 1 bậc */}
                     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                        <table className="w-full text-left text-sm">
-                            <thead className="border-b border-gray-100"><tr>
+                        <table className="w-full text-left text-base">
+                            <thead className="bg-gray-50 border-b border-gray-100"><tr>
                                 {['Tên', 'Phạm vi', 'Khuyến mãi', 'Thời gian', 'Trạng thái', ''].map(h => (
-                                    <th key={h} className="px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{h}</th>
+                                    <th key={h} className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-widest">{h}</th>
                                 ))}
                             </tr></thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-50">
                                 {filteredPromotions.length === 0
-                                    ? <tr><td colSpan="6" className="px-4 py-12 text-center text-sm text-gray-400">Không tìm thấy chiến dịch</td></tr>
+                                    ? <tr><td colSpan="6" className="px-4 py-16 text-center text-base text-gray-400">Không tìm thấy chiến dịch</td></tr>
                                     : filteredPromotions.map(c => {
                                         const s = STATUS[getStatus(c)]; return (
-                                            <tr key={c._id} className="border-b border-gray-50 hover:bg-gray-50/70">
-                                                <td className="px-4 py-3"><div className="font-semibold text-gray-800">{c.name}</div><div className="text-xs text-gray-400 mt-0.5">{c.description}</div></td>
-                                                <td className="px-4 py-3"><span className="text-[11px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded">{c.targetType === 'all' ? 'Tất cả' : c.targetType === 'genre' ? c.targetValue : 'Sách cụ thể'}</span></td>
-                                                <td className="px-4 py-3 font-semibold text-gray-700">{c.targetType === 'book' ? <span className="text-xs text-gray-400 italic">Giá riêng từng cuốn</span> : c.discountType === 'percent' ? <span className="text-blue-600">-{c.discountValue}%</span> : <span className="text-blue-600">-{formatPrice(c.discountValue)}</span>}</td>
-                                                <td className="px-4 py-3 text-xs text-gray-500"><div>{formatDate(c.startDate)}</div><div className="text-gray-300">→ {formatDate(c.endDate)}</div></td>
-                                                <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${s.pill}`}><span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />{s.label}</span></td>
-                                                <td className="px-4 py-3"><div className="flex gap-1.5 justify-end">
-                                                    <button onClick={() => openModal(c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md"><FontAwesomeIcon icon={['fas', 'pen']} /></button>
-                                                    <button onClick={() => handleDelete(c._id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"><FontAwesomeIcon icon={['fas', 'trash']} /></button>
+                                            <tr key={c._id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-3 align-middle"><div className="font-semibold text-gray-900">{c.name}</div><div className="text-sm text-gray-500 mt-0.5">{c.description}</div></td>
+                                                <td className="px-4 py-3 align-middle"><span className="text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-600 rounded">{c.targetType === 'all' ? 'Tất cả' : c.targetType === 'genre' ? c.targetValue : 'Sách cụ thể'}</span></td>
+                                                <td className="px-4 py-3 font-semibold text-gray-800 align-middle">{c.targetType === 'book' ? <span className="text-sm text-gray-400 italic font-normal">Giá riêng từng cuốn</span> : c.discountType === 'percent' ? <span className="text-blue-600">-{c.discountValue}%</span> : <span className="text-blue-600">-{formatPrice(c.discountValue)}</span>}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-600 align-middle"><div>{formatDate(c.startDate)}</div><div className="text-gray-400">→ {formatDate(c.endDate)}</div></td>
+                                                <td className="px-4 py-3 align-middle"><span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ring-1 ${s.pill}`}><span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />{s.label}</span></td>
+                                                <td className="px-4 py-3 align-middle"><div className="flex gap-2 justify-end">
+                                                    <button onClick={() => openModal(c)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><FontAwesomeIcon icon={['fas', 'pen']} /></button>
+                                                    <button onClick={() => handleDelete(c._id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><FontAwesomeIcon icon={['fas', 'trash']} /></button>
                                                 </div></td>
                                             </tr>
                                         );
@@ -367,13 +363,13 @@ const AdminPromotions = () => {
                                 <span className="absolute top-2 right-2 bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-md z-10">-{Math.round((1 - b.discountedPrice / b.price) * 100)}%</span>
                                 <div className="h-44 bg-gray-50 overflow-hidden"><img src={b.image?.startsWith('http') ? b.image : `http://localhost:5000${b.image}`} alt={b.title} className="w-full h-full object-cover" /></div>
                                 <div className="p-3">
-                                    <h3 className="font-semibold text-gray-800 text-xs line-clamp-2 h-8">{b.title}</h3>
-                                    <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{b.author}</p>
-                                    <div className="mt-2"><span className="text-[11px] text-gray-300 line-through block">{formatPrice(b.price)}</span><span className="text-sm font-bold text-red-500">{formatPrice(b.discountedPrice)}</span></div>
+                                    <h3 className="font-semibold text-gray-800 text-sm line-clamp-2 h-10">{b.title}</h3>
+                                    <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{b.author}</p>
+                                    <div className="mt-2"><span className="text-xs text-gray-400 line-through block">{formatPrice(b.price)}</span><span className="text-base font-bold text-red-500">{formatPrice(b.discountedPrice)}</span></div>
                                 </div>
                             </div>
                         ))
-                        : <div className="col-span-full py-16 text-center text-sm text-gray-400 bg-white rounded-xl border border-gray-200">Không có sách giảm giá.</div>
+                        : <div className="col-span-full py-16 text-center text-base text-gray-400 bg-white rounded-xl border border-gray-200">Không có sách giảm giá.</div>
                     }
                 </div>
             )}
@@ -413,7 +409,6 @@ const AdminPromotions = () => {
                                         ))}
                                     </div>
 
-                                    {/* min-h giữ layout ổn định khi chuyển giữa "Tất cả" và "Thể loại" */}
                                     <div className="min-h-[76px]">
                                         {form.targetType === 'genre' && (
                                             <div className="mt-3 pt-3 border-t border-gray-100">
@@ -453,18 +448,18 @@ const AdminPromotions = () => {
 
                                                 {selectedBooks.length > 0 && (
                                                     <div className="border border-gray-200 rounded-lg overflow-hidden">
-                                                        <table className="w-full text-left text-xs">
+                                                        <table className="w-full text-left text-sm">
                                                             <thead className="bg-gray-50 border-b border-gray-100"><tr>
                                                                 {['Ảnh', 'Tựa', 'Giá gốc', 'Giảm', 'Sau giảm', ''].map((h, i) => (
-                                                                    <th key={i} className="px-3 py-2 font-semibold text-gray-500">{h}</th>
+                                                                    <th key={i} className="px-3 py-2 font-semibold text-gray-500 text-xs">{h}</th>
                                                                 ))}
                                                             </tr></thead>
                                                             <tbody>
                                                                 {selectedBooks.map(b => (
                                                                     <tr key={b._id} className="border-b border-gray-50 last:border-0 align-top">
                                                                         <td className="px-3 py-2"><img src={`http://localhost:5000${b.image}`} className="w-8 h-11 object-cover rounded" alt="" /></td>
-                                                                        <td className="px-3 py-2 font-medium text-gray-700 w-48">{b.title}</td>
-                                                                        <td className="px-3 py-2 line-through text-gray-400">{formatPrice(b.price)}</td>
+                                                                        <td className="px-3 py-2 font-medium text-gray-700 w-48 text-sm">{b.title}</td>
+                                                                        <td className="px-3 py-2 line-through text-gray-400 text-sm">{formatPrice(b.price)}</td>
                                                                         <td className="px-3 py-2 w-56">
                                                                             <div className="flex flex-col gap-1.5">
                                                                                 <select
@@ -496,8 +491,8 @@ const AdminPromotions = () => {
                                                                                 }
                                                                             </div>
                                                                         </td>
-                                                                        <td className="px-3 py-2 font-semibold text-green-600">{formatPrice(calcPrice(b.price, b.promoDiscountType, b.promoDiscountValue))}</td>
-                                                                        <td className="px-3 py-2"><button type="button" onClick={() => setSelectedBooks(selectedBooks.filter(s => s._id !== b._id))} className="text-gray-300 hover:text-red-400 transition-colors"><FontAwesomeIcon icon={['fas', 'trash']} /></button></td>
+                                                                        <td className="px-3 py-2 font-semibold text-green-600 text-sm">{formatPrice(calcPrice(b.price, b.promoDiscountType, b.promoDiscountValue))}</td>
+                                                                        <td className="px-3 py-2"><button type="button" onClick={() => setSelectedBooks(selectedBooks.filter(s => s._id !== b._id))} className="text-gray-300 hover:text-red-400 transition-colors p-1"><FontAwesomeIcon icon={['fas', 'trash']} /></button></td>
                                                                     </tr>
                                                                 ))}
                                                             </tbody>
