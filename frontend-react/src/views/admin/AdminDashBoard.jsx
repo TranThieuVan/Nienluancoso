@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 
@@ -10,32 +10,26 @@ const fmtShort = (n) => {
   if (n >= 1_000) return Math.round(n / 1_000) + 'k';
   return String(n);
 };
-const fmtDate = (d) => new Date(d).toLocaleDateString('vi-VN');
 const MONTH_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
-const RANK_COLORS = { 'Khách hàng': '#94a3b8', 'Bạc': '#cbd5e1', 'Vàng': '#fbbf24', 'Bạch kim': '#818cf8', 'Kim cương': '#38bdf8' };
 
-const STATUS_MAP = {
-  pending: { label: 'Đang xử lý', cls: 'bg-amber-100 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
-  delivering: { label: 'Đang giao', cls: 'bg-blue-100 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
-  delivered: { label: 'Đã giao (Chờ)', cls: 'bg-violet-100 text-violet-700 border border-violet-200', dot: 'bg-violet-500' },
-  completed: { label: 'Hoàn tất', cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
-  cancelled: { label: 'Đã hủy', cls: 'bg-red-100 text-red-600 border border-red-200', dot: 'bg-red-500' },
-  failed_delivery: { label: 'Giao thất bại', cls: 'bg-orange-100 text-orange-700 border border-orange-200', dot: 'bg-orange-500' },
-  returned: { label: 'Đã trả hàng', cls: 'bg-stone-100 text-stone-700 border border-stone-300', dot: 'bg-stone-500' },
+// Hàm xử lý link ảnh chuẩn, chống lỗi double slash (//)
+const getImageUrl = (path, fallbackStr = 'Book') => {
+  if (!path) return `https://placehold.co/40x60?text=${fallbackStr}`;
+  if (path.startsWith('http')) return path;
+  return `http://localhost:5000${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 /* ── ATOMS ── */
-const KpiCard = ({ label, value, sub, dotCls, icon, highlight }) => (
-  <div className={`bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3 border ${highlight ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200'}`}>
-    <div className="flex items-center justify-between">
+const KpiCard = ({ label, value, sub, bgCls, icon }) => (
+  <div className={`${bgCls} rounded-2xl p-5 shadow-sm flex flex-col gap-3 text-white border border-white/10 relative overflow-hidden`}>
+    <div className="flex items-center justify-between relative z-10">
       <div className="flex items-center gap-2">
-        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotCls}`} />
-        <p className="text-xs uppercase tracking-widest text-gray-400 font-bold">{label}</p>
+        <p className="text-xs uppercase tracking-widest text-white/80 font-bold">{label}</p>
       </div>
-      <i className={`${icon} text-xl ${highlight ? 'text-indigo-400' : 'text-gray-300'}`} />
+      <i className={`${icon} text-2xl text-white/40`} />
     </div>
-    <p className="font-mono font-bold text-3xl text-gray-900 leading-none">{value}</p>
-    {sub && <p className="text-xs text-gray-400">{sub}</p>}
+    <p className="font-mono font-bold text-3xl leading-none relative z-10">{value}</p>
+    {sub && <p className="text-xs text-white/80 relative z-10">{sub}</p>}
   </div>
 );
 
@@ -46,18 +40,8 @@ const SectionTitle = ({ children, action }) => (
   </div>
 );
 
-const Badge = ({ status }) => {
-  const b = STATUS_MAP[status] || { label: status, cls: 'bg-gray-100 text-gray-600 border border-gray-200', dot: 'bg-gray-400' };
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${b.cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${b.dot}`} />
-      {b.label}
-    </span>
-  );
-};
-
-/* ── CHART COMPONENTS ── */
-const RevenueChart = ({ data, year }) => {
+/* ── CHART COMPONENTS (Đã bọc React.memo để chống load lại) ── */
+const RevenueChart = React.memo(({ data, year }) => {
   const ref = useRef(null); const chartRef = useRef(null);
   const total = data.reduce((s, v) => s + v, 0);
 
@@ -91,18 +75,21 @@ const RevenueChart = ({ data, year }) => {
       <div className="h-56"><canvas ref={ref} /></div>
     </div>
   );
-};
+});
 
-const OrderDonut = ({ counts }) => {
+const OrderDonut = React.memo(({ counts }) => {
   const ref = useRef(null); const chartRef = useRef(null);
   const labels = ['Đang xử lý', 'Đang giao', 'Hoàn tất', 'Hủy/Thất bại'];
   const colors = ['#f59e0b', '#3b82f6', '#10b981', '#f43f5e'];
-  const values = [
+
+  // Memoize values để tránh render lại chart khi state cha đổi
+  const values = useMemo(() => [
     counts.pending || 0,
     (counts.delivering || 0) + (counts.delivered || 0),
     counts.completed || 0,
     (counts.cancelled || 0) + (counts.failed_delivery || 0) + (counts.needRefund || 0)
-  ];
+  ], [counts]);
+
   const total = counts.total || 0;
 
   useEffect(() => {
@@ -114,7 +101,7 @@ const OrderDonut = ({ counts }) => {
       options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `  ${ctx.label}: ${ctx.raw} đơn` }, backgroundColor: '#1e293b', titleColor: '#94a3b8', bodyColor: '#f8fafc', padding: 10, cornerRadius: 8 } } },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [counts, values]);
+  }, [values]); // Chỉ render lại khi array values đổi
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm h-full flex flex-col">
@@ -139,7 +126,19 @@ const OrderDonut = ({ counts }) => {
       </div>
     </div>
   );
-};
+});
+
+const LimitSelect = ({ value, onChange, colorClass }) => (
+  <select
+    value={value}
+    onChange={e => onChange(Number(e.target.value))}
+    className={`text-[11px] font-bold border rounded-lg px-2.5 py-1 outline-none cursor-pointer ${colorClass}`}
+  >
+    <option value={1}>Top 1</option>
+    <option value={5}>Top 5</option>
+    <option value={10}>Top 10</option>
+  </select>
+);
 
 /* ════════════════════════════════════════════════════════════════
    MAIN DASHBOARD
@@ -149,10 +148,14 @@ const AdminDashBoard = () => {
   const [overview, setOverview] = useState(null);
   const year = new Date().getFullYear();
 
-  const [timeFilter, setTimeFilter] = useState('30days');
-  const [filteredTopBooks, setFilteredTopBooks] = useState([]);
+  /* ── TOP SECTION STATE ── */
+  const [topPeriod, setTopPeriod] = useState('all');
+  const [customDates, setCustomDates] = useState({ start: '', end: '' });
+  const [topLimits, setTopLimits] = useState({ books: 5, users: 5, vouchers: 5 });
+  const [topData, setTopData] = useState(null);
   const [topLoading, setTopLoading] = useState(false);
 
+  /* ── FETCH OVERVIEW ── */
   useEffect(() => {
     const fetchOverview = async () => {
       try {
@@ -170,27 +173,29 @@ const AdminDashBoard = () => {
     fetchOverview();
   }, []);
 
+  /* ── FETCH TOP DATA ── */
   useEffect(() => {
-    const fetchTopBooks = async () => {
+    const fetchTopData = async () => {
+      if (topPeriod === 'custom' && (!customDates.start || !customDates.end)) return;
+
       setTopLoading(true);
       try {
-        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:5000/api/books/top-selling?preset=${timeFilter}`, {
+        const token = localStorage.getItem('adminToken');
+        const url = `/api/admin/dashboard/top?period=${topPeriod}&limit=10` +
+          (topPeriod === 'custom' ? `&startDate=${customDates.start}&endDate=${customDates.end}` : '');
+
+        const { data } = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` }
         });
-
-        const dataList = res.data.books || res.data.data || res.data;
-        setFilteredTopBooks(Array.isArray(dataList) ? dataList : []);
-
-      } catch (error) {
-        console.error('Lỗi lấy sách bán chạy:', error);
-        setFilteredTopBooks([]);
+        setTopData(data);
+      } catch (err) {
+        console.error('Top data error:', err);
       } finally {
         setTopLoading(false);
       }
     };
-    fetchTopBooks();
-  }, [timeFilter]);
+    fetchTopData();
+  }, [topPeriod, customDates]);
 
   if (loading || !overview) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -201,315 +206,251 @@ const AdminDashBoard = () => {
     </div>
   );
 
-  const { kpi, recentOrders, lowStock, promotions, vouchers } = overview;
+  const { kpi } = overview;
   const totalRevenue = kpi.monthlyRevenue.reduce((s, v) => s + v, 0);
   const maxMonthVal = Math.max(...kpi.monthlyRevenue);
   const topMonth = maxMonthVal > 0 ? MONTH_LABELS[kpi.monthlyRevenue.indexOf(maxMonthVal)] : '—';
 
-  const now = new Date();
+  const completedRate = kpi.orderCounts.total > 0
+    ? ((kpi.orderCounts.completed / kpi.orderCounts.total) * 100).toFixed(1)
+    : 0;
 
-  // Lọc ra các khuyến mãi đang hoạt động
-  const activePromotions = (promotions || []).filter(p => new Date(p.endDate) >= now && p.isActive !== false);
-
-  // Lọc ra các voucher đang hoạt động
-  const activeVouchers = (vouchers || []).filter(v =>
-    v.isActive !== false && new Date(v.expirationDate) >= now && (v.usedCount || 0) < (v.usageLimit || 999999)
-  );
+  const PERIOD_LABELS = { today: 'Hôm nay', '3days': '3 ngày', '7days': '7 ngày', '30days': '30 ngày', all: 'Tất cả', custom: 'Tùy chỉnh' };
 
   return (
     <div className="min-h-screen bg-gray-50 p-7 font-sans">
+
+      {/* ── HEADER ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-7">
         <div>
           <h1 className="text-4xl font-bold text-gray-900">Tổng quan</h1>
-          <p className="text-sm text-gray-400 mt-1.5"><i className="fa-regular fa-clock mr-1.5" />Cập nhật lúc {new Date().toLocaleTimeString('vi-VN')}</p>
+          <p className="text-sm text-gray-400 mt-1.5">
+            <i className="fa-regular fa-clock mr-1.5" />
+            Cập nhật lúc {new Date().toLocaleTimeString('vi-VN')}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
-        <KpiCard label="Thực thu năm" value={fmtShort(totalRevenue)} sub={`Tháng cao nhất: ${topMonth}`} dotCls="bg-indigo-500" icon="fa-solid fa-sack-dollar" highlight />
-        <KpiCard label="Tổng đơn hàng" value={kpi.orderCounts.total.toString()} sub={`${kpi.orderCounts.completed || 0} đã hoàn tất`} dotCls="bg-violet-500" icon="fa-solid fa-box" />
-        <KpiCard label="Đang xử lý" value={kpi.orderCounts.pending.toString()} sub={`${kpi.orderCounts.delivering || 0} đang giao`} dotCls="bg-amber-500" icon="fa-solid fa-clock" />
-        <KpiCard label="Người dùng" value={kpi.totalUsers.toString()} sub={`${kpi.lockedUsers} bị khóa`} dotCls="bg-sky-500" icon="fa-solid fa-users" />
-        <KpiCard label="Tổng đầu sách" value={kpi.totalBooks.toString()} sub={`${kpi.outOfStockBooks} hết hàng`} dotCls="bg-emerald-500" icon="fa-solid fa-book" />
-        <KpiCard label="Cần hoàn tiền" value={kpi.orderCounts.needRefund.toString()} sub="Đơn huỷ chờ xử lý" dotCls="bg-rose-500" icon="fa-solid fa-rotate-left" />
+      {/* ── STAT CARDS ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-8">
+        <KpiCard label="Thực thu năm" value={fmtShort(totalRevenue)} sub={`Tháng cao nhất: ${topMonth}`} bgCls="bg-indigo-500" icon="fa-solid fa-sack-dollar" />
+        <KpiCard label="Tỷ lệ mua lại" value={`${kpi.returningRate || 0}%`} sub="Khách mua hàng trên 1 lần" bgCls="bg-emerald-500" icon="fa-solid fa-users-rotate" />
+        <KpiCard label="Tỷ lệ thành công" value={`${completedRate}%`} sub={`Đã hoàn tất ${kpi.orderCounts.completed || 0} đơn`} bgCls="bg-violet-500" icon="fa-solid fa-circle-check" />
+        <KpiCard label="Người dùng" value={kpi.totalUsers.toString()} sub={`${kpi.lockedUsers} bị khóa`} bgCls="bg-sky-500" icon="fa-solid fa-users" />
+        <KpiCard label="Tổng đầu sách" value={kpi.totalBooks.toString()} sub={`${kpi.outOfStockBooks} hết hàng`} bgCls="bg-amber-500" icon="fa-solid fa-book" />
+        <KpiCard label="Cần hoàn tiền" value={kpi.orderCounts.needRefund.toString()} sub="Đơn huỷ chờ xử lý" bgCls="bg-rose-500" icon="fa-solid fa-rotate-left" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+      {/* ── CHARTS (Sẽ không load lại khi bấm filter nhờ React.memo) ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-8">
         <div className="xl:col-span-2"><RevenueChart data={kpi.monthlyRevenue} year={year} /></div>
         <OrderDonut counts={kpi.orderCounts} />
       </div>
 
-      {/* Block Top Books & Recent Orders */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
-
-        {/* TOP 5 SÁCH BÁN CHẠY */}
-        <div className="bg-amber-50/40 border border-amber-200 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-          <div className="px-6 py-4 border-b border-amber-200/60">
-            <SectionTitle
-              action={
-                <div className="flex bg-amber-100/50 p-1 rounded-lg border border-amber-200/50">
-                  {['today', '7days', '30days', 'all'].map((filter) => {
-                    const labels = { today: 'Hôm nay', '7days': '7 ngày', '30days': '30 ngày', all: 'Tất cả' };
-                    return (
-                      <button
-                        key={filter} onClick={() => setTimeFilter(filter)} disabled={topLoading}
-                        className={`px-2.5 py-1 text-[10px] sm:text-xs font-semibold rounded-md transition-all ${timeFilter === filter ? 'bg-white text-amber-700 shadow-sm border border-amber-200' : 'text-amber-600/70 hover:text-amber-800 hover:bg-amber-100/50'} ${topLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {labels[filter]}
-                      </button>
-                    );
-                  })}
-                </div>
-              }
-            >
-              <span className="flex items-center gap-2"><i className="fa-solid fa-trophy text-amber-600" />Top 5 sách bán chạy</span>
-            </SectionTitle>
-          </div>
-          <table className="w-full text-sm table-fixed">
-            <thead className="bg-amber-100/50 border-b border-amber-200/60">
-              <tr>
-                <th className="w-[10%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-left">#</th>
-                <th className="w-[45%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-left">Sách</th>
-                <th className="w-[20%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-right">Đã Bán</th>
-                <th className="w-[25%] px-5 py-3 text-xs uppercase tracking-widest text-amber-700 font-bold text-right">Giá</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-amber-200/40">
-              {topLoading ? (
-                <tr><td colSpan="4" className="py-12 text-center text-amber-600/80 text-sm"><i className="fa-solid fa-circle-notch fa-spin mr-2" />Đang lọc dữ liệu...</td></tr>
-              ) : filteredTopBooks.length === 0 ? (
-                <tr><td colSpan="4" className="py-12 text-center text-gray-400 text-sm">Không có dữ liệu bán hàng</td></tr>
-              ) : filteredTopBooks.map((book, i) => (
-                <tr key={book._id} className="hover:bg-amber-100/30 transition-colors">
-                  <td className="px-5 py-3.5"><span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${i === 0 ? 'bg-amber-200 text-amber-800' : i === 1 ? 'bg-gray-200 text-gray-700' : 'bg-amber-100 text-amber-600'}`}>{i + 1}</span></td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt={book.title} className="w-8 h-11 object-cover border border-amber-100 rounded flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-gray-800 text-sm truncate" title={book.title}>{book.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5 truncate" title={book.author}>{book.author}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-600 text-sm">{book.totalSold ?? book.sold ?? 0}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-sm">
-                    {book.discountedPrice && book.discountedPrice < book.price ? (
-                      <div className="flex flex-col items-end leading-tight">
-                        <span className="font-bold text-rose-600">{book.discountedPrice.toLocaleString('vi-VN')}₫</span>
-                        <span className="text-[10px] text-gray-400 line-through mt-0.5">{book.price.toLocaleString('vi-VN')}₫</span>
-                      </div>
-                    ) : (
-                      <span className="font-bold text-gray-800">{book.price?.toLocaleString('vi-VN')}₫</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ── SHARED TIME FILTER ── */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <i className="fa-solid fa-ranking-star text-indigo-500" />
+            Bảng xếp hạng
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">Bộ lọc thời gian áp dụng cho tất cả bảng xếp hạng bên dưới</p>
         </div>
 
-        <div className="bg-sky-50/40 border border-sky-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-sky-200/60">
-            <SectionTitle><span className="flex items-center gap-2"><i className="fa-solid fa-clock-rotate-left text-sky-600" />Đơn hàng gần đây</span></SectionTitle>
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-sky-100/50 border-b border-sky-200/60">
-              <tr>{['Mã đơn', 'Khách hàng', 'Tổng tiền', 'Trạng thái'].map((h, i) => (
-                <th key={h} className={`px-5 py-3 text-xs uppercase tracking-widest text-sky-700 font-bold ${i === 2 ? 'text-right' : (i === 3 ? 'text-center' : 'text-left')}`}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody className="divide-y divide-sky-200/40">
-              {recentOrders.length === 0
-                ? <tr><td colSpan="4" className="py-12 text-center text-gray-400 text-sm">Chưa có đơn hàng</td></tr>
-                : recentOrders.map(order => (
-                  <tr key={order._id} className="hover:bg-sky-100/30 transition-colors">
-                    <td className="px-5 py-3.5"><span className="font-mono text-xs font-semibold text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded border border-indigo-100">#{order._id.slice(-6).toUpperCase()}</span></td>
-                    <td className="px-5 py-3.5"><p className="font-semibold text-gray-800 text-sm leading-tight">{order.user?.name || order.shippingAddress?.fullName || 'N/A'}</p><p className="text-xs text-gray-500 mt-0.5">{fmtDate(order.createdAt)}</p></td>
-                    <td className="px-5 py-3.5 text-right font-mono font-bold text-gray-900 text-sm">{order.totalPrice?.toLocaleString('vi-VN')}₫</td>
-                    <td className="px-5 py-3.5 text-center"><Badge status={order.status} /></td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Block 3 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-        {/* Card 1 */}
-        <div className="bg-rose-50/40 border border-rose-200 rounded-2xl overflow-hidden shadow-sm h-full flex flex-col">
-          <div className="px-6 py-4 border-b border-rose-200/60">
-            <SectionTitle>
-              <span className="flex items-center gap-2">
-                <i className="fa-solid fa-triangle-exclamation text-rose-600" />
-                Sắp hết hàng
-              </span>
-            </SectionTitle>
-          </div>
-
-          {lowStock.length === 0 ? (
-            <p className="px-6 py-10 text-center text-gray-400 text-sm flex-1 flex items-center justify-center">
-              Không có sách nào sắp hết
-            </p>
-          ) : (
-            <div className="divide-y divide-rose-200/40 overflow-y-auto">
-              {lowStock.map(book => (
-                <div key={book._id} className="flex items-center gap-3 px-5 py-3 hover:bg-rose-100/30 transition-colors">
-                  <img
-                    src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
-                    alt={book.title}
-                    className="w-9 h-12 object-cover border border-rose-100 rounded flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 line-clamp-1">{book.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{book.author}</p>
-                  </div>
-                  <span className={`font-mono text-sm font-bold flex-shrink-0 ${book.stock <= 3 ? 'text-rose-600' : 'text-amber-600'
-                    }`}>
-                    còn {book.stock}
-                  </span>
-                </div>
-              ))}
+        <div className="flex items-center gap-3">
+          {topPeriod === 'custom' && (
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-sm">
+              <input type="date" className="text-xs outline-none text-gray-600" value={customDates.start} onChange={e => setCustomDates(p => ({ ...p, start: e.target.value }))} />
+              <span className="text-gray-400">-</span>
+              <input type="date" className="text-xs outline-none text-gray-600" value={customDates.end} onChange={e => setCustomDates(p => ({ ...p, end: e.target.value }))} />
             </div>
           )}
-        </div>
 
-        {/* Card 2 */}
-        <div className="bg-purple-50/40 border border-purple-200 rounded-2xl p-6 shadow-sm h-full flex flex-col">
-          <SectionTitle>
-            <span className="flex items-center gap-2">
-              <i className="fa-solid fa-ranking-star text-purple-600" />
-              Phân hạng người dùng
-            </span>
-          </SectionTitle>
-
-          <div className="flex flex-col gap-4 flex-1 justify-center">
-            {Object.entries(kpi.rankDist).map(([rank, count]) => {
-              const pct = kpi.totalUsers > 0 ? Math.round((count / kpi.totalUsers) * 100) : 0;
-              return (
-                <div key={rank}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ background: RANK_COLORS[rank] }}
-                      />
-                      {rank}
-                    </span>
-                    <span className="font-mono text-sm text-gray-500">
-                      {count} · {pct}%
-                    </span>
-                  </div>
-
-                  <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${pct}%`, background: RANK_COLORS[rank] }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Card 3 */}
-        <div className="bg-emerald-50/40 border border-emerald-200 rounded-2xl overflow-hidden shadow-sm h-full flex flex-col">
-          <div className="px-6 py-4 border-b border-emerald-200/60 shrink-0">
-            <div className="flex items-center justify-between">
-              <p className="text-base font-bold text-gray-700 flex items-center gap-2">
-                <i className="fa-solid fa-bullhorn text-emerald-600" />
-                Khuyến mãi & Voucher
-              </p>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* SALE */}
-            <div className="flex-1 overflow-y-auto border-b border-emerald-200/60 custom-scrollbar relative">
-              <div className="sticky top-0 bg-emerald-50/95 backdrop-blur-sm px-5 py-1.5 border-b border-emerald-100 z-10 flex justify-between items-center">
-                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">
-                  Chương trình Sale
-                </span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  {activePromotions.length}
-                </span>
-              </div>
-
-              <div className="divide-y divide-emerald-200/40">
-                {activePromotions.length === 0 ? (
-                  <p className="px-5 py-6 text-center text-gray-400 text-xs">
-                    Không có Sale nào đang chạy
-                  </p>
-                ) : (
-                  activePromotions.map(p => (
-                    <div key={p._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase tracking-wide shrink-0">
-                            Sale
-                          </span>
-                          <p className="text-sm font-semibold text-gray-800 line-clamp-1" title={p.name}>
-                            {p.name}
-                          </p>
-                        </div>
-                        <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">
-                          -{fmt(p.discountValue)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* VOUCHER */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-              <div className="sticky top-0 bg-emerald-50/95 backdrop-blur-sm px-5 py-1.5 border-b border-emerald-100 z-10 flex justify-between items-center">
-                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">
-                  Mã Giảm Giá
-                </span>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  {activeVouchers.length}
-                </span>
-              </div>
-
-              <div className="divide-y divide-emerald-200/40">
-                {activeVouchers.length === 0 ? (
-                  <p className="px-5 py-6 text-center text-gray-400 text-xs">
-                    Không có Mã nào đang chạy
-                  </p>
-                ) : (
-                  activeVouchers.map(v => (
-                    <div key={v._id} className="px-5 py-3 hover:bg-emerald-100/30 transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 min-w-0">
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded uppercase tracking-wide shrink-0">
-                            Mã
-                          </span>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800 line-clamp-1 uppercase" title={v.code}>
-                              {v.code}
-                            </p>
-                            <p className="text-[10px] text-gray-500 mt-0.5">
-                              Còn {v.usageLimit - v.usedCount} lượt dùng
-                            </p>
-                          </div>
-                        </div>
-                        <span className="flex-shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 font-mono">
-                          -{v.discountType === 'percent' ? `${v.discountValue}%` : fmt(v.discountValue)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+            {Object.entries(PERIOD_LABELS).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTopPeriod(key)}
+                disabled={topLoading && topPeriod !== 'custom'}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${topPeriod === key
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+                  } ${(topLoading && topPeriod !== 'custom') ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
+      {/* ── TOP 3 COLUMNS ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+        {/* ══ CỘT 1: #30A0E0 ══ */}
+        <div className="bg-[#A2D2FF] border border-black/10 rounded-2xl shadow-sm overflow-hidden flex flex-col text-gray-900">
+          <div className="px-5 py-4 bg-white/30 border-b border-black/5 flex items-center justify-between">
+            <span className="text-sm font-bold">Sách bán chạy nhất</span>
+            <LimitSelect value={topLimits.books} onChange={v => setTopLimits(p => ({ ...p, books: v }))} colorClass="bg-white/50 text-gray-900 border-white/30 hover:bg-white/70" />
+          </div>
+          <div className={`overflow-y-auto custom-scrollbar relative transition-opacity duration-300 ${topLoading ? 'opacity-50 pointer-events-none' : ''}`} style={{ maxHeight: '450px' }}>
+            {topLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <i className="fa-solid fa-circle-notch fa-spin text-3xl text-white/80" />
+              </div>
+            )}
+
+            {!topData?.topBooks?.length && !topLoading ? (
+              <div className="py-14 text-center text-gray-700 text-xs">Không có dữ liệu</div>
+            ) : (
+              <div className="divide-y divide-[#2b90c9]/40">
+                {topData?.topBooks?.slice(0, topLimits.books).map((b, i) => (
+                  <div key={b._id} className="flex items-center gap-4 px-5 py-3 hover:bg-[#2792cf]/60 transition-colors">
+                    <span className="text-xs font-bold text-gray-800 w-4 text-center">{i + 1}</span>
+                    <img
+                      src={getImageUrl(b.info?.image)}
+                      alt={b.info?.title}
+                      className="w-10 h-14 object-cover rounded shadow-sm flex-shrink-0 border border-[#2b90c9]"
+                      onError={(e) => { e.target.src = 'https://placehold.co/40x60?text=Book'; }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate text-gray-900">{b.info?.title}</p>
+                      <p className="text-[11px] text-gray-800 truncate mt-0.5">{b.info?.author}</p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="font-mono font-black text-gray-900 text-sm">{b.totalQty}</p>
+                      <p className="text-[9px] text-gray-800 uppercase">đã bán</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ══ CỘT 2: #FFC872 ══ */}
+        <div className="bg-[#FFC872] border border-black/10 rounded-2xl shadow-sm overflow-hidden flex flex-col text-gray-900">
+          <div className="px-5 py-4 bg-white/40 border-b border-black/5 flex items-center justify-between">
+            <span className="text-sm font-bold">Khách hàng xuất sắc</span>
+            <LimitSelect value={topLimits.users} onChange={v => setTopLimits(p => ({ ...p, users: v }))} colorClass="bg-white/50 text-gray-900 border-white/30 hover:bg-white/70" />
+          </div>
+
+          <div className={`flex flex-col flex-1 relative transition-opacity duration-300 ${topLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+            {topLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <i className="fa-solid fa-circle-notch fa-spin text-3xl text-white/80" />
+              </div>
+            )}
+
+            {!topData?.topUsersByOrders?.length && !topLoading ? (
+              <div className="py-14 text-center text-gray-700 text-xs">Không có dữ liệu</div>
+            ) : (
+              <>
+                <div>
+                  <div className="px-5 py-2 bg-[#f0bb66]/60 border-b border-[#e6b463] flex items-center gap-2">
+                    <i className="fa-solid fa-cart-shopping text-gray-800 text-[10px]" />
+                    <span className="text-[10px] font-black text-gray-800 uppercase tracking-widest">Đặt nhiều đơn nhất</span>
+                  </div>
+
+                  <div className="overflow-y-auto custom-scrollbar" style={{ maxHeight: '200px' }}>
+                    <div className="divide-y divide-[#e6b463]/40">
+                      {topData?.topUsersByOrders?.slice(0, topLimits.users).map((u, i) => (
+                        <div key={u._id} className="flex items-center gap-4 px-5 py-3 hover:bg-[#f0bb66]/60 transition-colors">
+                          <span className="text-xs font-bold text-gray-800 w-4 text-center">{i + 1}</span>
+                          <img
+                            src={getImageUrl(u.u?.avatar, u.u?.name)}
+                            alt={u.u?.name}
+                            className="w-8 h-8 rounded-full border border-[#e6b463] object-cover flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate text-gray-900">{u.u?.name}</p>
+                            <p className="text-[11px] text-gray-800 truncate mt-0.5">{u.u?.email}</p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <p className="font-mono font-black text-gray-900 text-sm">{u.count}</p>
+                            <p className="text-[9px] text-gray-800 uppercase">đơn</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#e6b463]">
+                  <div className="px-5 py-2 bg-[#f0bb66]/60 border-b border-[#e6b463] flex items-center gap-2">
+                    <i className="fa-solid fa-money-bill-wave text-gray-800 text-[10px]" />
+                    <span className="text-[10px] font-black text-gray-800 uppercase tracking-widest">Chi tiêu cao nhất</span>
+                  </div>
+
+                  <div className="overflow-y-auto custom-scrollbar" style={{ maxHeight: '200px' }}>
+                    <div className="divide-y divide-[#e6b463]/40">
+                      {topData?.topUsersBySpending?.slice(0, topLimits.users).map((u, i) => (
+                        <div key={u._id} className="flex items-center gap-4 px-5 py-3 hover:bg-[#f0bb66]/60 transition-colors">
+                          <span className="text-xs font-bold text-gray-800 w-4 text-center">{i + 1}</span>
+                          <img
+                            src={getImageUrl(u.u?.avatar, u.u?.name)}
+                            alt={u.u?.name}
+                            className="w-8 h-8 rounded-full border border-[#e6b463] object-cover flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate text-gray-900">{u.u?.name}</p>
+                            <p className="text-[11px] text-gray-800 truncate mt-0.5">{u.u?.email}</p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <p className="font-mono font-black text-gray-900 text-sm">{fmtShort(u.spent)}</p>
+                            <p className="text-[9px] text-gray-800 uppercase">đã chi</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ══ CỘT 3: #FFE3B3 ══ */}
+        <div className="bg-[#FFE3B3] border border-black/10 rounded-2xl shadow-sm overflow-hidden flex flex-col text-gray-900">
+          <div className="px-5 py-4 bg-white/50 border-b border-black/5 flex items-center justify-between">
+            <span className="text-sm font-bold">Voucher hiệu quả nhất</span>
+            <LimitSelect value={topLimits.vouchers} onChange={v => setTopLimits(p => ({ ...p, vouchers: v }))} colorClass="bg-white/60 text-gray-900 border-white/40 hover:bg-white/80" />
+          </div>
+
+          <div className={`overflow-y-auto custom-scrollbar relative transition-opacity duration-300 ${topLoading ? 'opacity-50 pointer-events-none' : ''}`} style={{ maxHeight: '450px' }}>
+            {topLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <i className="fa-solid fa-circle-notch fa-spin text-3xl text-white/80" />
+              </div>
+            )}
+
+            {!topData?.topVouchers?.length && !topLoading ? (
+              <div className="py-14 text-center text-gray-700 text-xs">Không có dữ liệu voucher</div>
+            ) : (
+              <div className="divide-y divide-[#e6cfa1]/40">
+                {topData?.topVouchers?.slice(0, topLimits.vouchers).map((v, i) => (
+                  <div key={v._id} className="px-5 py-4 hover:bg-[#f5d9a5]/60 transition-colors">
+                    <div className="flex items-center gap-3 mb-2.5">
+                      <span className="text-xs font-bold text-gray-800 w-4 text-center">{i + 1}</span>
+                      <span className="font-mono font-bold text-gray-900 bg-[#f5d9a5] px-2.5 py-1 rounded text-xs border border-[#e6cfa1]">
+                        {v.v?.code || v._id}
+                      </span>
+                      <span className="ml-auto text-[10px] font-bold text-gray-900 bg-[#f5d9a5] px-2 py-0.5 rounded-full">
+                        {v.useCount} lượt
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pl-11">
+                      <span className="text-[11px] text-gray-800">Doanh thu mang lại</span>
+                      <span className="font-mono text-sm font-black text-gray-900">{fmtShort(v.rev)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };

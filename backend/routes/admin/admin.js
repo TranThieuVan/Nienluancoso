@@ -11,5 +11,5 @@ router.get('/dashboard', adminController.getDashboardStats); // (nếu có)
 // THÊM 2 DÒNG MỚI NÀY VÀO:
 router.get('/dashboard/overview', adminDashboardController.getDashboardOverview);
 router.get('/dashboard/analytics', adminDashboardController.getDashboardAnalytics);
-
+router.get('/dashboard/top', adminDashboardController.getTopData);
 module.exports = router;

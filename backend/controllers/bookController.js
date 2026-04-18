@@ -572,9 +572,18 @@ exports.getBookManagementAnalytics = async (req, res) => {
             ? (((totalRevenueSoFar - totalCostOfSold) / totalRevenueSoFar) * 100).toFixed(1)
             : 0;
 
-        // 3. Tìm thể loại bán chạy nhất
-        const sortedGenres = Object.entries(genreStats).sort((a, b) => b[1].profit - a[1].profit);
-        const topGenre = sortedGenres[0] ? { name: sortedGenres[0][0], profit: sortedGenres[0][1].profit } : null;
+        // 3. TÌM THỂ LOẠI CÓ DOANH THU CAO NHẤT VÀ TÍNH TỈ TRỌNG (%)
+        const sortedGenresByRevenue = Object.entries(genreStats).sort((a, b) => b[1].revenue - a[1].revenue);
+        let topGenre = null;
+        if (sortedGenresByRevenue.length > 0 && totalRevenueSoFar > 0) {
+            const top = sortedGenresByRevenue[0];
+            topGenre = {
+                name: top[0],
+                percentage: ((top[1].revenue / totalRevenueSoFar) * 100).toFixed(1)
+            };
+        } else if (sortedGenresByRevenue.length > 0) {
+            topGenre = { name: sortedGenresByRevenue[0][0], percentage: 0 };
+        }
 
         // ✅ FIX: Đếm chính xác số lượng đang giảm giá (nếu giá KM nhỏ hơn giá gốc)
         const discountedCount = allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price).length;

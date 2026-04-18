@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import Pagination from '../../components/Pagination';
+import { useNavigate } from 'react-router-dom'; // ✨ Import useNavigate
 
 // ── Helpers ──
 const DEFAULT_AVATAR = 'http://localhost:5000/uploads/avatars/default-user.png';
@@ -71,6 +72,7 @@ const RankBadge = ({ rank }) => {
 const UserDetailModal = ({ userId, onClose }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate(); // ✨ Thêm navigate
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -120,28 +122,42 @@ const UserDetailModal = ({ userId, onClose }) => {
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <img
-              src={getAvatarUrl(user.avatar)}
-              onError={e => { e.target.src = DEFAULT_AVATAR; }}
-              alt="avatar"
-              className="w-16 h-16 rounded-full object-cover border-2 border-white shadow"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-base font-bold text-gray-900">{user.name}</p>
-                <RankBadge rank={user.rank} />
-                {user.isLocked && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
-                    🔒 Bị khóa
-                  </span>
-                )}
+          {/* ✨ Thêm justify-between để dàn nút Nhắn tin sang phải */}
+          <div className="flex items-center justify-between gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-4">
+              <img
+                src={getAvatarUrl(user.avatar)}
+                onError={e => { e.target.src = DEFAULT_AVATAR; }}
+                alt="avatar"
+                className="w-16 h-16 rounded-full object-cover border-2 border-white shadow"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-base font-bold text-gray-900">{user.name}</p>
+                  <RankBadge rank={user.rank} />
+                  {user.isLocked && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                      🔒 Bị khóa
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-0.5">{user.email}</p>
+                <p className="text-xs text-gray-400 font-mono mt-1">
+                  #{user._id.slice(-8)} · Tham gia {formatDate(user.createdAt)}
+                </p>
               </div>
-              <p className="text-sm text-gray-500 mt-0.5">{user.email}</p>
-              <p className="text-xs text-gray-400 font-mono mt-1">
-                #{user._id.slice(-8)} · Tham gia {formatDate(user.createdAt)}
-              </p>
             </div>
+
+            {/* ✨ Nút Nhắn tin trực tiếp */}
+            <button
+              onClick={() => navigate('/admin/messages', { state: { autoFocusUserId: user._id } })}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" />
+              </svg>
+              Nhắn tin
+            </button>
           </div>
 
           <div>
@@ -237,11 +253,12 @@ const AdminUsers = () => {
   const [loading, setLoading] = useState(false);
   const [locking, setLocking] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
-
+  const [overview, setOverview] = useState({ total: 0, active: 0, locked: 0, avgOrders: 0, avgSpent: 0, rankDist: {} });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
 
+  const [searchTerm, setSearchTerm] = useState(''); // ✨ State Search User
   const [rankFilter, setRankFilter] = useState('all');
   const [datePreset, setDatePreset] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -251,12 +268,13 @@ const AdminUsers = () => {
     const params = new URLSearchParams();
     params.set('page', currentPage);
     params.set('limit', 10);
+    if (searchTerm) params.set('search', searchTerm); // ✨ Push search params
     if (rankFilter !== 'all') params.set('rank', rankFilter);
     if (datePreset && datePreset !== 'custom') params.set('preset', datePreset);
     if (datePreset === 'custom' && fromDate) params.set('from', fromDate);
     if (datePreset === 'custom' && toDate) params.set('to', toDate);
     return params.toString();
-  }, [currentPage, rankFilter, datePreset, fromDate, toDate]);
+  }, [currentPage, searchTerm, rankFilter, datePreset, fromDate, toDate]);
 
   const fetchUsers = useCallback(async () => {
     setError(null); setLoading(true);
@@ -268,6 +286,7 @@ const AdminUsers = () => {
       setUsers(res.data.users || []);
       setTotalPages(res.data.totalPages || 1);
       setTotalUsers(res.data.totalUsers || 0);
+      setOverview(res.data.overview || { total: 0, active: 0, locked: 0, avgOrders: 0, avgSpent: 0, rankDist: {} });
     } catch (err) {
       setError(err.response?.data?.message || err.message);
     } finally {
@@ -275,7 +294,7 @@ const AdminUsers = () => {
     }
   }, [buildParams]);
 
-  useEffect(() => { setCurrentPage(1); }, [rankFilter, datePreset, fromDate, toDate]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, rankFilter, datePreset, fromDate, toDate]);
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const handleToggleLock = async (user) => {
@@ -336,7 +355,6 @@ const AdminUsers = () => {
     }
   };
 
-  // ✨ Cập nhật lại màu sắc cho các thẻ Stats (độ đậm 200)
   const stats = useMemo(() => [
     {
       label: 'Tổng người dùng', value: totalUsers,
@@ -374,89 +392,142 @@ const AdminUsers = () => {
         </button>
       </div>
 
-      {/* ✨ Thẻ Stats với bg-200 */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        {stats.map(s => (
-          <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 shadow-sm`}>
-            <p className={`text-xs uppercase tracking-widest ${s.textLabel} font-bold flex items-center gap-1.5`}>
-              <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-              {s.label}
-            </p>
-            <p className={`text-3xl font-bold ${s.textVal} mt-1.5 font-mono`}>{s.value}</p>
+      {/* ── KPI STAT CARDS (Độ đậm 500) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Card 1: Tổng quan (Indigo 500) */}
+        <div className="bg-indigo-500 rounded-2xl p-5 shadow-lg shadow-indigo-100 text-white relative overflow-hidden">
+          <i className="fa-solid fa-users absolute -right-4 -bottom-4 text-8xl opacity-10" />
+          <p className="text-xs uppercase tracking-widest opacity-80 font-bold mb-3">Tình trạng hệ thống</p>
+          <div className="flex items-end gap-2 mb-4">
+            <p className="text-4xl font-black font-mono leading-none">{overview.total}</p>
+            <p className="text-sm opacity-80 mb-1 font-bold">Thành viên</p>
           </div>
-        ))}
+          <div className="flex gap-4 pt-3 border-t border-white/20">
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-400" /><span className="text-[11px] font-bold">{overview.active} Hoạt động</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-[11px] font-bold">{overview.locked} Đã khóa</span></div>
+          </div>
+        </div>
+
+        {/* Card 2: Trung bình đơn (Sky 500) */}
+        <div className="bg-sky-500 rounded-2xl p-5 shadow-lg shadow-sky-100 text-white relative overflow-hidden">
+          <i className="fa-solid fa-cart-shopping absolute -right-4 -bottom-4 text-8xl opacity-10" />
+          <p className="text-xs uppercase tracking-widest opacity-80 font-bold mb-3">Chỉ số mua sắm TB</p>
+          <div className="flex items-end gap-2">
+            <p className="text-4xl font-black font-mono leading-none">{overview.avgOrders}</p>
+            <p className="text-sm opacity-80 mb-1 font-bold">đơn hoàn tất / khách</p>
+          </div>
+          <p className="mt-4 text-[10px] bg-white/20 inline-block px-2 py-0.5 rounded uppercase font-bold">Toàn hệ thống</p>
+        </div>
+
+        {/* Card 3: Trung bình chi tiêu (Emerald 500) */}
+        <div className="bg-emerald-500 rounded-2xl p-5 shadow-lg shadow-emerald-100 text-white relative overflow-hidden">
+          <i className="fa-solid fa-wallet absolute -right-4 -bottom-4 text-8xl opacity-10" />
+          <p className="text-xs uppercase tracking-widest opacity-80 font-bold mb-3">Chi tiêu trung b</p>
+          <div className="flex items-end gap-2">
+            <p className="text-4xl font-black font-mono leading-none">{formatCurrency(overview.avgSpent)}</p>
+            <p className="text-sm opacity-80 mb-1 font-bold">/ khách</p>
+          </div>
+          <p className="mt-4 text-[10px] bg-white/20 inline-block px-2 py-0.5 rounded uppercase font-bold">Giá trị thực thu</p>
+        </div>
       </div>
 
-      {/* ── Bộ lọc ── */}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 mb-4 flex flex-wrap items-end gap-4">
-        <div>
-          <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Hạng thành viên</label>
-          <div className="flex gap-1.5 flex-wrap">
-            {['all', ...RANKS].map(r => (
-              <button
-                key={r}
-                onClick={() => setRankFilter(r)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${rankFilter === r
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                  }`}
+      {/* ── Div: Phân bổ Hạng người dùng ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm mb-6">
+        <p className="text-xs uppercase tracking-widest text-gray-500 font-bold mb-4">Phân bổ tỉ lệ người dùng</p>
+        <div className="flex h-4 rounded-full overflow-hidden bg-gray-100 w-full">
+          {overview.rankDist['Khách hàng'] > 0 && <div style={{ width: `${overview.rankDist['Khách hàng']}%` }} className="bg-gray-400" title={`Khách hàng: ${overview.rankDist['Khách hàng']}%`} />}
+          {overview.rankDist['Bạc'] > 0 && <div style={{ width: `${overview.rankDist['Bạc']}%` }} className="bg-slate-500" title={`Bạc: ${overview.rankDist['Bạc']}%`} />}
+          {overview.rankDist['Vàng'] > 0 && <div style={{ width: `${overview.rankDist['Vàng']}%` }} className="bg-yellow-400" title={`Vàng: ${overview.rankDist['Vàng']}%`} />}
+          {overview.rankDist['Bạch kim'] > 0 && <div style={{ width: `${overview.rankDist['Bạch kim']}%` }} className="bg-cyan-400" title={`Bạch kim: ${overview.rankDist['Bạch kim']}%`} />}
+          {overview.rankDist['Kim cương'] > 0 && <div style={{ width: `${overview.rankDist['Kim cương']}%` }} className="bg-violet-500" title={`Kim cương: ${overview.rankDist['Kim cương']}%`} />}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4">
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-400" /><span className="text-xs font-semibold text-gray-600">Khách hàng ({overview.rankDist['Khách hàng'] || 0}%)</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-500" /><span className="text-xs font-semibold text-gray-600">Bạc ({overview.rankDist['Bạc'] || 0}%)</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-400" /><span className="text-xs font-semibold text-gray-600">Vàng ({overview.rankDist['Vàng'] || 0}%)</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-cyan-400" /><span className="text-xs font-semibold text-gray-600">Bạch kim ({overview.rankDist['Bạch kim'] || 0}%)</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-500" /><span className="text-xs font-semibold text-gray-600">Kim cương ({overview.rankDist['Kim cương'] || 0}%)</span></div>
+        </div>
+      </div>
+
+      {/* ── BỘ LỌC DANH SÁCH (Sửa lại layout đẹp hơn) ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+
+          {/* Ô Tìm kiếm chính với Icon */}
+          <div className="flex-1 max-w-xl">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2.5 ml-1">
+              <i className="fa-solid fa-magnifying-glass mr-2"></i>Tìm kiếm khách hàng
+            </label>
+            <div className="relative group">
+              <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+              <input
+                type="text"
+                placeholder="Nhập tên hoặc email (gmail) để tìm..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-11 pr-4 py-3 text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500 transition-all outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Các bộ lọc phụ */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="h-10 w-px bg-gray-100 mx-2 hidden lg:block" />
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Hạng người dùng</span>
+              <select
+                value={rankFilter}
+                onChange={(e) => setRankFilter(e.target.value)}
+                className="bg-gray-50 border-none rounded-lg px-3 py-2 text-xs font-bold text-gray-600 focus:ring-0 cursor-pointer hover:bg-gray-100 transition-colors"
               >
-                {r === 'all' ? 'Tất cả' : r}
+                <option value="all">Tất cả hạng</option>
+                {RANKS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Ngày tham gia</span>
+              <select
+                value={datePreset}
+                onChange={(e) => { setDatePreset(e.target.value); setFromDate(''); setToDate(''); }}
+                className="bg-gray-50 border-none rounded-lg px-3 py-2 text-xs font-bold text-gray-600 focus:ring-0 cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+
+            {/* Nút Xóa nhanh */}
+            {/* Nút Xóa bộ lọc */}
+            {(searchTerm || rankFilter !== 'all' || datePreset) && (
+              <button
+                onClick={() => { setSearchTerm(''); setRankFilter('all'); setDatePreset(''); }}
+                className="h-[42px] px-4 flex items-center justify-center gap-2 rounded-xl bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all text-xs font-bold"
+                title="Xóa tất cả bộ lọc"
+              >
+                <i className="fa-solid fa-filter-circle-xmark text-sm" />
+                <span>Xóa lọc</span>
               </button>
-            ))}
+            )}
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Ngày tham gia</label>
-          <div className="flex gap-1.5 flex-wrap">
-            {DATE_PRESETS.map(p => (
-              <button
-                key={p.value}
-                onClick={() => { setDatePreset(p.value); setFromDate(''); setToDate(''); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${datePreset === p.value
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                  }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
+        {/* Picker ngày tùy chỉnh hiện ra khi chọn "Tùy chỉnh" */}
         {datePreset === 'custom' && (
-          <div className="flex items-center gap-2">
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Từ ngày</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={e => setFromDate(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
-              />
+          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase">Từ</span>
+              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400" />
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Đến ngày</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={e => setToDate(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
-              />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase">Đến</span>
+              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400" />
             </div>
           </div>
         )}
-
-        {(rankFilter !== 'all' || datePreset) && (
-          <button
-            onClick={() => { setRankFilter('all'); setDatePreset(''); setFromDate(''); setToDate(''); }}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 border border-gray-200 hover:text-red-500 hover:border-red-200 transition-colors self-end mb-0.5"
-          >
-            ✕ Xóa bộ lọc
-          </button>
-        )}
       </div>
+
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 border-b border-gray-100">
@@ -465,7 +536,6 @@ const AdminUsers = () => {
           </span>
         </div>
 
-        {/* ✨ Table với font chữ được phóng to */}
         <div className="overflow-x-auto">
           <table className="w-full text-base table-fixed">
             <thead className="bg-gray-50 border-b border-gray-100">

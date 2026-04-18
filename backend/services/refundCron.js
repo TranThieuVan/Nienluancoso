@@ -29,9 +29,6 @@ cron.schedule('0 2 * * *', async () => {
 
         for (const order of pendingRefundOrders) {
             try {
-                // ✅ BUG 1 & 3 FIX: Lấy thời gian hủy từ statusHistory
-                // cancelledAt KHÔNG có trong Order schema nên không lưu được —
-                // phải đọc từ statusHistory mà orderController.js đã push khi user hủy đơn.
                 const cancelledEntry = order.statusHistory
                     ?.slice()          // clone để tránh mutate mảng gốc
                     .reverse()        // lấy entry 'cancelled' mới nhất (phòng edge case)

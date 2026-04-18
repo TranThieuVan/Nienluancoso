@@ -54,26 +54,60 @@ exports.getAllUsers = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
+        const { rank, preset, from, to, search } = req.query;
 
-        const { rank, preset, from, to } = req.query;
+        // 1. BASE QUERY (Dành cho thống kê tổng quát - Không bị ảnh hưởng bởi search/filter)
+        const baseQuery = { role: 'user' };
 
-        // Base query: chỉ lấy users (không lấy admin)
-        const query = { role: 'user' };
-
-        // Lọc theo rank
-        if (rank && rank !== 'all') {
-            query.rank = rank;
+        // 2. FILTERED QUERY (Dành cho bảng danh sách)
+        const filteredQuery = { ...baseQuery };
+        if (rank && rank !== 'all') filteredQuery.rank = rank;
+        if (search) {
+            filteredQuery.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
         }
-
-        // Lọc theo ngày đăng ký (createdAt)
         const dateRange = buildDateRange(preset, from, to);
-        if (dateRange) {
-            query.createdAt = dateRange;
+        if (dateRange) filteredQuery.createdAt = dateRange;
+
+        // THỐNG KÊ TỔNG QUÁT (Luôn tính trên baseQuery)
+        const totalUsersSystem = await User.countDocuments(baseQuery);
+        const overviewAgg = await User.aggregate([
+            { $match: baseQuery },
+            {
+                $group: {
+                    _id: null,
+                    active: { $sum: { $cond: ["$isLocked", 0, 1] } },
+                    locked: { $sum: { $cond: ["$isLocked", 1, 0] } },
+                    ranks: { $push: "$rank" }
+                }
+            }
+        ]);
+        const overviewData = overviewAgg[0] || { active: 0, locked: 0, ranks: [] };
+
+        // Tính % Rank tổng hệ thống
+        const rankCounts = { 'Khách hàng': 0, 'Bạc': 0, 'Vàng': 0, 'Bạch kim': 0, 'Kim cương': 0 };
+        overviewData.ranks.forEach(r => {
+            const rankName = r || 'Khách hàng';
+            if (rankCounts[rankName] !== undefined) rankCounts[rankName]++;
+        });
+        const rankDist = {};
+        for (const r in rankCounts) {
+            rankDist[r] = totalUsersSystem > 0 ? parseFloat(((rankCounts[r] / totalUsersSystem) * 100).toFixed(1)) : 0;
         }
 
-        const totalUsers = await User.countDocuments(query);
-        const totalPages = Math.ceil(totalUsers / limit);
-        const users = await User.find(query)
+        // Trung bình hệ thống
+        const [globalOrderStats] = await Order.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: "$totalPrice" } } }
+        ]);
+        const avgOrders = totalUsersSystem > 0 ? ((globalOrderStats?.totalOrders || 0) / totalUsersSystem).toFixed(1) : 0;
+        const avgSpent = totalUsersSystem > 0 ? Math.round((globalOrderStats?.totalRevenue || 0) / totalUsersSystem) : 0;
+
+        // LẤY DANH SÁCH USER (Theo filteredQuery)
+        const totalUsersFiltered = await User.countDocuments(filteredQuery);
+        const users = await User.find(filteredQuery)
             .select('-password')
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -82,12 +116,19 @@ exports.getAllUsers = async (req, res) => {
         res.json({
             users,
             currentPage: page,
-            totalPages,
-            totalUsers,
+            totalPages: Math.ceil(totalUsersFiltered / limit),
+            totalUsersFiltered,
+            overview: {
+                total: totalUsersSystem,
+                active: overviewData.active,
+                locked: overviewData.locked,
+                avgOrders,
+                avgSpent,
+                rankDist
+            }
         });
     } catch (err) {
-        console.error('Lỗi lấy danh sách user:', err);
-        res.status(500).json({ message: 'Không thể lấy danh sách người dùng' });
+        res.status(500).json({ message: 'Lỗi server' });
     }
 };
 

@@ -382,3 +382,73 @@ exports.confirmRefund = async (req, res) => {
         res.json({ message: 'Hoàn tiền thành công!', order });
     } catch (err) { res.status(500).json({ message: 'Lỗi server' }); }
 };
+
+
+// 📊 THỐNG KÊ: Lấy người dùng đặt nhiều đơn hàng nhất theo bộ lọc
+exports.getTopCustomer = async (req, res) => {
+    try {
+        const { preset, from, to } = req.query;
+
+        // Sử dụng hàm helper buildDateRange có sẵn trong file
+        const dateQuery = buildDateRange(preset, from, to);
+
+        const topUser = await Order.aggregate([
+            // Bước 1: Lọc theo thời gian và bỏ qua các đơn đã hủy
+            {
+                $match: {
+                    createdAt: dateQuery,
+                    status: { $ne: 'cancelled' }
+                }
+            },
+
+            // Bước 2: Gom nhóm theo User ID và đếm số lượng đơn
+            {
+                $group: {
+                    _id: "$user",
+                    orderCount: { $sum: 1 },
+                    totalSpent: { $sum: "$totalPrice" }
+                }
+            },
+
+            // Bước 3: Sắp xếp theo số lượng đơn giảm dần
+            { $sort: { orderCount: -1 } },
+
+            // Bước 4: Lấy Top 1 (người mua nhiều nhất)
+            { $limit: 1 },
+
+            // Bước 5: Liên kết với bảng Users để lấy thông tin tên và email
+            {
+                $lookup: {
+                    from: "users", // tên collection trong database
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "userDetails"
+                }
+            },
+
+            // Giải nén mảng userDetails
+            { $unwind: "$userDetails" },
+
+            // Bước 6: Chỉ lấy các trường cần thiết
+            {
+                $project: {
+                    _id: 1,
+                    orderCount: 1,
+                    totalSpent: 1,
+                    name: "$userDetails.name",
+                    email: "$userDetails.email",
+                    avatar: "$userDetails.avatar"
+                }
+            }
+        ]);
+
+        if (topUser.length === 0) {
+            return res.status(200).json({ message: "Không có đơn hàng trong khoảng thời gian này." });
+        }
+
+        res.json(topUser[0]);
+    } catch (err) {
+        console.error("Lỗi getTopCustomer:", err);
+        res.status(500).json({ message: "Lỗi khi thống kê khách hàng thân thiết." });
+    }
+};

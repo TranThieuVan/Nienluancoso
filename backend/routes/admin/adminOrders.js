@@ -14,5 +14,5 @@ router.put('/:id/status', adminOrderController.updateOrderStatus)
 router.delete('/delete-all', adminOrderController.deleteAllOrders);
 router.delete('/:id', adminOrderController.deleteOrder)
 router.get('/:id', adminOrderController.getOrderById)
-
+router.get('/top-customer', adminOrderController.getTopCustomer);
 module.exports = router

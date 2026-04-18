@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useLocation } from 'react-router-dom'; // ✨ Import useLocation
 
 const AdminMessages = () => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); // ✨ Thêm state tìm kiếm
+  const [searchTerm, setSearchTerm] = useState('');
+
   const messageContainerRef = useRef(null);
+  const chatInputRef = useRef(null); // ✨ Thêm ref cho input chat
+
+  const location = useLocation();
+  const autoFocusUserId = location.state?.autoFocusUserId; // ✨ Lấy userId từ User List truyền qua
 
   useEffect(() => {
     fetchConversations();
@@ -16,6 +22,13 @@ const AdminMessages = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // ✨ Auto-focus vào khung chat mỗi khi chọn hội thoại mới (hoặc từ màn hình User nhảy qua)
+  useEffect(() => {
+    if (selectedConversation && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  }, [selectedConversation]);
 
   const fetchConversations = async () => {
     try {
@@ -40,8 +53,17 @@ const AdminMessages = () => {
 
       setConversations(unique);
 
-      // ✨ Auto focus vào khách hàng đầu tiên khi vừa tải xong danh sách
-      if (unique.length > 0 && !selectedConversation) {
+      // ✨ Nếu có yêu cầu mở khung chat riêng từ trang Quản lý User
+      if (autoFocusUserId) {
+        const targetConv = unique.find(c => c.participant?._id === autoFocusUserId);
+        if (targetConv) {
+          selectConversation(targetConv);
+        } else if (unique.length > 0 && !selectedConversation) {
+          // Xử lý fallback nếu user này chưa từng nhắn tin
+          selectConversation(unique[0]);
+        }
+      } else if (unique.length > 0 && !selectedConversation) {
+        // Hành vi mặc định khi vào thẳng trang chat
         selectConversation(unique[0]);
       }
 
@@ -91,6 +113,9 @@ const AdminMessages = () => {
       };
 
       setMessages(prev => [...prev, newMsg]);
+
+      // ✨ Focus lại ô chat ngay sau khi gửi xong
+      chatInputRef.current?.focus();
     } catch (err) {
       console.error('Lỗi gửi tin nhắn:', err);
     }
@@ -114,7 +139,6 @@ const AdminMessages = () => {
     }
   };
 
-  // ✨ Lọc danh sách khách hàng dựa trên từ khóa tìm kiếm
   const filteredConversations = conversations.filter(conv =>
     conv.participant?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -125,7 +149,6 @@ const AdminMessages = () => {
       <div className="w-1/3 border-r flex flex-col p-4">
         <h2 className="text-xl font-bold mb-4">Khách hàng</h2>
 
-        {/* ✨ Input Search */}
         <div className="mb-4">
           <input
             type="text"
@@ -160,7 +183,6 @@ const AdminMessages = () => {
             </div>
           ))}
 
-          {/* Hiển thị khi không tìm thấy kết quả */}
           {filteredConversations.length === 0 && (
             <div className="text-center text-gray-500 mt-4 text-sm">
               Không tìm thấy khách hàng "{searchTerm}"
@@ -200,6 +222,7 @@ const AdminMessages = () => {
 
         <div className="p-4 border-t flex gap-2 items-center">
           <input
+            ref={chatInputRef} // ✨ Gắn ref vào đây để focus
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyUp={(e) => e.key === 'Enter' && sendMessage()}

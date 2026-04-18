@@ -59,7 +59,6 @@ app.use('/api/comments', require('./routes/comment'));
 app.use('/api/vnpay', vnpayRoutes);
 app.use('/api/vouchers', require('./routes/voucher'));
 app.use('/api/promotions', require('./routes/admin/adminPromotions'));
-app.use('/api/webhooks', require('./routes/webhook'));
 app.use('/api/stats', require('./routes/stats'));
 // --- Các route admin ---
 app.use('/api/admin', require('./routes/admin/admin'));

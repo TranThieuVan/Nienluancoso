@@ -11,12 +11,13 @@ const AdminNavbar = () => {
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
-    // ✅ LẤY ROLE TỪ LOCAL STORAGE
-    const userRole = localStorage.getItem('userRole') || 'employee';
+    // ✅ LẤY ROLE TỪ LOCAL STORAGE (hỗ trợ cả key 'userRole' và 'role' để tránh lỗi)
+    const userRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'employee';
 
     const logout = () => {
         localStorage.removeItem('adminToken');
-        localStorage.removeItem('userRole'); // Xóa luôn role khi đăng xuất
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('role');
         navigate('/login');
     };
 
@@ -63,8 +64,8 @@ const AdminNavbar = () => {
 
                 <nav className="flex flex-col gap-2 mt-4 px-4 text-base mb-6">
 
-                    {/* ─── NHÓM VẬN HÀNH (AI CŨNG THẤY) ─── */}
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-2">Vận hành hằng ngày</p>
+                    {/* ─── NHÓM VẬN HÀNH & DỮ LIỆU (AI CŨNG THẤY) ─── */}
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-2">Vận hành & Dữ liệu</p>
 
                     <Link to="/admin/orders" className={`flex items-center justify-between py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/orders')}`}>
                         <div className="flex items-center gap-3"><FontAwesomeIcon icon={['fas', 'box-open']} className="w-5" />Đơn hàng</div>
@@ -73,6 +74,19 @@ const AdminNavbar = () => {
 
                     <Link to="/admin/books" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/books')}`}>
                         <FontAwesomeIcon icon={['fas', 'book']} className="w-5" />Kho Sách
+                    </Link>
+
+                    {/* ✨ Đã chuyển Users, Vouchers, Promotions ra ngoài để Nhân viên thao tác */}
+                    <Link to="/admin/users" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/users')}`}>
+                        <FontAwesomeIcon icon={['fas', 'users']} className="w-5" />Người dùng
+                    </Link>
+
+                    <Link to="/admin/vouchers" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/vouchers')}`}>
+                        <FontAwesomeIcon icon={['fas', 'ticket-alt']} className="w-5" />Mã giảm giá
+                    </Link>
+
+                    <Link to="/admin/promotions" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/promotions')}`}>
+                        <FontAwesomeIcon icon={['fas', 'bullhorn']} className="w-5" />Chiến dịch KM
                     </Link>
 
                     <Link to="/admin/comments" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/comments')}`}>
@@ -87,22 +101,8 @@ const AdminNavbar = () => {
                     {/* ─── NHÓM QUẢN TRỊ (CHỈ ADMIN THẤY) ─── */}
                     {userRole === 'admin' && (
                         <>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-4">Quản trị cấp cao</p>
-
                             <Link to="/admin/revenue" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/revenue')}`}>
                                 <FontAwesomeIcon icon={['fas', 'chart-line']} className="w-5" />Doanh thu
-                            </Link>
-
-                            <Link to="/admin/users" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/users')}`}>
-                                <FontAwesomeIcon icon={['fas', 'users']} className="w-5" />Người dùng
-                            </Link>
-
-                            <Link to="/admin/vouchers" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/vouchers')}`}>
-                                <FontAwesomeIcon icon={['fas', 'ticket-alt']} className="w-5" />Mã giảm giá
-                            </Link>
-
-                            <Link to="/admin/promotions" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/promotions')}`}>
-                                <FontAwesomeIcon icon={['fas', 'bullhorn']} className="w-5" />Chiến dịch KM
                             </Link>
                         </>
                     )}

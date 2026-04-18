@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const adminVoucherController = require('../../controllers/admin/adminVoucherController');
-const { verifyToken, verifyAdmin } = require('../../middleware/authMiddleware')
+const { verifyToken, verifyStaff } = require('../../middleware/authMiddleware')
 
 // Áp dụng middleware bảo mật: Chỉ Admin mới được vào
-router.use(verifyToken, verifyAdmin);
+router.use(verifyToken, verifyStaff);
 
 router.get('/', adminVoucherController.getAllVouchers);
 router.post('/', adminVoucherController.createVoucher);

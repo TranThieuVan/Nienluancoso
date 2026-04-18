@@ -119,14 +119,23 @@ const AdminBookList = () => {
           <p className="text-xl font-black font-mono">{formatPrice(analytics?.summary.totalInventoryValue || 0)}</p>
           <p className="mt-3 text-[9px] font-bold bg-white/20 inline-block px-2 py-0.5 rounded uppercase">Đang lưu kho</p>
         </div>
-
-        {/* CARD 2: LỢI NHUẬN (Indigo) */}
-        <div className="bg-indigo-600 rounded-2xl p-5 shadow-lg shadow-indigo-100 text-white">
-          <div className="flex items-center justify-between mb-4"><p className="text-[9px] uppercase tracking-widest font-black opacity-80">Lợi nhuận dự kiến</p><i className="fa-solid fa-chart-line text-lg opacity-50"></i></div>
-          <p className="text-xl font-black font-mono">{formatPrice(analytics?.summary.potentialProfit || 0)}</p>
-          <p className="mt-3 text-[9px] font-bold bg-white/20 inline-block px-2 py-0.5 rounded uppercase">Khi bán hết</p>
+        {/* CARD 2: TOP DOANH THU THEO THỂ LOẠI (Indigo) */}
+        <div className="bg-indigo-600 rounded-2xl p-5 shadow-lg shadow-indigo-100 text-white flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] uppercase tracking-widest font-black opacity-80">Top Doanh thu thể loại</p>
+              <i className="fa-solid fa-crown text-lg opacity-50"></i>
+            </div>
+            <p className="text-xl font-black truncate" title={analytics?.summary.topGenre?.name || 'Chưa có dữ liệu'}>
+              {analytics?.summary.topGenre?.name || '—'}
+            </p>
+          </div>
+          <div className="mt-3">
+            <p className="text-[10px] font-bold bg-white/20 inline-block px-2.5 py-1 rounded uppercase tracking-wide">
+              Chiếm {analytics?.summary.topGenre?.percentage || 0}%
+            </p>
+          </div>
         </div>
-
         {/* CARD 3: HIỆU SUẤT (Amber) */}
         <div className="bg-amber-500 rounded-2xl p-5 shadow-lg shadow-amber-100 text-white">
           <div className="flex items-center justify-between mb-3"><p className="text-[9px] uppercase tracking-widest font-black opacity-80">Chỉ số hiệu quả</p><i className="fa-solid fa-bolt-lightning text-lg opacity-50"></i></div>
@@ -138,7 +147,7 @@ const AdminBookList = () => {
 
         {/* CARD 4: GIẢM GIÁ (Violet) */}
         <div className="bg-violet-600 rounded-2xl p-5 shadow-lg shadow-violet-100 text-white">
-          <div className="flex items-center justify-between mb-3"><p className="text-[9px] uppercase tracking-widest font-black opacity-80">Khuyến mãi</p><i className="fa-solid fa-tags text-lg opacity-50"></i></div>
+          <div className="flex items-center justify-between mb-3"><p className="text-[9px] uppercase tracking-widest font-black opacity-80">Số lượng khuyến mãi</p><i className="fa-solid fa-tags text-lg opacity-50"></i></div>
           <p className="text-xl font-black font-mono">{analytics?.summary.discountedCount || 0}</p>
           <p className="mt-3 text-[9px] font-bold bg-white/20 inline-block px-2 py-0.5 rounded uppercase">Sách đang Sale</p>
         </div>

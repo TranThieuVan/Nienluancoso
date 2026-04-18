@@ -29,11 +29,14 @@ const AdminVouchers = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [form, setForm] = useState(INIT);
 
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+    // ✨ Các State dành cho Bộ lọc và Tìm kiếm
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [rankFilter, setRankFilter] = useState('all');
 
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
     const now = new Date();
 
-    // ✨ Stats cập nhật bg-200
     const stats = [
         { label: 'Tổng voucher', dot: 'bg-indigo-600', value: vouchers.length, bg: 'bg-indigo-200', border: 'border-indigo-300', textLabel: 'text-indigo-700', textVal: 'text-indigo-900' },
         {
@@ -131,6 +134,26 @@ const AdminVouchers = () => {
         }
     };
 
+    // ✨ LOGIC LỌC DỮ LIỆU FRONTEND
+    const filteredVouchers = vouchers.filter(v => {
+        const isExpired = new Date(v.expirationDate) < now;
+        const isOut = v.usageLimit < 999999 && v.usedCount >= v.usageLimit;
+
+        let status = 'active';
+        if (!v.isActive) status = 'locked';
+        else if (isExpired) status = 'expired';
+        else if (isOut) status = 'out_of_stock';
+
+        // 1. Lọc theo mã (Search)
+        const matchSearch = v.code.toLowerCase().includes(searchTerm.toLowerCase());
+        // 2. Lọc theo trạng thái
+        const matchStatus = statusFilter === 'all' || status === statusFilter;
+        // 3. Lọc theo rank
+        const matchRank = rankFilter === 'all' || v.applicableRanks.includes(rankFilter);
+
+        return matchSearch && matchStatus && matchRank;
+    });
+
     const inputCls = "w-full px-3 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg bg-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all placeholder-gray-400";
 
     return (
@@ -150,7 +173,6 @@ const AdminVouchers = () => {
                 </button>
             </div>
 
-            {/* ✨ Khối thống kê bg-200 */}
             <div className="grid grid-cols-3 gap-3 mb-5">
                 {stats.map(s => (
                     <div key={s.label} className={`${s.bg} border ${s.border} rounded-xl p-4 shadow-sm`}>
@@ -162,11 +184,66 @@ const AdminVouchers = () => {
                 ))}
             </div>
 
-            {/* ✨ Table tăng cỡ chữ */}
+            {/* ✨ GIAO DIỆN BỘ LỌC VÀ TÌM KIẾM */}
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 mb-4 flex flex-wrap items-end gap-4">
+                {/* Search Input */}
+                <div className="flex-grow max-w-xs">
+                    <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Tìm kiếm</label>
+                    <input
+                        type="text"
+                        placeholder="Nhập mã voucher..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400"
+                    />
+                </div>
+
+                {/* Filter Trạng thái */}
+                <div>
+                    <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Trạng thái</label>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400 bg-white cursor-pointer"
+                    >
+                        <option value="all">Tất cả trạng thái</option>
+                        <option value="active">🟢 Đang hoạt động</option>
+                        <option value="locked">🔴 Đã khóa</option>
+                        <option value="expired">⚪ Hết hạn</option>
+                        <option value="out_of_stock">🟠 Hết lượt</option>
+                    </select>
+                </div>
+
+                {/* Filter Hạng */}
+                <div>
+                    <label className="block text-xs uppercase tracking-widest text-gray-400 font-bold mb-1.5">Hạng áp dụng</label>
+                    <select
+                        value={rankFilter}
+                        onChange={(e) => setRankFilter(e.target.value)}
+                        className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-400 bg-white cursor-pointer"
+                    >
+                        <option value="all">Tất cả các hạng</option>
+                        {ALL_RANKS.map(rank => (
+                            <option key={rank} value={rank}>{rank}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Nút Xóa bộ lọc */}
+                {(searchTerm || statusFilter !== 'all' || rankFilter !== 'all') && (
+                    <button
+                        onClick={() => { setSearchTerm(''); setStatusFilter('all'); setRankFilter('all'); }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 border border-gray-200 hover:text-red-500 hover:border-red-200 transition-colors self-end mb-0.5"
+                    >
+                        ✕ Xóa bộ lọc
+                    </button>
+                )}
+            </div>
+
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                     <span className="text-sm text-gray-500">
-                        Tổng <strong className="text-gray-900">{vouchers.length}</strong> mã giảm giá
+                        Hiển thị <strong className="text-gray-900">{filteredVouchers.length}</strong> mã giảm giá
                     </span>
                 </div>
 
@@ -180,9 +257,10 @@ const AdminVouchers = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {vouchers.length === 0 ? (
-                                <tr><td colSpan="7" className="py-16 text-center text-base text-gray-400">Chưa có mã giảm giá nào.</td></tr>
-                            ) : vouchers.map(v => (
+                            {/* ✨ Render mảng filteredVouchers thay vì mảng gốc */}
+                            {filteredVouchers.length === 0 ? (
+                                <tr><td colSpan="7" className="py-16 text-center text-base text-gray-400">Không tìm thấy mã giảm giá nào phù hợp.</td></tr>
+                            ) : filteredVouchers.map(v => (
                                 <tr key={v._id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3 font-bold text-indigo-600 font-mono tracking-wider text-base">{v.code}</td>
                                     <td className="px-4 py-3 font-bold text-red-600 font-mono text-base">

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const adminUserController = require('../../controllers/admin/adminUserController');
-const { verifyToken, verifyAdmin } = require('../../middleware/authMiddleware');
+const { verifyToken, verifyStaff } = require('../../middleware/authMiddleware');
 
 // Dùng middleware xác thực và kiểm tra admin cho tất cả route dưới đây
-router.use(verifyToken, verifyAdmin);
+router.use(verifyToken, verifyStaff);
 
 router.get('/', adminUserController.getAllUsers);
 router.get('/:id/detail', adminUserController.getUserDetail)

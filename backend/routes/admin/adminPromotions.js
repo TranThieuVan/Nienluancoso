@@ -7,7 +7,7 @@ const auth = require('../../middleware/authMiddleware');
 router.get('/', adminPromotionController.getAllPromotions);
 
 // 🔒 Các route bên dưới chỉ Admin mới được dùng
-router.use(auth.verifyToken, auth.verifyAdmin);
+router.use(auth.verifyToken, auth.verifyStaff);
 
 router.post('/', adminPromotionController.createPromotion);
 router.put('/:id', adminPromotionController.updatePromotion);
