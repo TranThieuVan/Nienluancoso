@@ -32,6 +32,9 @@ const Checkout = () => {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
 
+  // State khóa nút bấm, ngăn chặn người dùng spam click tạo nhiều đơn hàng ảo
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const formatPrice = (n) => (n || 0).toLocaleString('vi-VN') + '₫';
   const formatAddress = (addr) => {
     if (!addr.street) return '';
@@ -108,10 +111,40 @@ const Checkout = () => {
     const ACCOUNT_NO = '1026325913';
     const TEMPLATE = 'compact2';
     const ACCOUNT_NAME = 'Tran Thieu Van';
-    const url = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${totalAmount}&addInfo=TT DON HANG ${orderId}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`;
+
+    // BỔ SUNG: Cắt ngắn orderId lấy 6 ký tự cuối, in hoa giống format trong hệ thống
+    const shortOrderId = orderId.toString().slice(-6).toUpperCase();
+
+    // Rút gọn cú pháp nội dung chuyển khoản để an toàn qua các app ngân hàng
+    const addInfo = `TT ${shortOrderId}`;
+
+    const url = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-${TEMPLATE}.png?amount=${totalAmount}&addInfo=${addInfo}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`;
+
     setQrUrl(url);
-    setQrOrderId(orderId);
+    setQrOrderId(orderId); // Vẫn lưu orderId gốc (24 kí tự) ở state để lúc bấm nút hoàn tất còn gọi API được
     setShowQRModal(true);
+  };
+
+  const handleCloseQRModal = async () => {
+    if (qrOrderId) {
+      try {
+        // Tự động gọi API hủy đơn hàng vừa tạo
+        await axios.put(`/api/orders/${qrOrderId}/cancel`, {
+          reason: 'Người dùng đóng popup, hủy thanh toán QR'
+        }, { headers: { Authorization: `Bearer ${token}` } });
+
+        Swal.fire({
+          toast: true, position: 'top-end', icon: 'info',
+          title: 'Đã tự động hủy giao dịch', showConfirmButton: false, timer: 2500
+        });
+      } catch (err) {
+        console.error('Lỗi khi tự động hủy đơn:', err);
+      }
+    }
+    setShowQRModal(false);
+    setQrOrderId(null);
+    localStorage.removeItem('checkoutItems');
+    navigate('/cart');
   };
 
   const confirmAddressSelection = () => {
@@ -169,9 +202,14 @@ const Checkout = () => {
   };
 
   const submitOrder = async () => {
+    if (isProcessing) return; // Chặn người dùng click liên tục
+
     if (!form.fullName || !form.phone || !form.street) {
       return Swal.fire('Thiếu thông tin', 'Vui lòng chọn hoặc thêm địa chỉ giao hàng.', 'warning');
     }
+
+    setIsProcessing(true); // KHÓA NÚT LẠI
+
     try {
       const res = await axios.post('/api/orders', {
         shippingAddress: form,
@@ -195,7 +233,15 @@ const Checkout = () => {
       }
     } catch (err) {
       console.error(err);
-      Swal.fire('Lỗi đặt hàng', 'Không thể đặt hàng. Vui lòng thử lại sau.', 'error');
+
+      // Lấy thông báo lỗi từ backend trả về (trường 'msg' trong orderController)
+      const errorMessage = err.response?.data?.msg || 'Không thể đặt hàng. Vui lòng thử lại sau.';
+
+      // Hiển thị lỗi ra cho người dùng biết
+      Swal.fire('Thất bại', errorMessage, 'error');
+
+    } finally {
+      setIsProcessing(false); // MỞ LẠI NÚT NẾU CHẠY XONG HOẶC GẶP LỖI
     }
   };
 
@@ -300,7 +346,13 @@ const Checkout = () => {
                 ))}
               </div>
             </div>
-            <button onClick={submitOrder} className="w-full py-4 hover-flip-btn uppercase tracking-widest font-bold text-sm select-none">{paymentMethod === 'cod' ? 'Xác nhận đặt hàng' : `Thanh toán · ${formatPrice(totalAmount)}`}</button>
+            <button
+              onClick={submitOrder}
+              disabled={isProcessing}
+              className={`w-full py-4 uppercase tracking-widest font-bold text-sm select-none transition-all duration-300 ${isProcessing ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'hover-flip-btn'}`}
+            >
+              {isProcessing ? 'Đang xử lý...' : (paymentMethod === 'cod' ? 'Xác nhận đặt hàng' : `Thanh toán · ${formatPrice(totalAmount)}`)}
+            </button>
           </div>
         </div>
       </div>
@@ -340,7 +392,7 @@ const Checkout = () => {
       {showQRModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[100] p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm shadow-2xl relative">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center"><h3 className="text-sm font-bold uppercase tracking-widest text-black">Quét mã VietQR</h3><button onClick={() => setShowQRModal(false)} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center"><h3 className="text-sm font-bold uppercase tracking-widest text-black">Quét mã VietQR</h3><button onClick={handleCloseQRModal} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
             <div className="p-6 space-y-4 text-center">
               <p className="text-xs text-stone-600">Dùng App ngân hàng để quét mã và thanh toán tự động</p>
               <div className="bg-stone-50 p-3 border border-gray-100"><img src={qrUrl} alt="VietQR" className="w-full h-auto mx-auto" /></div>
@@ -348,8 +400,14 @@ const Checkout = () => {
                 <div className="flex justify-between"><span className="text-stone-600">Số tiền</span><span className="font-bold text-black">{formatPrice(totalAmount)}</span></div>
                 <p className="text-xs text-stone-600">Nội dung chuyển khoản đã tích hợp trong mã QR.</p>
               </div>
-              <button onClick={async () => {
-                try { if (qrOrderId) await axios.put(`/api/orders/${qrOrderId}/pay`, {}, { headers: { Authorization: `Bearer ${token}` } }); } catch (err) { console.error('Lỗi thanh toán:', err); } finally { localStorage.removeItem('checkoutItems'); navigate('/orders'); }
+              <button onClick={() => {
+                localStorage.removeItem('checkoutItems');
+                Swal.fire(
+                  'Ghi nhận thành công',
+                  'Hệ thống đang chờ Admin xác nhận khoản tiền của bạn. Trạng thái đơn sẽ được cập nhật sớm nhất!',
+                  'success'
+                );
+                navigate('/orders');
               }} className="w-full py-3 hover-flip-btn">Tôi đã chuyển khoản xong</button>
             </div>
           </div>

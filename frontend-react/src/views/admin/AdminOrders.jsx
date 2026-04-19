@@ -351,7 +351,7 @@ const AdminOrders = () => {
                   <tr key={order._id} className="hover:bg-indigo-50/30 transition-colors group">
                     {/* ✨ HIỂN THỊ MÃ ĐƠN HÀNG */}
                     <td className="px-5 py-4 font-mono text-lg font-bold text-indigo-600 whitespace-nowrap">
-                      {order._id.slice(-8).toUpperCase()}
+                      {order._id.slice(-6).toUpperCase()}
                     </td>
                     <td className="px-5 py-4 text-sm text-gray-500 font-medium whitespace-nowrap">{formatDate(order.createdAt)}</td>
                     <td className="px-5 py-4">

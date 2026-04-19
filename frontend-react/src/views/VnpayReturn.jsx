@@ -10,15 +10,16 @@ const VnpayReturn = () => {
     const [message, setMessage] = useState('Đang xử lý kết quả thanh toán...');
 
     useEffect(() => {
+        // Thay thế đoạn checkPayment cũ bằng đoạn này
         const checkPayment = async () => {
             const responseCode = searchParams.get('vnp_ResponseCode');
             const orderId = searchParams.get('vnp_TxnRef');
             const vnpayTransactionNo = searchParams.get('vnp_TransactionNo');
             const vnpayPayDate = searchParams.get('vnp_PayDate');
+            const token = localStorage.getItem('token'); // Khai báo token ở ngoài để tái sử dụng
 
             if (responseCode === '00') {
                 try {
-                    const token = localStorage.getItem('token');
                     await axios.put(`/api/orders/${orderId}/pay`, {
                         vnpayTransactionNo,
                         vnpayPayDate
@@ -31,14 +32,27 @@ const VnpayReturn = () => {
                 } catch (error) {
                     console.error('Lỗi cập nhật đơn hàng:', error);
                     setStatus('error');
-                    setMessage('Thanh toán thành công nhưng có lỗi khi ghi nhận đơn hàng. Vui lòng liên hệ hỗ trợ.');
+                    setMessage('Thanh toán thành công nhưng có lỗi khi ghi nhận đơn. Vui lòng liên hệ hỗ trợ.');
                 }
-            } else if (responseCode === '24') {
-                setStatus('error');
-                setMessage('Giao dịch đã bị huỷ.');
             } else {
-                setStatus('error');
-                setMessage(`Giao dịch thất bại. Mã lỗi: ${responseCode}`);
+                // NẾU LỖI HOẶC NGƯỜI DÙNG TỰ HỦY -> TỰ ĐỘNG GỌI API HỦY ĐƠN HÀNG
+                try {
+                    await axios.put(`/api/orders/${orderId}/cancel`, {
+                        reason: responseCode === '24' ? 'Người dùng hủy thanh toán VNPAY' : `Lỗi thanh toán VNPAY (Mã: ${responseCode})`
+                    }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                } catch (cancelError) {
+                    console.error('Lỗi khi tự động hủy đơn:', cancelError);
+                }
+
+                if (responseCode === '24') {
+                    setStatus('error');
+                    setMessage('Giao dịch đã bị huỷ. Đơn hàng của bạn đã được tự động hủy trên hệ thống.');
+                } else {
+                    setStatus('error');
+                    setMessage(`Giao dịch thất bại. Mã lỗi: ${responseCode}. Đơn hàng đã được tự động hủy.`);
+                }
             }
         };
 

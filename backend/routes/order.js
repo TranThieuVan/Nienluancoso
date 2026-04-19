@@ -13,7 +13,8 @@ router.get('/', auth.verifyToken, orderController.getMyOrders)
 router.get('/:id', auth.verifyToken, orderController.getOrderById)
 
 // Hủy đơn hàng
-router.put('/cancel/:id', auth.verifyToken, orderController.cancelOrder)
+// Hủy đơn hàng (Đồng bộ format với các API phía dưới)
+router.put('/:id/cancel', auth.verifyToken, orderController.cancelOrder)
 router.put('/:id/request-return', auth.verifyToken, orderController.requestReturn);
 router.put('/:id/submit-tracking', auth.verifyToken, orderController.submitReturnTracking);
 router.put('/:id/pay', orderController.updateOrderToPaid);

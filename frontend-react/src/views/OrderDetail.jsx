@@ -72,7 +72,8 @@ const OrderDetail = () => {
         });
         if (isConfirmed && reason) {
             try {
-                await axios.put(`/api/orders/cancel/${id}`, { reason }, {
+                // Đã sửa lại URL: đưa ${id} lên trước /cancel
+                await axios.put(`/api/orders/${id}/cancel`, { reason }, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 Swal.fire('Thành công', 'Đã hủy đơn hàng.', 'success');
@@ -324,16 +325,16 @@ const OrderDetail = () => {
                             <div className="bg-white border border-gray-100 p-6 flex flex-col md:flex-row gap-6 items-start">
                                 <div className="flex-1">
                                     <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-stone-400 mb-3">Hướng dẫn chuyển khoản</p>
-                                    <p className="text-sm text-stone-600 mb-4">Vui lòng chuyển khoản số tiền <strong className="text-black">{formatPrice(order.totalPrice)}</strong> vào tài khoản dưới đây để chúng tôi xử lý đơn hàng.</p>
+                                    <p className="text-sm text-stone-600 mb-4">Nếu bạn chưa chuyển khoản, vui lòng chuyển khoản số tiền <strong className="text-black">{formatPrice(order.totalPrice)}</strong> vào tài khoản dưới đây để chúng tôi xử lý đơn hàng.</p>
                                     <div className="border border-gray-100 text-sm divide-y divide-gray-100">
-                                        {[['Ngân hàng', 'Vietcombank (VCB)'], ['Chủ tài khoản', 'NGUYEN VAN A'], ['Số tài khoản', '1026325913']].map(([label, value]) => (
+                                        {[['Ngân hàng', 'Vietcombank (VCB)'], ['Chủ tài khoản', 'TRAN THIEU VAN'], ['Số tài khoản', '1026325913']].map(([label, value]) => (
                                             <div key={label} className="flex justify-between px-4 py-3"><span className="text-stone-400 font-medium">{label}</span><span className="font-bold text-black">{value}</span></div>
                                         ))}
                                         <div className="flex justify-between px-4 py-3"><span className="text-stone-400 font-medium">Nội dung CK</span><span className="font-black text-black bg-stone-100 px-2 py-0.5 text-xs uppercase">{order._id.slice(-6).toUpperCase()}</span></div>
                                     </div>
                                     <p className="text-xs text-stone-400 mt-3 italic">* Đơn hàng tự động hủy nếu không nhận được thanh toán trong 24 giờ.</p>
                                 </div>
-                                <div className="w-40 h-40 border border-gray-100 flex-shrink-0 overflow-hidden"><img src={`https://img.vietqr.io/image/vcb-1026325913-compact2.png?amount=${order.totalPrice}&addInfo=${order._id.slice(-6).toUpperCase()}&accountName=NGUYEN VAN A`} alt="QR Pay" className="w-full h-full object-cover" /></div>
+                                <div className="w-40 h-40 border border-gray-100 flex-shrink-0 overflow-hidden"><img src={`https://img.vietqr.io/image/vcb-1026325913-compact2.png?amount=${order.totalPrice}&addInfo=${order._id.slice(-6).toUpperCase()}&accountName=TRAN THIEU VAN`} alt="QR Pay" className="w-full h-full object-cover" /></div>
                             </div>
                         )}
 

@@ -6,6 +6,16 @@ const PricingService = require('../services/pricingService');
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
+        const pendingOrdersCount = await Order.countDocuments({
+            user: userId,
+            status: 'pending'
+        });
+
+        if (pendingOrdersCount >= 2) {
+            return res.status(400).json({
+                msg: 'Bạn đang có 2 đơn hàng chờ xử lý. Vui lòng hoàn tất thanh toán hoặc hủy bớt đơn cũ trước khi đặt đơn mới.'
+            });
+        }
         // ✅ Nhận đúng các biến discountAmount và voucherCode từ Frontend gửi lên
         const { items, shippingAddress, paymentMethod, discountAmount, voucherCode } = req.body;
 
