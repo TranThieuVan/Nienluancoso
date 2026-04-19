@@ -128,25 +128,25 @@ const Checkout = () => {
   const handleCloseQRModal = async () => {
     if (qrOrderId) {
       try {
-        // Tự động gọi API hủy đơn hàng vừa tạo
-        await axios.put(`/api/orders/${qrOrderId}/cancel`, {
-          reason: 'Người dùng đóng popup, hủy thanh toán QR'
-        }, { headers: { Authorization: `Bearer ${token}` } });
+        // Tự động gọi API XÓA VĨNH VIỄN đơn hàng vừa tạo thay vì chỉ đổi trạng thái
+        await axios.delete(`/api/orders/${qrOrderId}/hard-delete`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
         Swal.fire({
           toast: true, position: 'top-end', icon: 'info',
-          title: 'Đã tự động hủy giao dịch', showConfirmButton: false, timer: 2500
+          title: 'Đã hủy giao dịch',
+          showConfirmButton: false, timer: 2500
         });
       } catch (err) {
-        console.error('Lỗi khi tự động hủy đơn:', err);
+        console.error('Lỗi khi tự động xóa đơn rác:', err);
       }
     }
     setShowQRModal(false);
     setQrOrderId(null);
-    localStorage.removeItem('checkoutItems');
-    navigate('/cart');
+    // Vẫn giữ lại checkoutItems để khách có thể bấm đặt lại nếu muốn
+    // localStorage.removeItem('checkoutItems'); 
   };
-
   const confirmAddressSelection = () => {
     const selected = addresses.find(a => a._id === tempSelectedAddressId);
     if (selected) {
@@ -201,6 +201,39 @@ const Checkout = () => {
     setAppliedVoucher(null);
   };
 
+  const handleConfirmOrder = () => {
+    if (isProcessing) return;
+
+    if (!form.fullName || !form.phone || !form.street) {
+      return Swal.fire('Thiếu thông tin', 'Vui lòng chọn hoặc thêm địa chỉ giao hàng.', 'warning');
+    }
+
+    Swal.fire({
+      title: 'Xác nhận đặt hàng?',
+      html: `Bạn sẽ thanh toán số tiền <b>${formatPrice(totalAmount)}</b> bằng phương thức <b>${paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng' :
+        paymentMethod === 'vnpay' ? 'VNPAY' : 'Chuyển khoản VietQR'
+        }</b>.<br/>Bạn có chắc chắn muốn tiếp tục?`,
+      icon: 'question',
+      showCancelButton: true,
+
+      // QUAN TRỌNG: Tắt style mặc định để class của bạn có tác dụng
+      buttonsStyling: false,
+
+      // Thêm các class của bạn vào đây
+      customClass: {
+        confirmButton: 'px-6 py-3 mx-2 hover-flip-btn text-sm font-bold uppercase tracking-widest',
+        cancelButton: 'px-6 py-3 mx-2 border border-gray-200 text-stone-600 text-sm font-bold uppercase tracking-widest hover:border-stone-400 transition-colors'
+      },
+
+      confirmButtonText: 'Đồng ý đặt hàng',
+      cancelButtonText: 'Kiểm tra lại',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        submitOrder();
+      }
+    });
+  };
   const submitOrder = async () => {
     if (isProcessing) return; // Chặn người dùng click liên tục
 
@@ -347,7 +380,7 @@ const Checkout = () => {
               </div>
             </div>
             <button
-              onClick={submitOrder}
+              onClick={handleConfirmOrder}
               disabled={isProcessing}
               className={`w-full py-4 uppercase tracking-widest font-bold text-sm select-none transition-all duration-300 ${isProcessing ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'hover-flip-btn'}`}
             >

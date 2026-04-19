@@ -149,7 +149,6 @@ const AdminOrders = () => {
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Quản lý Đơn hàng</h1>
-          <p className="text-xs text-gray-400 mt-1 font-medium">Theo dõi, điều phối và xử lý vận đơn</p>
         </div>
       </div>
 

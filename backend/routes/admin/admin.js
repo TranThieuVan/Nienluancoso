@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../../controllers/admin/adminController');
+const { verifyToken, verifyStaff } = require('../../middleware/authMiddleware')
+router.use(verifyToken, verifyStaff)
 
 const adminDashboardController = require('../../controllers/admin/adminDashBoardController');
 

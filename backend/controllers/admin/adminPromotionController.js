@@ -1,5 +1,12 @@
 const Promotion = require('../../models/Promotion');
-const PricingService = require('../../services/pricingService'); // Nhớ import Service
+const PricingService = require('../../services/pricingService');
+const { clearBotCache } = require('../messageController'); // ✅ Xóa cache chatbot khi có thay đổi promotion
+
+// Helper dùng chung: refresh pricing + clear bot cache sau mỗi thay đổi
+const syncAfterChange = async () => {
+    await PricingService.refreshCache(); // Cập nhật RAM + ghi discountedPrice vào DB
+    clearBotCache();                     // Chatbot sẽ lấy data promotion mới ở lần hỏi tiếp theo
+};
 
 exports.getAllPromotions = async (req, res) => {
     try {
@@ -15,8 +22,7 @@ exports.createPromotion = async (req, res) => {
         const promotion = new Promotion(req.body);
         await promotion.save();
 
-        // 🟢 CẬP NHẬT LẠI RAM CACHE NGAY LẬP TỨC
-        await PricingService.refreshCache();
+        await syncAfterChange(); // ✅ Refresh pricing + clear bot cache
 
         const io = req.app.get('io');
         if (io) {
@@ -26,9 +32,10 @@ exports.createPromotion = async (req, res) => {
                 message: promotion.description || 'Khám phá ngay!',
                 createdAt: promotion.createdAt,
                 type: 'promotion',
-                endDate: promotion.endDate // Trả về endDate để React tự ẩn
+                endDate: promotion.endDate
             });
         }
+
         res.status(201).json({ message: 'Tạo thành công', promotion });
     } catch (err) {
         res.status(500).json({ message: 'Lỗi tạo chiến dịch', error: err.message });
@@ -38,25 +45,25 @@ exports.createPromotion = async (req, res) => {
 exports.updatePromotion = async (req, res) => {
     try {
         const updatedPromotion = await Promotion.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!updatedPromotion) return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
 
-        // 🟢 CẬP NHẬT LẠI RAM CACHE
-        await PricingService.refreshCache();
+        await syncAfterChange(); // ✅ Refresh pricing + clear bot cache
 
         res.json({ message: 'Cập nhật thành công', promotion: updatedPromotion });
     } catch (err) {
-        res.status(500).json({ message: 'Lỗi cập nhật chiến dịch' });
+        res.status(500).json({ message: 'Lỗi cập nhật chiến dịch', error: err.message });
     }
 };
 
 exports.deletePromotion = async (req, res) => {
     try {
-        await Promotion.findByIdAndDelete(req.params.id);
+        const deleted = await Promotion.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
 
-        // 🟢 CẬP NHẬT LẠI RAM CACHE
-        await PricingService.refreshCache();
+        await syncAfterChange(); // ✅ Refresh pricing + clear bot cache
 
         res.json({ message: 'Xóa chiến dịch thành công' });
     } catch (err) {
-        res.status(500).json({ message: 'Lỗi xóa chiến dịch' });
+        res.status(500).json({ message: 'Lỗi xóa chiến dịch', error: err.message });
     }
 };

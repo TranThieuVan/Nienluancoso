@@ -10,10 +10,29 @@ exports.createOrder = async (req, res) => {
             user: userId,
             status: 'pending'
         });
-
+        // 1. CHẶN SPAM: Tối đa 2 đơn pending
         if (pendingOrdersCount >= 2) {
             return res.status(400).json({
                 msg: 'Bạn đang có 2 đơn hàng chờ xử lý. Vui lòng hoàn tất thanh toán hoặc hủy bớt đơn cũ trước khi đặt đơn mới.'
+            });
+        }
+
+        // ---------------- THÊM MỚI: CHẶN SPAM HỦY ĐƠN ----------------
+        // Lấy thời điểm bắt đầu của ngày hôm nay (00:00:00)
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        // Đếm số đơn bị hủy CỦA HÔM NAY
+        const cancelledOrdersToday = await Order.countDocuments({
+            user: userId,
+            status: 'cancelled',
+            createdAt: { $gte: startOfToday }
+        });
+
+        // Áp dụng constraint: Nếu đã hủy 3 đơn trong ngày thì cấm đặt tiếp
+        if (cancelledOrdersToday >= 3) {
+            return res.status(400).json({
+                msg: 'Bạn đã hủy quá nhiều đơn hàng trong hôm nay. Để bảo vệ hệ thống, vui lòng quay lại đặt hàng vào ngày mai!'
             });
         }
         // ✅ Nhận đúng các biến discountAmount và voucherCode từ Frontend gửi lên
@@ -334,5 +353,34 @@ exports.getVirtualNotifications = async (req, res) => {
         res.json(notifications);
     } catch (err) {
         res.status(500).json({ msg: "Lỗi trích xuất thông báo" });
+    }
+};
+
+// Thêm vào orderController.js
+exports.deleteFailedOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id || req.user.id;
+
+        const order = await Order.findById(id);
+
+        if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+
+        // Chỉ cho phép xóa nếu là đơn của chính user đó và đang ở trạng thái pending
+        if (String(order.user) !== String(userId)) return res.status(403).json({ message: 'Không có quyền' });
+        if (order.status !== 'pending') return res.status(400).json({ message: 'Chỉ được xóa đơn đang chờ xử lý' });
+
+        // 1. Hoàn lại số lượng sách vào kho (Vì lúc createOrder đã trừ kho đi rồi)
+        for (const item of order.items) {
+            await Book.findByIdAndUpdate(item.book, { $inc: { stock: item.quantity } });
+        }
+
+        // 2. Xóa vĩnh viễn đơn hàng khỏi Database
+        await Order.findByIdAndDelete(id);
+
+        res.json({ message: 'Đã xóa vĩnh viễn đơn rác VNPAY' });
+    } catch (error) {
+        console.error("Lỗi xóa đơn VNPAY:", error);
+        res.status(500).json({ message: 'Lỗi server' });
     }
 };

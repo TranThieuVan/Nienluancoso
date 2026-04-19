@@ -101,7 +101,18 @@ const AppRoutes = () => {
 
                 {/* Admin Area */}
                 <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-                    {/* 👨‍💻 DÀNH CHO NHÂN VIÊN VÀ ADMIN */}
+
+                    {/* 🔒 CHỈ DÀNH CHO QUẢN TRỊ VIÊN (ADMIN TỐI CAO) */}
+                    {/* Giữ requireSuperAdmin cho Dashboard và Revenue */}
+                    <Route index element={<AdminRoute requireSuperAdmin={true}><AdminDashboard /></AdminRoute>} />
+                    <Route path="revenue" element={<AdminRoute requireSuperAdmin={true}><AdminRevenue /></AdminRoute>} />
+
+                    {/* 👨‍💻 DÀNH CHO NHÂN VIÊN VÀ ADMIN (Đã bỏ requireSuperAdmin) */}
+                    <Route path="users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+                    <Route path="vouchers" element={<AdminRoute><AdminVouchers /></AdminRoute>} />
+                    <Route path="promotions" element={<AdminRoute><AdminPromotions /></AdminRoute>} />
+
+                    {/* Các route vận hành khác giữ nguyên */}
                     <Route path="books" element={<AdminRoute><AdminBookList /></AdminRoute>} />
                     <Route path="add-book" element={<AdminRoute><AddBook /></AdminRoute>} />
                     <Route path="edit-book/:id" element={<AdminRoute><EditBook /></AdminRoute>} />
@@ -109,13 +120,6 @@ const AppRoutes = () => {
                     <Route path="orders/:id" element={<AdminRoute><AdminOrderDetail /></AdminRoute>} />
                     <Route path="comments" element={<AdminRoute><AdminCommentList /></AdminRoute>} />
                     <Route path="messages" element={<AdminRoute><AdminMessages /></AdminRoute>} />
-
-                    {/* 🔒 CHỈ DÀNH CHO QUẢN TRỊ VIÊN (ADMIN TỐI CAO) */}
-                    <Route index element={<AdminRoute requireSuperAdmin={true}><AdminDashboard /></AdminRoute>} />
-                    <Route path="revenue" element={<AdminRoute requireSuperAdmin={true}><AdminRevenue /></AdminRoute>} />
-                    <Route path="users" element={<AdminRoute requireSuperAdmin={true}><AdminUsers /></AdminRoute>} />
-                    <Route path="vouchers" element={<AdminRoute requireSuperAdmin={true}><AdminVouchers /></AdminRoute>} />
-                    <Route path="promotions" element={<AdminRoute requireSuperAdmin={true}><AdminPromotions /></AdminRoute>} />
                 </Route>
 
                 <Route path="*" element={<div className="p-20 text-center text-2xl font-bold">404 - Không tìm thấy trang</div>} />

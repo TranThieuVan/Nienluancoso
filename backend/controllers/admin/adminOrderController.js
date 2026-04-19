@@ -246,11 +246,40 @@ exports.updateOrderStatus = async (req, res) => {
                 }
             }
 
+            // Nằm ở đoạn cập nhật trạng thái thất bại (tầm dòng 159)
             if (status === 'failed_delivery') {
                 const userObj = await User.findById(order.user);
                 if (userObj) {
-                    userObj.failedDeliveryCount += 1;
-                    if (userObj.failedDeliveryCount >= 3) userObj.isLocked = true;
+                    // Cộng dồn số lần bom hàng (đảm bảo không bị NaN nếu undefined)
+                    userObj.failedDeliveryCount = (userObj.failedDeliveryCount || 0) + 1;
+
+                    const count = userObj.failedDeliveryCount;
+                    const unlockDate = new Date();
+
+                    if (count === 3) {
+                        // Lần 1: Bom 3 đơn -> Khóa cảnh cáo 3 ngày
+                        userObj.isLocked = true;
+                        unlockDate.setDate(unlockDate.getDate() + 3);
+                        userObj.lockedUntil = unlockDate;
+                    } else if (count === 4) {
+                        // Lần 2: Tái phạm (đơn thứ 4) -> Khóa 7 ngày
+                        userObj.isLocked = true;
+                        unlockDate.setDate(unlockDate.getDate() + 7);
+                        userObj.lockedUntil = unlockDate;
+                    } else if (count === 5) {
+                        // Lần 3: Tái phạm (đơn thứ 5) -> Khóa 30 ngày
+                        userObj.isLocked = true;
+                        unlockDate.setDate(unlockDate.getDate() + 30);
+                        userObj.lockedUntil = unlockDate;
+                    } else if (count >= 6) {
+                        // Lần 4: Hết cứu (đơn thứ 6 trở đi) -> Cho "pay màu" vĩnh viễn
+                        userObj.isLocked = true;
+                        userObj.lockedUntil = null; // Set null để logic khóa không có ngày hết hạn
+
+                        // Nếu model User của bạn có trường lockReason thì nên ghi chú lại cho Admin dễ nhìn
+                        // userObj.lockReason = 'Khóa vĩnh viễn do bom hàng quá nhiều lần';
+                    }
+
                     await userObj.save();
                 }
             }

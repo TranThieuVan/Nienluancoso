@@ -10,13 +10,12 @@ const VnpayReturn = () => {
     const [message, setMessage] = useState('Đang xử lý kết quả thanh toán...');
 
     useEffect(() => {
-        // Thay thế đoạn checkPayment cũ bằng đoạn này
         const checkPayment = async () => {
             const responseCode = searchParams.get('vnp_ResponseCode');
             const orderId = searchParams.get('vnp_TxnRef');
             const vnpayTransactionNo = searchParams.get('vnp_TransactionNo');
             const vnpayPayDate = searchParams.get('vnp_PayDate');
-            const token = localStorage.getItem('token'); // Khai báo token ở ngoài để tái sử dụng
+            const token = localStorage.getItem('token');
 
             if (responseCode === '00') {
                 try {
@@ -35,23 +34,23 @@ const VnpayReturn = () => {
                     setMessage('Thanh toán thành công nhưng có lỗi khi ghi nhận đơn. Vui lòng liên hệ hỗ trợ.');
                 }
             } else {
-                // NẾU LỖI HOẶC NGƯỜI DÙNG TỰ HỦY -> TỰ ĐỘNG GỌI API HỦY ĐƠN HÀNG
+                // NẾU LỖI HOẶC NGƯỜI DÙNG TỰ HỦY -> GỌI API XÓA VĨNH VIỄN ĐƠN TẠM
                 try {
-                    await axios.put(`/api/orders/${orderId}/cancel`, {
-                        reason: responseCode === '24' ? 'Người dùng hủy thanh toán VNPAY' : `Lỗi thanh toán VNPAY (Mã: ${responseCode})`
-                    }, {
+                    // Đã đổi thành axios.delete và gọi API hard-delete
+                    await axios.delete(`/api/orders/${orderId}/hard-delete`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                } catch (cancelError) {
-                    console.error('Lỗi khi tự động hủy đơn:', cancelError);
+                } catch (deleteError) {
+                    console.error('Lỗi khi dọn dẹp đơn tạm:', deleteError);
                 }
 
+                // Cập nhật lại thông báo cho hợp lý với việc Hard Delete
                 if (responseCode === '24') {
                     setStatus('error');
-                    setMessage('Giao dịch đã bị huỷ. Đơn hàng của bạn đã được tự động hủy trên hệ thống.');
+                    setMessage('Bạn đã hủy giao dịch. Đơn hàng tạm đã được dọn dẹp, vui lòng đặt lại giỏ hàng nếu muốn.');
                 } else {
                     setStatus('error');
-                    setMessage(`Giao dịch thất bại. Mã lỗi: ${responseCode}. Đơn hàng đã được tự động hủy.`);
+                    setMessage(`Giao dịch thất bại (Mã lỗi: ${responseCode}). Đơn hàng tạm đã được dọn dẹp.`);
                 }
             }
         };

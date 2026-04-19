@@ -11,7 +11,7 @@ const AdminNavbar = () => {
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
-    // ✅ LẤY ROLE TỪ LOCAL STORAGE (hỗ trợ cả key 'userRole' và 'role' để tránh lỗi)
+    // ✅ LẤY ROLE TỪ LOCAL STORAGE (Logic hỗ trợ đa key)
     const userRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'employee';
 
     const logout = () => {
@@ -29,14 +29,30 @@ const AdminNavbar = () => {
             if (!token) return;
             const config = { headers: { Authorization: `Bearer ${token}` } };
 
-            const ordersRes = await axios.get('/api/admin/orders', config);
-            const ordersArray = ordersRes.data.orders || ordersRes.data || [];
-            setPendingOrdersCount(ordersArray.filter(o => o.status === 'pending').length);
+            // 1. Lấy số lượng đơn hàng (Cả Admin và Staff đều được xem)
+            axios.get('/api/admin/orders', config)
+                .then(res => {
+                    const ordersArray = res.data.orders || res.data || [];
+                    setPendingOrdersCount(ordersArray.filter(o => o.status === 'pending').length);
+                })
+                .catch(err => console.error("Lỗi fetch đơn hàng:", err.response?.status));
 
-            const msgsRes = await axios.get('/api/messages/admin/all', config);
-            const msgsArray = msgsRes.data.conversations || msgsRes.data || [];
-            setUnreadMessagesCount(msgsArray.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0));
-        } catch (err) { console.error("Lỗi lấy thông báo Navbar:", err); }
+            // 2. Lấy số lượng tin nhắn (Cần verifyStaff ở Backend mới hết lỗi 403)
+            axios.get('/api/messages/admin/all', config)
+                .then(res => {
+                    const msgsArray = res.data.conversations || res.data || [];
+                    setUnreadMessagesCount(msgsArray.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0));
+                })
+                .catch(err => {
+                    // Nếu vẫn bị 403 thì set bằng 0 để tránh hiện lỗi đỏ console
+                    if (err.response?.status === 403) {
+                        setUnreadMessagesCount(0);
+                    }
+                });
+
+        } catch (err) {
+            console.error("Lỗi hệ thống Navbar:", err);
+        }
     };
 
     useEffect(() => { fetchNotificationCounts(); }, [location.pathname]);
@@ -55,7 +71,7 @@ const AdminNavbar = () => {
         <aside className="fixed top-0 left-0 w-64 h-screen bg-white text-black flex flex-col justify-between shadow-md transition duration-200 z-50">
             <div className='select-none overflow-y-auto'>
                 <div className="text-xl font-bold px-6 py-4 border-b border-gray-300">
-                    {/* ✅ Tránh nhân viên bấm vào logo bị văng ra trang Dashboard */}
+                    {/* ✅ Điều hướng Logo: Admin về Dashboard, Employee về Đơn hàng */}
                     <Link to={userRole === 'admin' ? "/admin" : "/admin/orders"} className="flex items-center gap-2">
                         <FontAwesomeIcon icon={['fas', 'book']} />
                         <span>QUẢN LÝ</span>
@@ -63,9 +79,21 @@ const AdminNavbar = () => {
                 </div>
 
                 <nav className="flex flex-col gap-2 mt-4 px-4 text-base mb-6">
+                    {/* ─── NHÓM QUẢN TRỊ (CHỈ ADMIN THẤY) ─── */}
+                    {userRole === 'admin' && (
+                        <>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-2">Báo cáo & Thống kê</p>
+                            <Link to="/admin" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${location.pathname === '/admin' ? 'bg-green-200 font-medium' : ''}`}>
+                                <FontAwesomeIcon icon={['fas', 'chart-pie']} className="w-5" />Tổng quan
+                            </Link>
+                            <Link to="/admin/revenue" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/revenue')}`}>
+                                <FontAwesomeIcon icon={['fas', 'chart-line']} className="w-5" />Doanh thu
+                            </Link>
+                        </>
+                    )}
 
-                    {/* ─── NHÓM VẬN HÀNH & DỮ LIỆU (AI CŨNG THẤY) ─── */}
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-2">Vận hành & Dữ liệu</p>
+                    {/* ─── NHÓM VẬN HÀNH (AI CŨNG THẤY) ─── */}
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1 mt-4">Vận hành & Dữ liệu</p>
 
                     <Link to="/admin/orders" className={`flex items-center justify-between py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/orders')}`}>
                         <div className="flex items-center gap-3"><FontAwesomeIcon icon={['fas', 'box-open']} className="w-5" />Đơn hàng</div>
@@ -76,7 +104,6 @@ const AdminNavbar = () => {
                         <FontAwesomeIcon icon={['fas', 'book']} className="w-5" />Kho Sách
                     </Link>
 
-                    {/* ✨ Đã chuyển Users, Vouchers, Promotions ra ngoài để Nhân viên thao tác */}
                     <Link to="/admin/users" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/users')}`}>
                         <FontAwesomeIcon icon={['fas', 'users']} className="w-5" />Người dùng
                     </Link>
@@ -97,21 +124,12 @@ const AdminNavbar = () => {
                         <div className="flex items-center gap-3"><FontAwesomeIcon icon={['fas', 'envelope']} className="w-5" />Tin nhắn</div>
                         {unreadMessagesCount > 0 && <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm ">{unreadMessagesCount}</span>}
                     </Link>
-
-                    {/* ─── NHÓM QUẢN TRỊ (CHỈ ADMIN THẤY) ─── */}
-                    {userRole === 'admin' && (
-                        <>
-                            <Link to="/admin/revenue" className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-green-200 ${isActive('/admin/revenue')}`}>
-                                <FontAwesomeIcon icon={['fas', 'chart-line']} className="w-5" />Doanh thu
-                            </Link>
-                        </>
-                    )}
                 </nav>
             </div>
 
             <div className="px-4 py-4 border-t border-gray-300 bg-gray-50">
-                <p className="text-sm mb-3">Xin chào, <strong>{userRole === 'admin' ? 'Admin' : 'Nhân viên'}</strong></p>
-                <button onClick={logout} className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm flex items-center justify-center gap-2 transition-colors">
+                <p className="text-sm mb-3 italic">Quyền: <strong>{userRole.toUpperCase()}</strong></p>
+                <button onClick={logout} className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm flex items-center justify-center gap-2 transition-colors shadow-sm">
                     <FontAwesomeIcon icon={['fas', 'right-from-bracket']} />
                     Đăng xuất
                 </button>
