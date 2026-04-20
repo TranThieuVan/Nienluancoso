@@ -8,7 +8,7 @@ const Footer = () => {
 
                 {/* ── Brand ── */}
                 <div>
-                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-3">Est. 2024</p>
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-3">Est. 2025</p>
                     <h2 className="text-2xl font-bold text-white mb-4">BookNest</h2>
                     <p className="text-sm text-stone-400 leading-relaxed max-w-xs">
                         Nền tảng mua sách trực tuyến với hàng ngàn đầu sách chất lượng, hỗ trợ người dùng 24/7.

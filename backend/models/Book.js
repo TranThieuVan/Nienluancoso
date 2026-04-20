@@ -7,6 +7,12 @@ const validGenres = [
     'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
 ];
 
+// ✅ THÊM DANH SÁCH NHÀ XUẤT BẢN
+const validPublishers = [
+    'NXB Trẻ', 'NXB Kim Đồng', 'NXB Giáo Dục Việt Nam',
+    'NXB Tổng Hợp TPHCM', 'NXB Thế Giới'
+];
+
 const bookSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -39,6 +45,12 @@ const bookSchema = new mongoose.Schema({
         required: true,
         enum: validGenres // Chỉ cho phép các thể loại trong danh sách
     },
+    // ✅ THÊM TRƯỜNG NHÀ XUẤT BẢN VÀO SCHEMA
+    publisher: {
+        type: String,
+        required: true,
+        enum: validPublishers
+    },
     stock: {
         type: Number,
         required: true,
@@ -65,8 +77,9 @@ const bookSchema = new mongoose.Schema({
 // ==========================================
 // 🔥 INDEX (TỐI ƯU HÓA TRUY VẤN)
 // ==========================================
-// Tăng tốc độ lọc theo thể loại, giá, tồn kho và thời gian tạo
+// Tăng tốc độ lọc theo thể loại, NXB, giá, tồn kho và thời gian tạo
 bookSchema.index({ genre: 1 });
+bookSchema.index({ publisher: 1 }); // ✅ Thêm index cho NXB
 bookSchema.index({ createdAt: -1 });
 bookSchema.index({ price: 1 });
 bookSchema.index({ stock: 1 });
@@ -92,6 +105,7 @@ bookSchema.methods.shouldUpdateEmbedding = function () {
         this.isModified('title') ||
         this.isModified('author') ||
         this.isModified('genre') ||
+        this.isModified('publisher') || // ✅ Cập nhật NXB thì cũng phải tạo lại Vector
         this.isModified('description')
     );
 };

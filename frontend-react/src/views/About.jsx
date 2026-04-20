@@ -6,7 +6,7 @@ const SECTIONS = [
         imageLeft: false,
         tag: "Câu chuyện của chúng tôi",
         heading: "Nơi mỗi trang sách\nlà một hành trình.",
-        body: "Được thành lập vào năm 2024, Booknest ra đời từ niềm tin rằng sách không chỉ là vật phẩm — mà là cánh cửa mở ra những thế giới chưa từng được khám phá. Chúng tôi là những người yêu sách, bởi những người yêu sách, dành cho những người yêu sách.",
+        body: "Được thành lập vào năm 2025, Booknest ra đời từ niềm tin rằng sách không chỉ là vật phẩm — mà là cánh cửa mở ra những thế giới chưa từng được khám phá. Chúng tôi là những người yêu sách, bởi những người yêu sách, dành cho những người yêu sách.",
         image: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80",
         alt: "Thư viện sách cổ điển",
     },

@@ -9,10 +9,16 @@ const GENRES = [
   'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
 ];
 
+// ✅ THÊM DANH SÁCH NHÀ XUẤT BẢN
+const PUBLISHERS = [
+  'NXB Trẻ', 'NXB Kim Đồng', 'NXB Giáo Dục Việt Nam',
+  'NXB Tổng Hợp TPHCM', 'NXB Thế Giới'
+];
+
 const AddBook = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    title: '', author: '', genre: '', importPrice: '', price: '', stock: '', description: ''
+    title: '', author: '', genre: '', publisher: '', importPrice: '', price: '', stock: '', description: ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -99,7 +105,8 @@ const AddBook = () => {
             <input name="title" value={form.title} onChange={handleChange} required placeholder="Nhập tiêu đề sách..." className={inputCls} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          {/* ✅ SỬA LẠI THÀNH LƯỚI 3 CỘT (grid-cols-3) */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Tác giả</label>
               <input name="author" value={form.author} onChange={handleChange} placeholder="Tên tác giả" className={inputCls} />
@@ -116,6 +123,22 @@ const AddBook = () => {
                 <option value="" disabled>-- Chọn thể loại --</option>
                 {GENRES.map((g) => (
                   <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+            {/* ✅ THÊM TRƯỜNG NHÀ XUẤT BẢN */}
+            <div>
+              <label className="block text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-1.5">Nhà xuất bản *</label>
+              <select
+                name="publisher"
+                value={form.publisher}
+                onChange={handleChange}
+                required
+                className={`${inputCls} appearance-none cursor-pointer`}
+              >
+                <option value="" disabled>-- Chọn nhà xuất bản --</option>
+                {PUBLISHERS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
                 ))}
               </select>
             </div>

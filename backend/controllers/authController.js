@@ -11,7 +11,13 @@ exports.register = async (req, res) => {
         const existingUser = await User.findOne({ email });
         if (existingUser)
             return res.status(400).json({ msg: 'Email đã tồn tại' });
-
+        // ✅ THÊM LOGIC VALIDATE MẬT KHẨU Ở ĐÂY
+        if (password.length < 8) {
+            return res.status(400).json({ msg: 'Mật khẩu phải có ít nhất 8 ký tự' });
+        }
+        if (!/[A-Z]/.test(password)) {
+            return res.status(400).json({ msg: 'Mật khẩu phải chứa ít nhất một chữ cái viết hoa' });
+        }
         const hashedPassword = await bcrypt.hash(password, 10);
 
         let avatar = req.file

@@ -356,20 +356,25 @@ const AdminRevenue = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* PAYMENT BREAKDOWN */}
             <div className="bg-white border rounded-xl shadow-sm p-6">
-              <h3 className="text-sm font-bold text-gray-900 mb-6">Phân tích Phương thức thanh toán</h3>
-              <div className="grid grid-cols-2 gap-4 h-[250px]">
+              <h3 className="text-sm font-bold text-gray-900 mb-4">Phân tích Phương thức thanh toán</h3>
+
+              {/* ✅ Tăng height lên 300px, thêm overflow-visible */}
+              <div className="grid grid-cols-2 gap-4" style={{ height: '300px' }}>
 
                 {/* Pie 1: Số lượng */}
                 <div className="flex flex-col items-center justify-center">
-                  <p className="text-[11px] font-bold text-gray-500 mb-2">Theo số lượng đơn</p>
+                  <p className="text-[11px] font-bold text-gray-500 mb-1">Theo số lượng đơn</p>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                       <Pie
-                        data={mainData.paymentBreakdown} cx="50%" cy="50%" innerRadius={40} outerRadius={70}
+                        data={mainData.paymentBreakdown} cx="50%" cy="50%"
+                        innerRadius={35} outerRadius={60}
                         dataKey="count" nameKey="name" paddingAngle={2}
                         label={renderCustomPieLabel} labelLine={false}
                       >
-                        {mainData.paymentBreakdown.map((e, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
+                        {mainData.paymentBreakdown.map((e, idx) => (
+                          <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                        ))}
                       </Pie>
                       <RechartsTooltip content={<PieTooltipCount />} />
                     </PieChart>
@@ -378,15 +383,18 @@ const AdminRevenue = () => {
 
                 {/* Pie 2: Doanh thu */}
                 <div className="flex flex-col items-center justify-center">
-                  <p className="text-[11px] font-bold text-gray-500 mb-2">Theo doanh thu</p>
+                  <p className="text-[11px] font-bold text-gray-500 mb-1">Theo doanh thu</p>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                       <Pie
-                        data={mainData.paymentBreakdown} cx="50%" cy="50%" innerRadius={40} outerRadius={70}
+                        data={mainData.paymentBreakdown} cx="50%" cy="50%"
+                        innerRadius={35} outerRadius={60}
                         dataKey="revenue" nameKey="name" paddingAngle={2}
                         label={renderCustomPieLabel} labelLine={false}
                       >
-                        {mainData.paymentBreakdown.map((e, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
+                        {mainData.paymentBreakdown.map((e, idx) => (
+                          <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                        ))}
                       </Pie>
                       <RechartsTooltip content={<PieTooltipRevenue />} />
                     </PieChart>
@@ -396,10 +404,11 @@ const AdminRevenue = () => {
               </div>
 
               {/* Legend Pie */}
-              <div className="flex justify-center gap-4 mt-2">
+              <div className="flex justify-center gap-4 mt-3">
                 {mainData.paymentBreakdown.map((p, idx) => (
                   <div key={idx} className="flex items-center text-[10px] font-bold text-gray-600">
-                    <span className="w-2.5 h-2.5 rounded-full mr-1" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                    <span className="w-2.5 h-2.5 rounded-full mr-1"
+                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
                     {p.name}
                   </div>
                 ))}

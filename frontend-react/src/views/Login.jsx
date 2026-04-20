@@ -40,20 +40,16 @@ const Login = () => {
 
       const { token, user } = res.data;
 
-      // ✅ ĐÃ SỬA: CẬP NHẬT LOGIC LƯU ROLE VÀ PHÂN LUỒNG ĐĂNG NHẬP
       if (user.role === 'admin' || user.role === 'employee') {
-        // Lưu token và role dùng cho giao diện quản trị
         localStorage.setItem('adminToken', token);
         localStorage.setItem('userRole', user.role);
 
-        // Điều hướng thông minh: Admin -> Dashboard, Nhân viên -> Đơn hàng
         if (user.role === 'admin') {
           navigate('/admin');
         } else {
           navigate('/admin/orders');
         }
       } else {
-        // Khách hàng bình thường
         loginAction(user, token);
         navigate('/');
       }
@@ -66,25 +62,26 @@ const Login = () => {
 
   return (
     <div className="flex min-h-screen w-full">
-      {/* Slider background */}
       <div className="hidden md:block md:w-3/5 xl:w-4/5 overflow-hidden relative">
         <img src={ironImg} className="h-screen w-screen object-cover" alt="Background" />
       </div>
 
-      {/* Login form */}
       <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white select-none">
         <div className="max-w-lg w-full p-8 rounded">
           <img src={logoImg} alt="Logo" className="mx-auto mb-8 w-60" />
           <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Đăng Nhập</h2>
 
-          {errorMessage && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded text-red-700 flex items-start gap-3 text-sm select-none shadow-sm">
-              <i className="fas fa-exclamation-circle mt-0.5 text-red-500 text-lg"></i>
-              <div className="font-medium leading-relaxed">
-                {errorMessage}
+          {/* ✅ KHUNG CẢNH BÁO TẬP TRUNG */}
+          <div className="min-h-[56px] mb-4 w-full">
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded text-red-700 text-sm font-medium flex items-start gap-2 shadow-sm">
+                <i className="fas fa-exclamation-circle mt-0.5 text-lg"></i>
+                <div className="leading-relaxed">
+                  {errorMessage}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <form onSubmit={handleLogin}>
             <div className="mb-5 select-none">
@@ -95,7 +92,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
                 required
-                className="w-full p-2.5 border-2 border-gray-300 rounded focus:outline-none focus:border-stone-800  transition-colors"
+                className="w-full p-2.5 border-2 border-gray-300 rounded focus:outline-none focus:border-stone-800 transition-colors"
               />
             </div>
 
@@ -106,7 +103,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 type={showPassword ? 'text' : 'password'}
                 required
-                className="w-full p-2.5 border-2 border-gray-300 rounded focus:outline-none focus:border-stone-800  pr-10 transition-colors"
+                className="w-full p-2.5 border-2 border-gray-300 rounded focus:outline-none focus:border-stone-800 pr-10 transition-colors"
               />
               <button
                 type="button"
@@ -119,11 +116,11 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full py-2 rounded hover-flip-btn text-lg font-bold flex items-center justify-center"
+              className="w-full py-2 rounded hover-flip-btn text-lg font-bold flex items-center justify-center relative"
               disabled={loading}
             >
-              {loading && <span className="animate-spin mr-2"><i className="fas fa-spinner"></i></span>}
-              Đăng Nhập
+              {loading && <span className="absolute left-1/2 -translate-x-16 animate-spin"><i className="fas fa-spinner"></i></span>}
+              <span>Đăng Nhập</span>
             </button>
           </form>
 

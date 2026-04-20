@@ -11,18 +11,19 @@ const BookList = () => {
 
   const queryParams = new URLSearchParams(location.search);
   const filterParam = queryParams.get('filter');
-  const genreParam = queryParams.get('genre'); // ✅ ĐỌC PARAMETER THỂ LOẠI TỪ URL
+  const genreParam = queryParams.get('genre');
 
   const [books, setBooks] = useState([]);
   const [genres, setGenres] = useState([]);
   const [promotions, setPromotions] = useState([]);
 
-  const [searchTitle, setSearchTitle] = useState('');
+  // ✅ THÊM STATE CHO NHÀ XUẤT BẢN
+  const [publishers, setPublishers] = useState([]);
+  const [selectedPublisher, setSelectedPublisher] = useState('');
 
-  // ✅ NẾU CÓ PARAM TRÊN URL THÌ GÁN NGAY VÀO STATE
+  const [searchTitle, setSearchTitle] = useState('');
   const [selectedGenre, setSelectedGenre] = useState(genreParam || '');
   const [selectedPromoId, setSelectedPromoId] = useState('');
-
   const [isSaleFilter, setIsSaleFilter] = useState(filterParam === 'sale');
 
   const [sortBy, setSortBy] = useState('title');
@@ -31,12 +32,11 @@ const BookList = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const perPage = 20;
 
-  // ✅ ĐỒNG BỘ LIÊN TỤC NẾU USER CLICK TỪ NAVBAR VÀO
   useEffect(() => {
     setIsSaleFilter(filterParam === 'sale');
     if (genreParam !== null) {
       setSelectedGenre(genreParam);
-      setPage(1); // Chuyển thể loại thì reset về trang 1
+      setPage(1);
     }
   }, [filterParam, genreParam]);
 
@@ -72,8 +72,24 @@ const BookList = () => {
   useEffect(() => {
     const init = async () => {
       await Promise.all([fetchBooks(), fetchPromotions()]);
-      const genreRes = await axios.get('/api/books/genres');
-      setGenres(genreRes.data);
+
+      try {
+        const genreRes = await axios.get('/api/books/genres');
+        setGenres(genreRes.data);
+      } catch (err) {
+        console.error(err);
+      }
+
+      // ✅ TẢI DANH SÁCH NHÀ XUẤT BẢN
+      try {
+        const pubRes = await axios.get('/api/books/publishers');
+        setPublishers(pubRes.data);
+      } catch (err) {
+        setPublishers([
+          'NXB Trẻ', 'NXB Kim Đồng', 'NXB Giáo Dục Việt Nam',
+          'NXB Tổng Hợp TPHCM', 'NXB Thế Giới'
+        ]);
+      }
     };
     init();
   }, []);
@@ -113,6 +129,11 @@ const BookList = () => {
       result = result.filter(book => book.genre === selectedGenre);
     }
 
+    // ✅ LỌC THEO NHÀ XUẤT BẢN
+    if (selectedPublisher) {
+      result = result.filter(book => book.publisher === selectedPublisher);
+    }
+
     if (['priceHigh', 'priceLow', 'title'].includes(sortBy)) {
       switch (sortBy) {
         case 'title': result.sort((a, b) => a.title.localeCompare(b.title)); break;
@@ -126,7 +147,7 @@ const BookList = () => {
       }
     }
     return result;
-  }, [books, searchTitle, selectedGenre, sortBy, isSaleFilter, selectedPromoId, promotions]);
+  }, [books, searchTitle, selectedGenre, selectedPublisher, sortBy, isSaleFilter, selectedPromoId, promotions]);
 
   const paginatedBooks = useMemo(() => {
     const start = (page - 1) * perPage;
@@ -175,10 +196,10 @@ const BookList = () => {
         </label>
       </div>
 
-      {/* Thể loại (Có Scroll) */}
+      {/* Thể loại */}
       <div>
         <p className="text-[10px] tracking-[0.3em] uppercase text-stone-400 mb-3 font-bold">Thể loại</p>
-        <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+        <div className="flex flex-col gap-1 max-h-[250px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
           <button
             onClick={() => { setSelectedGenre(''); setPage(1); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className={`text-left px-3 py-2 text-sm font-medium transition-all rounded-md ${selectedGenre === '' ? 'bg-black text-white' : 'text-stone-600 hover:bg-stone-50'}`}
@@ -218,12 +239,14 @@ const BookList = () => {
           </aside>
 
           <div className="flex-1 min-w-0 min-h-[60vh]">
-            <div className="flex items-center justify-between mb-10 gap-4">
+            <div className="flex items-center justify-between mb-10 gap-4 flex-wrap">
               <button onClick={() => setSidebarOpen(true)} className="md:hidden flex items-center gap-2 text-xs font-bold border border-gray-200 px-4 py-2 uppercase tracking-widest hover:border-black transition-all">
                 <FontAwesomeIcon icon={['fas', 'sliders']} /> Lọc
               </button>
 
-              <div className="ml-auto flex items-center gap-4">
+              {/* ✅ VÙNG CÁC DROPDOWN LỌC TRÊN TOP RIGHT */}
+              <div className="ml-auto flex items-center gap-4 flex-wrap justify-end">
+
                 {isSaleFilter && promotions.length > 0 && (
                   <select
                     value={selectedPromoId}
@@ -236,6 +259,18 @@ const BookList = () => {
                     ))}
                   </select>
                 )}
+
+                {/* ✅ BỘ LỌC NHÀ XUẤT BẢN ĐƯỢC CHUYỂN LÊN ĐÂY */}
+                <select
+                  value={selectedPublisher}
+                  onChange={(e) => { setSelectedPublisher(e.target.value); setPage(1); }}
+                  className="text-[11px] font-bold border border-gray-200 px-4 py-2 bg-white text-stone-600 outline-none focus:border-black transition-all cursor-pointer uppercase tracking-wider"
+                >
+                  <option value="">Tất cả NXB</option>
+                  {publishers.map(pub => (
+                    <option key={pub} value={pub}>{pub}</option>
+                  ))}
+                </select>
 
                 <select
                   value={sortBy}
@@ -265,7 +300,7 @@ const BookList = () => {
               <div className="flex flex-col items-center justify-center py-40 border border-dashed border-stone-100 rounded-lg">
                 <FontAwesomeIcon icon={['far', 'folder-open']} className="text-5xl text-stone-100 mb-4" />
                 <p className="text-stone-400 text-sm font-medium mb-4">Không tìm thấy kết quả phù hợp</p>
-                <button onClick={() => { setSearchTitle(''); setSelectedGenre(''); setIsSaleFilter(false); setSelectedPromoId(''); setPage(1); navigate('/books'); }} className="text-[10px] font-bold uppercase tracking-widest text-black border-b-2 border-black pb-1 hover:text-stone-500 hover:border-stone-500 transition-all">Xoá bộ lọc</button>
+                <button onClick={() => { setSearchTitle(''); setSelectedGenre(''); setSelectedPublisher(''); setIsSaleFilter(false); setSelectedPromoId(''); setPage(1); navigate('/books'); }} className="text-[10px] font-bold uppercase tracking-widest text-black border-b-2 border-black pb-1 hover:text-stone-500 hover:border-stone-500 transition-all">Xoá bộ lọc</button>
               </div>
             )}
 

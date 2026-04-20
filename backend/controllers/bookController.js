@@ -22,24 +22,25 @@ const generateEmbedding = async (bookData) => {
         // 2. Chuẩn hóa chuỗi
         const normalize = (text) => (text || "").toLowerCase().replace(/\s+/g, " ").trim();
 
-        // 3. Fallback description thông minh
+        // 3. Fallback description thông minh (Bổ sung NXB)
         let description = normalize(bookData.description);
         if (!description || description.length < 30) {
-            description = `sách thể loại ${bookData.genre || 'chưa rõ'} của ${bookData.author || 'chưa rõ'}`;
+            description = `sách thể loại ${bookData.genre || 'chưa rõ'} của ${bookData.author || 'chưa rõ'}, xuất bản bởi ${bookData.publisher || 'chưa rõ'}`;
         }
 
-        // 4. Gộp text + Boost trọng số cho Title & Genre
+        // 4. Gộp text + Boost trọng số cho Title, Genre & Publisher
         let textToEmbed = `
             tên sách: ${normalize(bookData.title)}
             tên sách: ${normalize(bookData.title)} 
             thể loại: ${normalize(bookData.genre)}
             thể loại: ${normalize(bookData.genre)}
+            nhà xuất bản: ${normalize(bookData.publisher)}
             tác giả: ${normalize(bookData.author)}
             mô tả: ${description}
         `;
 
-        // 5. Ép token siêu nhỏ (Tối đa 500 ký tự)
-        textToEmbed = textToEmbed.slice(0, 500);
+        textToEmbed = textToEmbed.slice(0, 1500);
+
 
         const response = await openai.embeddings.create({
             model: "text-embedding-3-small",
@@ -81,6 +82,7 @@ exports.createBook = async (req, res) => {
         const bookData = {
             title: clean(req.body.title),
             author: clean(req.body.author),
+            publisher: clean(req.body.publisher), // ✅ Nhận dữ liệu NXB từ request
             price: Number(req.body.price),
             stock: Number(req.body.stock),
             genre: clean(req.body.genre),
@@ -111,6 +113,7 @@ exports.getAllBooks = async (req, res) => {
         const now = new Date();
 
         if (req.query.genre) filter.genre = req.query.genre;
+        if (req.query.publisher) filter.publisher = req.query.publisher; // ✅ Hỗ trợ lọc theo NXB
         if (req.query.search) {
             filter.$or = [
                 { title: { $regex: req.query.search, $options: 'i' } },
@@ -196,8 +199,8 @@ exports.updateBook = async (req, res) => {
             let val = typeof req.body[key] === 'string' ? req.body[key].trim() : req.body[key];
             if (key === 'price' || key === 'stock') val = Number(val);
 
-            // 👉 FIX 1: So sánh cực kỳ chặt chẽ (đã xử lý khoảng trắng & in hoa)
-            if (['title', 'author', 'genre', 'description'].includes(key) && normalizeStr(book[key]) !== normalizeStr(val)) {
+            // 👉 FIX: Thêm publisher vào mảng check AI
+            if (['title', 'author', 'genre', 'publisher', 'description'].includes(key) && normalizeStr(book[key]) !== normalizeStr(val)) {
                 needUpdateAI = true;
             }
             book[key] = val;
@@ -209,11 +212,11 @@ exports.updateBook = async (req, res) => {
 
         if (needUpdateAI) {
             console.log(`🔄 Nội dung đổi, đang tạo lại Vector cho: ${book.title}`);
-            // 👉 FIX 2: Truyền Object thuần thay vì truyền Document của Mongoose
             const aiResult = await generateEmbedding({
                 title: book.title,
                 author: book.author,
                 genre: book.genre,
+                publisher: book.publisher, // ✅ Cập nhật Embedding với NXB mới
                 description: book.description
             });
 
@@ -256,7 +259,7 @@ exports.deleteBook = async (req, res) => {
 const recommendationCache = new Map();
 const CACHE_TTL = 15 * 60 * 1000;
 
-// 👉 FIX 5: Xóa rác Cache định kỳ mỗi 10 phút chống Memory Leak
+// Dọn dẹp cache tự động
 setInterval(() => {
     const now = Date.now();
     for (const [key, value] of recommendationCache.entries()) {
@@ -275,7 +278,7 @@ exports.getRecommendations = async (req, res) => {
 
         let allSorted = [];
 
-        // 1. Cache
+        // 1. Kiểm tra Cache
         if (recommendationCache.has(bookId)) {
             const cached = recommendationCache.get(bookId);
             if (Date.now() - cached.timestamp <= CACHE_TTL) {
@@ -285,7 +288,7 @@ exports.getRecommendations = async (req, res) => {
             }
         }
 
-        // 2. Nếu chưa có cache
+        // 2. Xử lý tính toán nếu không có Cache
         if (allSorted.length === 0) {
             const currentBook = await Book.findById(bookId).select('+embedding');
 
@@ -293,17 +296,30 @@ exports.getRecommendations = async (req, res) => {
                 return res.json({ books: [], hasMore: false });
             }
 
-            // ⚡ Query song song
+            // ⚡ Candidate Pre-filtering (Lọc ứng viên sơ bộ)
             const [sameGenreBooks, otherBooks] = await Promise.all([
+                // LUỒNG 1: Cùng thể loại
                 Book.find({
                     _id: { $ne: currentBook._id },
-                    genre: currentBook.genre
-                }).limit(100).select('+embedding'),
+                    genre: currentBook.genre,
+                    stock: { $gt: 0 } // Loại sách hết hàng
+                })
+                    .sort({ sold: -1, createdAt: -1 })
+                    .limit(100)
+                    // ĐÃ XÓA 'rating', CHỈ GIỮ LẠI CÁC TRƯỜNG SỐ LIỆU TỔNG HỢP CẦN THIẾT
+                    .select('+embedding author publisher price stock averageRating reviewCount')
+                    .lean(),
 
+                // LUỒNG 2: Khác thể loại
                 Book.find({
                     _id: { $ne: currentBook._id },
-                    genre: { $ne: currentBook.genre }
-                }).limit(50).select('+embedding')
+                    genre: { $ne: currentBook.genre },
+                    stock: { $gt: 0 }
+                })
+                    .sort({ sold: -1, createdAt: -1 })
+                    .limit(50)
+                    .select('+embedding author publisher price stock averageRating reviewCount')
+                    .lean()
             ]);
 
             // 🧹 Deduplicate
@@ -313,22 +329,59 @@ exports.getRecommendations = async (req, res) => {
             });
             const candidates = Array.from(map.values());
 
-            // 🧠 Dynamic threshold
-            const threshold = candidates.length < 50 ? 0.2 : 0.3;
+            // 🧠 Dynamic threshold (Linh hoạt theo số lượng ứng viên thực tế)
+            const threshold = candidates.length < 50 ? 0.2 : 0.25;
 
-            // ⚡ Scoring
+            // ⚡ HỆ THỐNG GỢI Ý LAI (WEIGHTED HYBRID SCORING)
             const scoredBooks = candidates.map(book => {
-                if (!book.embedding?.length) return { book, score: 0 };
+                if (!book.embedding?.length) return { book, finalScore: 0 };
 
-                let score = cosineSimilarity(currentBook.embedding, book.embedding);
+                // --- 1. TÍNH ĐIỂM AI (COSINE SIMILARITY) ---
+                // Giá trị trả về đã nằm trong khoảng ~[0, 1]
+                const aiScore = cosineSimilarity(currentBook.embedding, book.embedding);
 
-                // 🔥 Business rules
-                if (book.author === currentBook.author) score += 0.15;
-                if (book.genre === currentBook.genre) score += 0.05;
-                if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) score += 0.03;
-                if (book.stock < 5) score -= 0.05;
+                // --- 2. TÍNH ĐIỂM KINH DOANH (BUSINESS RULES) ---
+                // Chuẩn hóa Business Score về thang điểm [0, 1]
+                let bizScoreRaw = 0;
+                if (book.author === currentBook.author) bizScoreRaw += 0.5; // Cùng tác giả (Ưu tiên mạnh)
+                if (book.publisher === currentBook.publisher) bizScoreRaw += 0.3; // Cùng NXB
+                if (book.genre === currentBook.genre) bizScoreRaw += 0.2; // Cùng thể loại
+                if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) bizScoreRaw += 0.2; // Giá tương đồng
 
-                return { book, score };
+                // Penalty: Nếu tồn kho =0, đánh tụt điểm kinh doanh
+                if (book.stock < 3) bizScoreRaw -= 0.5;
+
+                // Đảm bảo BizScore luôn nằm trong mốc 0 - 1
+                const businessScore = Math.max(0, Math.min(1, bizScoreRaw));
+
+                // --- 3. TÍNH ĐIỂM CỘNG ĐỒNG (RATING) ---
+
+                // --- 4. TỔNG HỢP & GIẢI QUYẾT BÀI TOÁN KHỞI ĐỘNG LẠNH (COLD START) ---
+                const reviewCount = book.reviewCount || 0;
+                const currentRating = book.averageRating || 0;
+                const ratingScore = currentRating / 5;
+                let finalScore = 0;
+
+                // Nếu sách CHƯA có lượt đánh giá nào (Sách Mới) -> Dồn trọng số sang AI
+                if (reviewCount < 5) {
+                    const W_AI_NEW = 0.7;
+                    const W_BIZ_NEW = 0.3;
+                    finalScore = (aiScore * W_AI_NEW) + (businessScore * W_BIZ_NEW);
+                }
+                // Nếu sách ĐÃ có đánh giá -> Dùng tỷ lệ chuẩn (0.5 - 0.3 - 0.2)
+                else {
+                    const W_AI = 0.5;
+                    const W_BIZ = 0.3;
+                    const W_RATE = 0.2;
+                    finalScore = (aiScore * W_AI) + (businessScore * W_BIZ) + (ratingScore * W_RATE);
+                }
+
+                // Gắn thêm các điểm số nhỏ vào object để sau này dễ debug/log
+                return {
+                    book,
+                    score: finalScore, // Chữ 'score' này dùng để .sort() bên dưới
+                    _debug: { aiScore, businessScore, ratingScore }
+                };
             });
 
             // 🎯 Filter + sort
@@ -338,11 +391,12 @@ exports.getRecommendations = async (req, res) => {
                 .slice(0, MAX_CACHE)
                 .map(item => {
                     const obj = item.book.toObject();
-                    delete obj.embedding;
+                    delete obj.embedding; // Xóa vector nặng trước khi nén vào cache
+                    // console.log(`[Debug Score] ${obj.title}: AI(${item._debug.aiScore.toFixed(2)}) - Biz(${item._debug.businessScore.toFixed(2)}) - Rate(${item._debug.ratingScore.toFixed(2)}) => Total: ${item.score.toFixed(3)}`);
                     return obj;
                 });
 
-            // 🔄 Fallback nếu rỗng (KHÔNG random nữa)
+            // 🔄 Fallback (Trường hợp khẩn cấp nếu bị lọc rỗng)
             if (allSorted.length === 0) {
                 allSorted = scoredBooks
                     .sort((a, b) => b.score - a.score)
@@ -354,20 +408,19 @@ exports.getRecommendations = async (req, res) => {
                     });
             }
 
-            // 💾 Cache
+            // 💾 Lưu Cache
             recommendationCache.set(bookId, {
                 data: allSorted,
                 timestamp: Date.now()
             });
         }
 
-        // 📄 Pagination
+        // 📄 Phân trang (Pagination)
         const start = (page - 1) * limit;
         const end = page * limit;
-
         const paginated = allSorted.slice(start, end);
 
-        // 💰 Apply pricing (QUAN TRỌNG)
+        // 💰 Áp dụng giá trị hiển thị (Khuyến mãi, Giá thực tế)
         const booksWithPrice = PricingService.applyPricing(paginated);
 
         res.json({
@@ -380,6 +433,7 @@ exports.getRecommendations = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi hệ thống gợi ý' });
     }
 };
+
 exports.getAllGenres = async (req, res) => {
     const genres = [
         'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',
@@ -388,84 +442,25 @@ exports.getAllGenres = async (req, res) => {
     res.json(genres);
 };
 
+// ✅ API để lấy danh sách NXB (nếu cần dùng cho bộ lọc Frontend sau này)
+exports.getAllPublishers = async (req, res) => {
+    const publishers = [
+        'NXB Trẻ', 'NXB Kim Đồng', 'NXB Giáo Dục Việt Nam',
+        'NXB Tổng Hợp TPHCM', 'NXB Thế Giới'
+    ];
+    res.json(publishers);
+};
+
 exports.getTopSellingBooks = async (req, res) => {
     try {
-        const { preset = '30days' } = req.query;
-        const matchStage = { status: "completed" };
+        const topBooks = await Book.find()
+            .sort({ sold: -1 })
+            .limit(5)
+            .lean();
 
-        // Xử lý bộ lọc thời gian
-        if (preset && preset !== 'all') {
-            const now = new Date();
-            const startDate = new Date(now);
-            startDate.setUTCHours(-7, 0, 0, 0);
-
-            const endDate = new Date(now);
-            endDate.setUTCHours(16, 59, 59, 999);
-
-            switch (preset) {
-                case 'today': break;
-                case 'yesterday':
-                    startDate.setDate(startDate.getDate() - 1);
-                    endDate.setDate(endDate.getDate() - 1);
-                    break;
-                case '3days':
-                    startDate.setDate(startDate.getDate() - 2);
-                    break;
-                case '7days':
-                    startDate.setDate(startDate.getDate() - 6);
-                    break;
-                case '30days':
-                    startDate.setDate(startDate.getDate() - 29);
-                    break;
-                case '365days':
-                    startDate.setDate(startDate.getDate() - 364);
-                    break;
-            }
-            matchStage.createdAt = { $gte: startDate, $lte: endDate };
-        }
-
-        const result = await Order.aggregate([
-            { $match: matchStage },
-            { $unwind: "$items" },
-            {
-                $group: {
-                    _id: "$items.book",
-                    totalSold: { $sum: "$items.quantity" },
-                    revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } }
-                }
-            },
-            { $sort: { totalSold: -1 } },
-            { $limit: 5 },
-            {
-                $lookup: {
-                    from: "books",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "book"
-                }
-            },
-            { $unwind: "$book" },
-            {
-                $project: {
-                    _id: "$book._id",
-                    title: "$book.title",
-                    author: "$book.author",
-                    image: "$book.image",
-                    genre: "$book.genre", // 🔥 FIX: Bắt buộc lấy genre để PricingService chạy khuyến mãi theo thể loại
-                    price: "$book.price",
-                    stock: "$book.stock",
-                    totalSold: 1,
-                    revenue: 1
-                }
-            }
-        ]);
-
-        // 🔥 FIX TRỌNG TÂM: Đưa mảng kết quả qua PricingService để tính toán realtime (Giải quyết triệt để lỗi 50k -> 11%)
-        const finalBooks = PricingService.applyPricing(result);
-
+        const finalBooks = PricingService.applyPricing(topBooks);
         res.json(finalBooks);
     } catch (err) {
-        console.error("Lỗi getTopSellingBooks:", err);
         res.status(500).json({ message: 'Lỗi khi lấy top sách bán chạy' });
     }
 };
@@ -484,55 +479,9 @@ exports.getLowStockBooks = async (req, res) => {
     }
 };
 
+// Đã gộp và xóa bản sao bị lỗi, giữ lại bản Analytics chính xác nhất có xử lý Khuyến mãi
 exports.getBookManagementAnalytics = async (req, res) => {
     try {
-        // Lấy data thô (Bổ sung trường genre)
-        const allBooksRaw = await Book.find().select('title stock sold price importPrice genre createdAt');
-
-        // 🔥 FIX TRỌNG TÂM: Bắt buộc map qua PricingService để render đúng 100% data khuyến mãi hiện tại
-        const allBooks = PricingService.applyPricing(allBooksRaw.map(b => b.toObject()));
-
-        let totalInventoryValue = 0;
-        let potentialProfit = 0;
-
-        allBooks.forEach(book => {
-            const currentPrice = book.discountedPrice || book.price || 0;
-            const costPrice = book.importPrice || (book.price * 0.6);
-            const profitPerUnit = currentPrice - costPrice;
-
-            totalInventoryValue += (book.stock * costPrice);
-            potentialProfit += (book.stock * profitPerUnit);
-        });
-
-        const inventory = {
-            lowStock: allBooks.filter(b => b.stock > 0 && b.stock <= 5).length,
-            outOfStock: allBooks.filter(b => b.stock === 0).length,
-            deadStock: allBooks.filter(b => b.sold === 0 && (new Date() - b.createdAt) > 30 * 24 * 60 * 60 * 1000).length,
-        };
-
-        const promotions = {
-            discountedCount: allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price).length,
-            poorPromoPerformance: allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price && b.sold < 2).length
-        };
-
-        res.json({
-            summary: {
-                totalInventoryValue: Math.round(totalInventoryValue),
-                potentialProfit: Math.round(potentialProfit),
-                inventory,
-                promotions
-            }
-        });
-
-    } catch (err) {
-        console.error("🔥 Lỗi API Analytics:", err);
-        res.status(500).json({ message: "Lỗi tính toán báo cáo sách", error: err.message });
-    }
-};
-
-exports.getBookManagementAnalytics = async (req, res) => {
-    try {
-        // ✅ FIX: Bổ sung _id vào select để PricingService có thể khớp chương trình khuyến mãi
         const allBooksRaw = await Book.find().select('_id title stock sold price importPrice genre createdAt');
         const allBooks = PricingService.applyPricing(allBooksRaw.map(b => b.toObject()));
 
@@ -560,19 +509,16 @@ exports.getBookManagementAnalytics = async (req, res) => {
             genreStats[book.genre].sold += book.sold;
         });
 
-        // 1. Tỷ lệ quay vòng vốn
         const turnoverRate = (totalSoldQuantity + totalStockQuantity) > 0
             ? ((totalSoldQuantity / (totalSoldQuantity + totalStockQuantity)) * 100).toFixed(1)
             : 0;
 
-        // 2. Biên lợi nhuận gộp (%)
         const totalCostOfSold = allBooks.reduce((acc, b) => acc + (b.sold * (b.importPrice || b.price * 0.6)), 0);
         const totalRevenueSoFar = allBooks.reduce((acc, b) => acc + (b.sold * (b.discountedPrice || b.price)), 0);
         const grossMargin = totalRevenueSoFar > 0
             ? (((totalRevenueSoFar - totalCostOfSold) / totalRevenueSoFar) * 100).toFixed(1)
             : 0;
 
-        // 3. TÌM THỂ LOẠI CÓ DOANH THU CAO NHẤT VÀ TÍNH TỈ TRỌNG (%)
         const sortedGenresByRevenue = Object.entries(genreStats).sort((a, b) => b[1].revenue - a[1].revenue);
         let topGenre = null;
         if (sortedGenresByRevenue.length > 0 && totalRevenueSoFar > 0) {
@@ -585,8 +531,19 @@ exports.getBookManagementAnalytics = async (req, res) => {
             topGenre = { name: sortedGenresByRevenue[0][0], percentage: 0 };
         }
 
-        // ✅ FIX: Đếm chính xác số lượng đang giảm giá (nếu giá KM nhỏ hơn giá gốc)
         const discountedCount = allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price).length;
+
+        // Bổ sung thêm object properties bị thiếu từ bản cũ vào để Frontend không bị lỗi undefined
+        const inventory = {
+            lowStock: allBooks.filter(b => b.stock > 0 && b.stock <= 5).length,
+            outOfStock: allBooks.filter(b => b.stock === 0).length,
+            deadStock: allBooks.filter(b => b.sold === 0 && (new Date() - b.createdAt) > 30 * 24 * 60 * 60 * 1000).length,
+        };
+
+        const promotions = {
+            discountedCount,
+            poorPromoPerformance: allBooks.filter(b => b.discountedPrice && b.discountedPrice < b.price && b.sold < 2).length
+        };
 
         res.json({
             summary: {
@@ -595,11 +552,9 @@ exports.getBookManagementAnalytics = async (req, res) => {
                 turnoverRate,
                 grossMargin,
                 topGenre,
-                discountedCount, // ✅ Trả về số lượng KM chính xác
-                inventory: {
-                    lowStock: allBooks.filter(b => b.stock > 0 && b.stock <= 5).length,
-                    outOfStock: allBooks.filter(b => b.stock === 0).length
-                }
+                discountedCount,
+                inventory,
+                promotions
             }
         });
     } catch (err) {

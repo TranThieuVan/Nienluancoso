@@ -284,21 +284,22 @@ const BookDetail = () => {
         <div className="flex flex-col md:flex-row gap-12">
 
           {/* ── LEFT COLUMN ── */}
-          {/* Đổi thành contents trên mobile để phá vỡ vách ngăn cột, md:flex để giữ nguyên trên desktop */}
           <div className="contents md:flex md:w-[52%] flex-col gap-10">
 
-            {/* Cover Image (Mobile: Hiển thị ĐẦU TIÊN) */}
+            {/* Cover Image */}
             <div className="order-1 md:order-none mb-10 md:mb-0 bg-stone-50 overflow-hidden aspect-[3/4] max-w-sm mx-auto w-full shadow-md select-none">
               <img src={imgSrc} alt={book.title} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
             </div>
 
-            {/* Book Details (Mobile: Hiển thị THỨ BA, sau phần Giá/Mua hàng) */}
+            {/* Book Details */}
             <div className="order-3 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
               <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-4 pb-3 border-b border-gray-100">
                 Chi tiết sản phẩm
               </h2>
               <div className="space-y-3">
+                {/* ✅ ĐÃ THÊM NHÀ XUẤT BẢN VÀO ĐÂY */}
                 {[
+                  { label: 'Nhà xuất bản', value: book.publisher || 'Đang cập nhật' },
                   { label: 'Thể loại', value: book.genre },
                   { label: 'Tác giả', value: book.author },
                 ].map(({ label, value }) => (
@@ -317,7 +318,7 @@ const BookDetail = () => {
               )}
             </div>
 
-            {/* Rating Section (Mobile: Hiển thị THỨ TƯ) */}
+            {/* Rating Section */}
             <div className="order-4 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400">Đánh giá của bạn</h2>
@@ -334,7 +335,7 @@ const BookDetail = () => {
               </div>
             </div>
 
-            {/* Comments Section (Mobile: Hiển thị CUỐI CÙNG - đúng ý bạn) */}
+            {/* Comments Section */}
             <div className="order-5 md:order-none mb-10 md:mb-0">
               <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-6 pb-3 border-b border-gray-100">
                 Bình luận ({comments.length})
@@ -434,10 +435,9 @@ const BookDetail = () => {
           </div>
 
           {/* ── RIGHT COLUMN (sticky) ── */}
-          {/* Cột phải cũng trở thành contents trên mobile, và block trên desktop */}
           <div className="contents md:block md:w-[48%]">
 
-            {/* Khối chức năng Mua hàng (Mobile: Hiển thị THỨ HAI, ngay sau Cover Image) */}
+            {/* Khối chức năng Mua hàng */}
             <div className="order-2 md:order-none mb-10 md:mb-0 md:sticky md:top-24">
               {/* Genre Tag */}
               <span className="inline-block text-[10px] tracking-[0.3em] uppercase border border-stone-200 text-stone-400 px-3 py-1 mb-4">

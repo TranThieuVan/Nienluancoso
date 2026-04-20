@@ -39,7 +39,7 @@ const TopSellingBooks = ({ books = [] }) => {
                   </h3>
 
                   <p className="text-sm text-gray-500 truncate mt-1">
-                    Tác giả: {book.author}
+                    {book.author}
                   </p>
 
                   <p className="text-[15px] font-semibold text-gray-500 truncate">
