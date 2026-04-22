@@ -124,7 +124,6 @@ const AdminCommentList = () => {
       {/* ── Header ── */}
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Quản lý Bình luận</h1>
-        <p className="text-sm text-gray-500 mt-1 font-medium">Kiểm duyệt và điều phối nội dung cộng đồng</p>
       </div>
 
       {/* ── Stats (Full Background) ── */}

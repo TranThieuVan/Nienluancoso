@@ -62,24 +62,13 @@ const Countdown = ({ endDate }) => {
 /* ─────────────────────────────────────────────
    SUB-COMPONENT: SaleBookCard
 ───────────────────────────────────────────────*/
-// ✅ NHẬN THÊM PROP "promotion" ĐỂ BIẾT ADMIN NHẬP GÌ
-const SaleBookCard = ({ book, promotion }) => {
+const SaleBookCard = ({ book }) => {
     const navigate = useNavigate();
     const imgUrl = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
 
-    // ✅ TẠO NHÃN GIẢM GIÁ DỰA TRÊN DỮ LIỆU ADMIN NHẬP
-    let discountLabel = '';
-    if (promotion) {
-        if (promotion.discountType === 'percent') {
-            discountLabel = `-${promotion.discountValue}%`;
-        } else if (promotion.discountType === 'fixed') {
-            discountLabel = `Giảm ${promotion.discountValue.toLocaleString('vi-VN')}₫`;
-        } else {
-            // Backup dự phòng nếu schema cũ không có discountType
-            const diff = book.price - book.discountedPrice;
-            discountLabel = diff >= 1000 ? `Giảm ${diff.toLocaleString('vi-VN')}₫` : `-${Math.round((diff / book.price) * 100)}%`;
-        }
-    }
+    // ✅ GÁN CỨNG: Luôn tính toán và hiển thị số tiền giảm VNĐ
+    const diff = (book.price || 0) - (book.discountedPrice || 0);
+    const discountLabel = diff > 0 ? `Giảm ${diff.toLocaleString('vi-VN')}₫` : null;
 
     return (
         <div
@@ -92,17 +81,19 @@ const SaleBookCard = ({ book, promotion }) => {
                     alt={book.title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 mix-blend-multiply"
                 />
-                {/* ✅ HIỂN THỊ NHÃN ĐỘNG THEO ADMIN */}
-                <div className="absolute top-2 left-2 bg-rose-500 text-white text-[13px] font-bold px-2 py-1 tracking-widest z-10 shadow-sm">
-                    {discountLabel}
-                </div>
+                {/* ✅ GIỮ NGUYÊN Ô MÀU ĐỎ ROSE TRUYỀN THỐNG */}
+                {discountLabel && (
+                    <div className="absolute top-2 left-2 bg-rose-500 text-white text-[15px] font-black px-2 py-1 tracking-tighter z-10 shadow-sm uppercase">
+                        {discountLabel}
+                    </div>
+                )}
             </div>
             <div className="p-4 flex flex-col flex-1 border-t border-gray-50">
                 <h3 className="text-lg font-bold text-black line-clamp-2 leading-snug mb-1 group-hover/card:text-rose-600 transition-colors">{book.title}</h3>
                 <p className="text-[15px] text-stone-500 truncate mb-4">{book.author}</p>
                 <div className="mt-auto">
-                    <p className="text-[15px] text-stone-400 line-through tabular-nums">{book.price?.toLocaleString('vi-VN')}₫</p>
-                    <p className="text-lg font-bold text-rose-600 leading-tight tabular-nums mt-0.5">{book.discountedPrice?.toLocaleString('vi-VN')}₫</p>
+                    <p className="text-[14px] text-stone-400 line-through tabular-nums">{book.price?.toLocaleString('vi-VN')}₫</p>
+                    <p className="text-lg font-black text-rose-600 leading-tight tabular-nums mt-0.5">{book.discountedPrice?.toLocaleString('vi-VN')}₫</p>
                 </div>
             </div>
         </div>
@@ -135,8 +126,6 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
 
                     return (
                         <div key={promotion._id} className="flex flex-col">
-
-                            {/* Tiêu đề & Đồng hồ đếm ngược */}
                             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                                 <div className="flex flex-col gap-2">
                                     <p className="text-[13px] tracking-[0.3em] uppercase font-bold text-gray-500 flex items-center gap-2">
@@ -146,8 +135,6 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                                         <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-black uppercase">
                                             {promotion.name}
                                         </h2>
-
-                                        {/* ✅ Đổi nhãn Live sang Đen/Trắng sắc sảo */}
                                         <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-white bg-black px-2.5 py-1 uppercase">
                                             <span className="w-1.5 h-1.5 bg-white animate-pulse" /> Live
                                         </span>
@@ -160,8 +147,6 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                                 </div>
 
                                 <div className="flex flex-col sm:items-end gap-5 shrink-0">
-
-                                    {/* ✅ Hộp Countdown: Bỏ góc bo tròn, dùng viền đen mỏng chuẩn cấu trúc */}
                                     <div className="flex items-center gap-3 bg-white px-5 py-3 border border-black">
                                         <span className="text-[12px] tracking-[0.2em] uppercase font-bold text-black">
                                             Kết thúc sau
@@ -169,7 +154,6 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                                         <Countdown endDate={promotion.endDate} />
                                     </div>
 
-                                    {/* ✅ Nút xem tất cả: Đổi sang dạng Text Link có gạch chân cứng cáp */}
                                     <button
                                         onClick={() => navigate(`/books?filter=sale&promo=${promotion._id}`)}
                                         className="text-[12px] tracking-[0.2em] uppercase font-bold text-black border-b-2 border-black pb-0.5 hover:text-gray-500 hover:border-gray-500 transition-colors"
@@ -179,13 +163,11 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                                 </div>
                             </div>
 
-                            {/* Lưới 5 sách */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
                                 {displayBooks.map(book => (
                                     <SaleBookCard
                                         key={book._id}
                                         book={book}
-                                        promotion={promotion}
                                     />
                                 ))}
                             </div>

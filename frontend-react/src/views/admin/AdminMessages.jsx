@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useLocation } from 'react-router-dom'; // ✨ Import useLocation
+import { useLocation } from 'react-router-dom';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = "http://localhost:5000";
 
 const AdminMessages = () => {
   const [conversations, setConversations] = useState([]);
@@ -10,26 +13,82 @@ const AdminMessages = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const messageContainerRef = useRef(null);
-  const chatInputRef = useRef(null); // ✨ Thêm ref cho input chat
+  const chatInputRef = useRef(null);
+
+  // Dùng Ref để Socket luôn đọc được ID hội thoại mới nhất mà không bị lỗi closure
+  const selectedConvRef = useRef(null);
+  const socketRef = useRef(null);
 
   const location = useLocation();
-  const autoFocusUserId = location.state?.autoFocusUserId; // ✨ Lấy userId từ User List truyền qua
+  const autoFocusUserId = location.state?.autoFocusUserId;
 
+  // Cập nhật giá trị hội thoại hiện tại cho Ref
   useEffect(() => {
-    fetchConversations();
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // ✨ Auto-focus vào khung chat mỗi khi chọn hội thoại mới (hoặc từ màn hình User nhảy qua)
-  useEffect(() => {
+    selectedConvRef.current = selectedConversation;
     if (selectedConversation && chatInputRef.current) {
       chatInputRef.current.focus();
     }
   }, [selectedConversation]);
 
+  // Cuộn xuống dòng tin nhắn mới nhất
+  useEffect(() => {
+    if (messageContainerRef.current) {
+      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // 🟢 TRÁI TIM REAL-TIME CỦA ADMIN (Đã bọc chống trượt 100%)
+  useEffect(() => {
+    socketRef.current = io(SOCKET_URL);
+    const socket = socketRef.current;
+
+    socket.on('connect', () => {
+      fetchConversations();
+    });
+
+    // Hàm tổng xử lý khi có tin nhắn bắn tới
+    const handleIncomingMessage = (data) => {
+      const currentConvId = selectedConvRef.current?._id;
+
+      // Nếu đang mở đúng đoạn chat đó -> Hiện tin nhắn ra ngay
+      if (String(data.conversationId) === String(currentConvId)) {
+        setMessages(prev => {
+          // Chống hiển thị trùng lặp tin nhắn
+          if (prev.some(m => String(m._id) === String(data._id))) return prev;
+          return [...prev, data];
+        });
+
+        // Báo cho backend là Admin đã đọc
+        axios.put(`/api/messages/read/${currentConvId}`, null, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
+        }).catch(() => { });
+      }
+
+      // Bất kể đang mở đoạn chat nào, luôn fetch lại Sidebar để hiện/tắt "Chấm Đỏ"
+      fetchConversations();
+    };
+
+    // 🔥 BAO TRỌN MỌI TÊN SỰ KIỆN TỪ BACKEND
+    socket.on('new_message_admin', handleIncomingMessage);
+    socket.on('new_message_user', handleIncomingMessage);
+    socket.on('newMessage', handleIncomingMessage);
+
+    // Xử lý nút bật/tắt Bot AI
+    const handleBotStatus = (data) => {
+      if (String(selectedConvRef.current?._id) === String(data.conversationId)) {
+        setSelectedConversation(prev => ({ ...prev, isBotActive: data.isBotActive }));
+      }
+      fetchConversations();
+    };
+
+    socket.on('bot_status_changed', handleBotStatus);
+    socket.on('botStatusChanged', handleBotStatus);
+
+    return () => socket.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* --- CÁC HÀM API CHÍNH --- */
   const fetchConversations = async () => {
     try {
       const res = await axios.get('/api/messages/admin/all', {
@@ -42,39 +101,31 @@ const AdminMessages = () => {
       for (const conv of res.data) {
         const user = conv.participants?.find(p => p.role === 'user');
         if (user && !seen.has(user._id)) {
-          unique.push({
-            ...conv,
-            participant: user,
-            unreadCount: conv.unreadCount || 0
-          });
+          unique.push({ ...conv, participant: user, unreadCount: conv.unreadCount || 0 });
           seen.add(user._id);
         }
       }
 
       setConversations(unique);
 
-      // ✨ Nếu có yêu cầu mở khung chat riêng từ trang Quản lý User
-      if (autoFocusUserId) {
-        const targetConv = unique.find(c => c.participant?._id === autoFocusUserId);
-        if (targetConv) {
-          selectConversation(targetConv);
-        } else if (unique.length > 0 && !selectedConversation) {
-          // Xử lý fallback nếu user này chưa từng nhắn tin
-          selectConversation(unique[0]);
-        }
-      } else if (unique.length > 0 && !selectedConversation) {
-        // Hành vi mặc định khi vào thẳng trang chat
+      // Nhét Admin vào tất cả các room để bắt sự kiện
+      unique.forEach(c => {
+        if (socketRef.current?.connected) socketRef.current.emit('join', c._id);
+      });
+
+      if (autoFocusUserId && !selectedConvRef.current) {
+        const targetConv = unique.find(c => String(c.participant?._id) === String(autoFocusUserId));
+        if (targetConv) selectConversation(targetConv);
+      } else if (unique.length > 0 && !selectedConvRef.current) {
         selectConversation(unique[0]);
       }
-
-    } catch (err) {
-      console.error('Lỗi fetch conversations:', err);
-    }
+    } catch (err) { console.error('Lỗi fetch conversations:', err); }
   };
 
   const selectConversation = async (conv) => {
     try {
       setSelectedConversation(conv);
+      if (socketRef.current?.connected) socketRef.current.emit('join', conv._id);
 
       setConversations(prev => prev.map(c => c._id === conv._id ? { ...c, unreadCount: 0 } : c));
 
@@ -85,40 +136,30 @@ const AdminMessages = () => {
       const res = await axios.get(`/api/messages/${conv._id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
       });
-
       setMessages(res.data);
-    } catch (err) {
-      console.error('Lỗi fetch messages:', err);
-    }
+    } catch (err) { console.error('Lỗi fetch messages:', err); }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
-
-    const messageText = newMessage;
+    const text = newMessage;
     setNewMessage('');
 
     try {
       const res = await axios.post('/api/messages', {
-        conversationId: selectedConversation._id,
-        text: messageText
+        conversationId: selectedConversation._id, text
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
       });
 
-      const newMsg = {
-        _id: res.data.userMessage?._id || Date.now().toString(),
-        text: messageText,
-        sender: { role: 'admin' }
-      };
+      const msg = res.data.userMessage;
 
-      setMessages(prev => [...prev, newMsg]);
-
-      // ✨ Focus lại ô chat ngay sau khi gửi xong
-      chatInputRef.current?.focus();
-    } catch (err) {
-      console.error('Lỗi gửi tin nhắn:', err);
-    }
+      // In trực tiếp ra màn hình của Admin trước cho mượt
+      setMessages(prev => {
+        if (!prev.find(m => String(m._id) === String(msg._id))) return [...prev, msg];
+        return prev;
+      });
+    } catch (err) { console.error('Lỗi gửi tin nhắn:', err); }
   };
 
   const toggleBot = async () => {
@@ -133,22 +174,16 @@ const AdminMessages = () => {
     } catch (err) { console.error('Lỗi cập nhật trạng thái Bot:', err); }
   };
 
-  const scrollToBottom = () => {
-    if (messageContainerRef.current) {
-      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-    }
-  };
-
   const filteredConversations = conversations.filter(conv =>
     conv.participant?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="flex bg-white" style={{ height: 'calc(100vh - 50px)' }}>
-      {/* Sidebar */}
+
+      {/* Sidebar BÊN TRÁI */}
       <div className="w-1/3 border-r flex flex-col p-4">
         <h2 className="text-xl font-bold mb-4">Khách hàng</h2>
-
         <div className="mb-4">
           <input
             type="text"
@@ -159,14 +194,12 @@ const AdminMessages = () => {
           />
         </div>
 
-        {/* Danh sách cuộn được */}
         <div className="overflow-y-auto flex-1 pr-1 -mr-1">
           {filteredConversations.map((conv) => (
             <div
               key={conv._id}
               onClick={() => selectConversation(conv)}
-              className={`p-3 mb-1 rounded cursor-pointer hover:bg-gray-100 flex select-none items-center justify-between transition-colors ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''
-                }`}
+              className={`p-3 mb-1 rounded cursor-pointer hover:bg-gray-100 flex select-none items-center justify-between transition-colors ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''}`}
             >
               <div className="flex items-center gap-3">
                 <img src={`/${conv.participants[0]?.avatar || 'default-avatar.png'}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
@@ -176,26 +209,20 @@ const AdminMessages = () => {
                 </div>
               </div>
               {conv.unreadCount > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {conv.unreadCount}
-                </span>
+                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{conv.unreadCount}</span>
               )}
             </div>
           ))}
-
           {filteredConversations.length === 0 && (
-            <div className="text-center text-gray-500 mt-4 text-sm">
-              Không tìm thấy khách hàng "{searchTerm}"
-            </div>
+            <div className="text-center text-gray-500 mt-4 text-sm">Không tìm thấy khách hàng "{searchTerm}"</div>
           )}
         </div>
       </div>
 
-      {/* Main Chat */}
+      {/* KHUNG CHAT CHÍNH (BÊN PHẢI) */}
       <div className="w-2/3 flex flex-col">
         <div className="p-4 border-b font-bold text-lg bg-gray-50 flex justify-between items-center">
           <span>{selectedConversation?.participant?.name || 'Chọn hội thoại'}</span>
-
           {selectedConversation && (
             <button
               onClick={toggleBot}
@@ -210,29 +237,38 @@ const AdminMessages = () => {
         </div>
 
         <div ref={messageContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2">
-          {messages.map((msg) => (
-            <div key={msg._id} className={msg.sender.role === 'admin' ? 'text-right' : 'text-left'}>
-              <div className={`inline-block px-3 py-2 rounded-lg max-w-[70%] text-left ${msg.sender.role === 'admin' ? 'bg-green-100' : 'bg-gray-100'
-                }`}>
-                {msg.text}
+          {messages.map((msg) => {
+            // 🔥 LOGIC PHÂN LỀ SIÊU CHUẨN XÁC:
+            // So sánh ID người gửi với ID khách hàng.
+            // Nếu KHÁC NHAU -> Lệch phải (Admin/Bot). Nếu GIỐNG NHAU -> Lệch trái (Khách).
+            const customerId = String(selectedConversation?.participant?._id);
+            const senderId = String(typeof msg.sender === 'object' ? msg.sender?._id : msg.sender);
+
+            const isStaffMember = senderId !== customerId;
+
+            return (
+              <div key={msg._id} className={isStaffMember ? 'text-right' : 'text-left'}>
+                <div className={`inline-block px-3 py-2 rounded-lg max-w-[70%] text-left ${isStaffMember ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  {msg.text}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="p-4 border-t flex gap-2 items-center">
           <input
-            ref={chatInputRef} // ✨ Gắn ref vào đây để focus
+            ref={chatInputRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyUp={(e) => e.key === 'Enter' && sendMessage()}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
             placeholder="Nhập tin nhắn..."
             disabled={!selectedConversation}
           />
           <button
             onClick={sendMessage}
-            disabled={!selectedConversation}
+            disabled={!selectedConversation || !newMessage.trim()}
             className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition"
           >
             Gửi

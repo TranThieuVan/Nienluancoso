@@ -91,8 +91,8 @@ const AdminBookList = () => {
     });
     if (result.isConfirmed) {
       try {
-        await axios.delete(`http://localhost:5000/api/books/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-        await fetchBooks();
+        const userToken = localStorage.getItem('adminToken') || localStorage.getItem('token');
+        await axios.delete(`http://localhost:5000/api/books/${id}`, { headers: { Authorization: `Bearer ${userToken}` } }); await fetchBooks();
         Swal.fire('Đã xóa!', 'Cuốn sách đã được xóa.', 'success');
       } catch { Swal.fire('Lỗi!', 'Xóa không thành công.', 'error'); }
     }

@@ -4,7 +4,6 @@ import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Swal from 'sweetalert2';
 
-// ✅ ĐÃ SỬA: Đổi icon cho pending và confirmed
 const stepIcons = {
     pending: ['fas', 'file-invoice'],
     confirmed: ['fas', 'clipboard-check'],
@@ -72,7 +71,6 @@ const OrderDetail = () => {
         });
         if (isConfirmed && reason) {
             try {
-                // Đã sửa lại URL: đưa ${id} lên trước /cancel
                 await axios.put(`/api/orders/${id}/cancel`, { reason }, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -128,22 +126,17 @@ const OrderDetail = () => {
                 const detail = document.getElementById('swal-detail').value;
                 const bankDetail = document.getElementById('swal-bank-detail').value;
                 if (!type || !detail || !bankDetail) { Swal.showValidationMessage('Vui lòng điền đủ các thông tin bắt buộc!'); return false; }
-
                 const toBase64 = (file) => new Promise((resolve) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => resolve(r.result); });
-
                 let returnMedia = [];
                 const mediaInput = document.getElementById('swal-media');
                 if (mediaInput.files.length === 0) { Swal.showValidationMessage('Vui lòng cung cấp hình ảnh/video!'); return false; }
                 for (let i = 0; i < mediaInput.files.length; i++) returnMedia.push(await toBase64(mediaInput.files[i]));
-
                 let returnBankQR = null;
                 const qrInput = document.getElementById('swal-bank-qr');
                 if (qrInput.files.length > 0) returnBankQR = await toBase64(qrInput.files[0]);
-
                 return { returnReasonType: type, returnReasonDetail: detail, returnBankDetails: bankDetail, returnMedia, returnBankQR };
             },
         });
-
         if (isConfirmed) {
             Swal.fire({ title: 'Đang xử lý...', didOpen: () => Swal.showLoading() });
             try {
@@ -204,7 +197,6 @@ const OrderDetail = () => {
                 const provider = document.getElementById('swal-ret-provider').value;
                 const code = document.getElementById('swal-ret-tracking').value;
                 if (!provider || !code) { Swal.showValidationMessage('Vui lòng nhập ĐVVC và Mã vận đơn!'); return false; }
-
                 let returnReceipt = null;
                 const receiptInput = document.getElementById('swal-ret-receipt');
                 if (receiptInput.files.length > 0) {
@@ -213,7 +205,6 @@ const OrderDetail = () => {
                 return { returnShippingProvider: provider, returnTrackingCode: code, returnReceipt };
             },
         });
-
         if (isConfirmed) {
             Swal.fire({ title: 'Đang lưu...', didOpen: () => Swal.showLoading() });
             try {
@@ -274,7 +265,7 @@ const OrderDetail = () => {
             </div>
 
             <div className="max-w-5xl mx-auto px-6 mt-8 space-y-5">
-                <div className="bg-white border border-gray-100 p-8">
+                <div className="bg-white border border-gray-100 p-8 text-center">
                     <div className="flex items-start justify-between relative px-4 md:px-10">
                         <div className="absolute top-6 left-[10%] right-[10%] h-px bg-gray-200 hidden md:block" />
                         <div className={`absolute top-6 left-[10%] h-px transition-all duration-500 hidden md:block ${order.status === 'cancelled' || order.status === 'failed_delivery' ? 'bg-red-400' : 'bg-black'}`} style={{ width: `${(currentStepIndex / (steps.length - 1)) * 80}%` }} />
@@ -284,7 +275,6 @@ const OrderDetail = () => {
                             const isError = step.isError && isCompleted;
                             const stepDate = getStepDate(step.id);
                             return (
-                                // ✅ ĐÃ SỬA: Tăng box w-12 h-12, icon to hơn, label to hơn
                                 <div key={step.id} className="relative z-10 flex flex-col items-center w-20 md:w-28">
                                     <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full border-2 flex items-center justify-center transition-all duration-300 bg-white ${isError ? 'border-red-500 text-red-500' : isCompleted ? 'border-black text-black' : 'border-gray-200 text-stone-300'}`}>
                                         <FontAwesomeIcon icon={stepIcons[step.id]} className="text-lg md:text-xl" />
@@ -297,7 +287,7 @@ const OrderDetail = () => {
                             );
                         })}
                     </div>
-                    <div className="mt-10 pt-5 border-t border-gray-100 text-center">
+                    <div className="mt-10 pt-5 border-t border-gray-100">
                         <p className="text-lg uppercase tracking-widest text-stone-400 font-bold mb-2">Trạng thái hiện tại</p>
                         {order.status === 'pending' && <p className=" text-lg md:text-2xl font-semibold text-black">Đơn hàng đang chờ nhân viên kiểm tra và xác nhận.</p>}
                         {order.status === 'confirmed' && <p className=" text-lg md:text-2xl font-semibold text-black">Đơn hàng đã được duyệt và đang đóng gói.</p>}
@@ -307,7 +297,22 @@ const OrderDetail = () => {
                         {order.status === 'returning' && <p className=" text-lg md:text-2xl font-semibold text-amber-600">Hàng đang trên đường hoàn về kho. Shop sẽ hoàn tiền ngay khi nhận được.</p>}
                         {order.status === 'returned' && <p className=" text-lg md:text-2xl font-semibold text-emerald-600">Đã hoàn tiền! Cảm ơn bạn và mong bạn thông cảm về sự cố lần này.</p>}
                         {order.status === 'completed' && !isRejected && <p className=" text-lg md:text-2xl font-semibold text-emerald-600">Đơn hàng đã hoàn tất thành công. Chúc bạn đọc sách vui vẻ!</p>}
+                        {/* ✅ THÊM DÒNG HIỂN THỊ KHI ĐÃ HỦY */}
+                        {order.status === 'cancelled' && <p className=" text-lg md:text-2xl font-semibold text-red-600">Đơn hàng đã được hủy bỏ.</p>}
                     </div>
+
+                    {/* ✅ HIỂN THỊ LÝ DO HỦY TỪ ADMIN HOẶC HỆ THỐNG */}
+                    {order.status === 'cancelled' && (order.cancelReason || order.adminNote) && (
+                        <div className="mt-6 bg-red-50 border-l-4 border-red-500 px-5 py-4 text-left">
+                            <p className="text-[10px] md:text-xs uppercase tracking-widest font-bold text-red-600 mb-1 flex items-center gap-1.5">
+                                <FontAwesomeIcon icon={['fas', 'circle-info']} /> Lý do hủy đơn hàng
+                            </p>
+                            <p className="text-sm font-medium text-red-800 italic">
+                                "{order.cancelReason || order.adminNote}"
+                            </p>
+                        </div>
+                    )}
+
                     {order.trackingLink && !['cancelled'].includes(order.status) && (
                         <div className="mt-10 p-4 bg-stone-50 border border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-3"><div className="w-9 h-9 border border-gray-200 flex items-center justify-center text-stone-600"><FontAwesomeIcon icon={['fas', 'truck']} className="text-sm" /></div><div><p className="text-[8px] md:text-sm uppercase tracking-[0.2em] font-bold text-stone-400 mb-0.5">Vận chuyển bởi</p><p className="text-sm md:text-lg font-bold text-black">{order.shippingProvider}</p></div></div>
@@ -315,7 +320,7 @@ const OrderDetail = () => {
                         </div>
                     )}
                     {isRejected && (
-                        <div className="mt-6 bg-rose-50 border-l-4 border-rose-500 px-5 py-4"><p className="text-[10px] uppercase tracking-widest font-bold text-rose-600 mb-1 flex items-center gap-1.5"><FontAwesomeIcon icon={['fas', 'triangle-exclamation']} /> Khiếu nại bị từ chối</p><p className="text-sm font-medium text-rose-800 italic">"{order.adminNote}"</p></div>
+                        <div className="mt-6 bg-rose-50 border-l-4 border-rose-500 px-5 py-4 text-left"><p className="text-[10px] uppercase tracking-widest font-bold text-rose-600 mb-1 flex items-center gap-1.5"><FontAwesomeIcon icon={['fas', 'triangle-exclamation']} /> Khiếu nại bị từ chối</p><p className="text-sm font-medium text-rose-800 italic">"{order.adminNote}"</p></div>
                     )}
                 </div>
 
@@ -338,7 +343,7 @@ const OrderDetail = () => {
                             </div>
                         )}
 
-                        <div className="bg-white border border-gray-100 p-6">
+                        <div className="bg-white border border-gray-100 p-6 text-left">
                             <p className="text-[10px] md:text-base uppercase tracking-[0.3em] font-bold text-stone-400 mb-5 pb-4 border-b border-gray-100">Sản phẩm đã đặt</p>
                             <div className="flex flex-col divide-y divide-gray-50">
                                 {order.items.map((item) => {
@@ -364,7 +369,7 @@ const OrderDetail = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="space-y-5 text-left">
                         <div className="bg-white border border-gray-100 p-6">
                             <p className="text-[10px] md:text-sm uppercase tracking-[0.3em] font-bold text-stone-400 mb-5 pb-4 border-b border-gray-100">Thông tin nhận hàng</p>
                             <div className="space-y-4 text-sm md:text-base">

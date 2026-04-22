@@ -451,80 +451,178 @@ exports.sendMessage = async (req, res) => {
         const io = req.app.get('io');
 
         const currentUser = await User.findById(sender);
-        if (!currentUser) return res.status(404).json({ message: 'User không tồn tại' });
+        if (!currentUser) {
+            return res.status(404).json({ message: 'User không tồn tại' });
+        }
 
         const isStaff = currentUser.role === 'admin' || currentUser.role === 'employee';
         const admin = await User.findOne({ role: 'admin' });
 
         const conversation = await Conversation.findById(conversationId);
-        if (!conversation) return res.status(404).json({ message: 'Hội thoại không tồn tại' });
-
-        const isRequestingHuman = text === '[REQUEST_HUMAN]';
-        const actualText = isRequestingHuman ? 'Mình muốn được nhân viên tư vấn trực tiếp.' : text;
-
-        const userMessage = await Message.create({ conversationId, sender, text: actualText });
-        await Conversation.findByIdAndUpdate(conversationId, { lastMessage: actualText, updatedAt: Date.now() });
-
-        if (isStaff) {
-            if (io) io.emit('new_message_user', { conversationId, sender, text: actualText, senderRole: currentUser.role });
-        } else {
-            if (io) io.emit('new_message_admin', { conversationId, senderRole: 'user' });
+        if (!conversation) {
+            return res.status(404).json({ message: 'Hội thoại không tồn tại' });
         }
 
+        const isRequestingHuman = text === '[REQUEST_HUMAN]';
+        const actualText = isRequestingHuman
+            ? 'Mình muốn được nhân viên tư vấn trực tiếp.'
+            : text;
+
+        // 🟢 1. USER/ADMIN MESSAGE
+        const userMessage = await Message.create({
+            conversationId,
+            sender,
+            text: actualText
+        });
+
+        await Conversation.findByIdAndUpdate(conversationId, {
+            lastMessage: actualText,
+            updatedAt: Date.now()
+        });
+
+        // 🔥 REAL-TIME: Gửi tin nhắn cho cả Admin và User
+        if (io) {
+            // Lấy toàn bộ object tin nhắn và thêm role để Frontend dễ style (màu sắc, vị trí trái/phải)
+            const messageData = {
+                ...userMessage.toObject(),
+                senderRole: currentUser.role
+            };
+            io.emit('new_message_user', messageData);
+            io.emit('new_message_admin', messageData);
+        }
+
+        // 🟡 2. REQUEST HUMAN
         if (isRequestingHuman && !isStaff) {
             await Conversation.findByIdAndUpdate(conversationId, { isBotActive: false });
-            if (io) io.emit('bot_status_changed', { conversationId, isBotActive: false });
 
-            const sysMsg = await Message.create({ conversationId, sender: admin._id, text: 'Hệ thống đã ghi nhận yêu cầu. Bạn vui lòng chờ một lát, nhân viên sẽ phản hồi ngay nhé! 👨‍💻' });
-            if (io) { io.emit('new_message_user', sysMsg); io.emit('new_message_admin', { conversationId, senderRole: 'bot' }); }
+            // 🔥 Cập nhật trạng thái Bot realtime cho Admin
+            if (io) {
+                io.emit('bot_status_changed', {
+                    conversationId,
+                    isBotActive: false
+                });
+            }
+
+            const sysMsg = await Message.create({
+                conversationId,
+                sender: admin._id,
+                text: 'Hệ thống đã ghi nhận yêu cầu. Bạn vui lòng chờ một lát, nhân viên sẽ phản hồi ngay nhé! 👨‍💻'
+            });
+
+            if (io) {
+                const sysMsgData = { ...sysMsg.toObject(), senderRole: 'bot' };
+                io.emit('new_message_user', sysMsgData);
+                io.emit('new_message_admin', sysMsgData);
+            }
+
             return res.status(201).json({ userMessage, aiMessage: sysMsg });
         }
 
+        // 🤖 3. AI RESPONSE
         let aiMessage = null;
+
         if (!isStaff && conversation.isBotActive) {
             try {
-                const history = await Message.find({ conversationId }).sort({ createdAt: -1 }).limit(HISTORY_LIMIT).lean();
+                const history = await Message.find({ conversationId })
+                    .sort({ createdAt: -1 })
+                    .limit(HISTORY_LIMIT)
+                    .lean();
+
                 history.reverse();
 
                 const messages = [
                     { role: 'system', content: SYSTEM_PROMPT },
-                    ...history.map((msg) => ({ role: (msg.sender.toString() === admin._id.toString()) ? 'assistant' : 'user', content: msg.text })),
+                    ...history.map((msg) => ({
+                        role: (msg.sender.toString() === admin._id.toString()) ? 'assistant' : 'user',
+                        content: msg.text
+                    })),
                 ];
 
-                const firstResponse = await callAI({ model: AI_MODEL, messages, tools, tool_choice: 'auto', temperature: 0.2, max_tokens: 400 });
+                const firstResponse = await callAI({
+                    model: AI_MODEL,
+                    messages,
+                    tools,
+                    tool_choice: 'auto',
+                    temperature: 0.2,
+                    max_tokens: 400
+                });
+
                 let aiResponseMsg = firstResponse.choices[0].message;
 
                 if (aiResponseMsg.tool_calls?.length > 0) {
                     messages.push(aiResponseMsg);
+
                     for (const toolCall of aiResponseMsg.tool_calls) {
                         let dbResult;
+
                         if (toolCall.function.name === 'search_books') {
                             dbResult = await executeSearchBooks(JSON.parse(toolCall.function.arguments).query);
                         } else if (toolCall.function.name === 'get_books_by_price') {
                             const args = JSON.parse(toolCall.function.arguments);
-                            dbResult = await executeGetBooksByPrice(args.price_type, args.sort, args.limit, args.genre, args.publisher);
+                            dbResult = await executeGetBooksByPrice(
+                                args.price_type,
+                                args.sort,
+                                args.limit,
+                                args.genre,
+                                args.publisher
+                            );
                         } else if (toolCall.function.name === 'get_promotions') {
                             dbResult = await executeGetPromotions();
                         } else if (toolCall.function.name === 'get_recent_orders') {
                             dbResult = await executeGetRecentOrders(sender);
                         }
-                        messages.push({ role: 'tool', tool_call_id: toolCall.id, name: toolCall.function.name, content: dbResult });
+
+                        messages.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            name: toolCall.function.name,
+                            content: dbResult
+                        });
                     }
 
-                    const finalResponse = await callAI({ model: AI_MODEL, messages, temperature: 0.2, max_tokens: 500 });
+                    const finalResponse = await callAI({
+                        model: AI_MODEL,
+                        messages,
+                        temperature: 0.2,
+                        max_tokens: 500
+                    });
+
                     aiResponseMsg = finalResponse.choices[0].message;
                 }
 
                 const aiText = aiResponseMsg.content?.trim() || FALLBACK_MSG;
-                aiMessage = await Message.create({ conversationId, sender: admin._id, text: aiText });
-                await Conversation.findByIdAndUpdate(conversationId, { lastMessage: aiText, updatedAt: Date.now() });
 
-                if (io) { io.emit('new_message_admin', { conversationId, senderRole: 'bot' }); io.emit('new_message_user', aiMessage); }
-            } catch (err) { console.error("Lỗi AI:", err.message); }
+                aiMessage = await Message.create({
+                    conversationId,
+                    sender: admin._id,
+                    text: aiText
+                });
+
+                await Conversation.findByIdAndUpdate(conversationId, {
+                    lastMessage: aiText,
+                    updatedAt: Date.now()
+                });
+
+                // 🔥 REAL-TIME BOT RESPONSE
+                if (io) {
+                    const botMsgData = { ...aiMessage.toObject(), senderRole: 'bot' };
+                    io.emit('new_message_user', botMsgData);
+                    io.emit('new_message_admin', botMsgData);
+                }
+
+            } catch (err) {
+                console.error("Lỗi AI:", err.message);
+            }
         }
 
-        res.status(201).json({ userMessage, aiMessage });
-    } catch (err) { res.status(500).json({ message: 'Lỗi server', error: err.message }); }
+        return res.status(201).json({ userMessage, aiMessage });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: 'Lỗi server',
+            error: err.message
+        });
+    }
 };
 
 exports.toggleBot = async (req, res) => {

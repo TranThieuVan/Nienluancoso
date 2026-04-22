@@ -1,11 +1,10 @@
 const dotenv = require('dotenv');
 const express = require('express');
 const mongoose = require('mongoose');
-const PricingService = require('./services/pricingService'); // Sửa lại đường dẫn cho đúng với thư mục của bạn
+const PricingService = require('./services/pricingService');
 const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
-// 1. Import thêm http và socket.io
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -15,38 +14,42 @@ const messageRoutes = require('./routes/messages');
 const vnpayRoutes = require('./routes/vnpay');
 const app = express();
 
-// 2. Khởi tạo HTTP Server và gắn Socket.io vào
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5174", // Thay URL này bằng port chạy Frontend React của bạn nếu khác
+        origin: "http://localhost:5174",
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
 
-
-// 3. Đưa biến `io` vào app để lát nữa các file Controller có thể lôi ra xài
 app.set('io', io);
 
-// 4. Lắng nghe kết nối từ Client
+// ✅ FIX: Thêm xử lý join/leave room — đây là phần bị thiếu khiến real-time không hoạt động
 io.on('connection', (socket) => {
-    console.log('🟢 Một user vừa kết nối với Socket ID:', socket.id);
+
+    // Client emit 'join' kèm conversationId -> đưa socket vào room đó
+    socket.on('join', (conversationId) => {
+        socket.join(conversationId);
+        console.log(`Socket ${socket.id} đã join room: ${conversationId}`);
+    });
+
+    // Client emit 'leave' khi chuyển sang conversation khác (dùng cho Admin)
+    socket.on('leave', (conversationId) => {
+        socket.leave(conversationId);
+        console.log(`Socket ${socket.id} đã leave room: ${conversationId}`);
+    });
 
     socket.on('disconnect', () => {
-        console.log('🔴 User đã ngắt kết nối:', socket.id);
     });
 });
 
 app.use(cors());
 app.use(compression());
-// ✅ Tăng giới hạn payload lên 50MB để nhận file Base64 từ Frontend
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Serve ảnh
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// --- Các route người dùng ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/user'));
 app.use('/api/addresses', require('./routes/address'));
@@ -60,7 +63,6 @@ app.use('/api/vnpay', vnpayRoutes);
 app.use('/api/vouchers', require('./routes/voucher'));
 app.use('/api/promotions', require('./routes/admin/adminPromotions'));
 app.use('/api/stats', require('./routes/stats'));
-// --- Các route admin ---
 app.use('/api/admin', require('./routes/admin/admin'));
 app.use('/api/admin/users', require('./routes/admin/adminUsers'));
 app.use('/api/admin/orders', require('./routes/admin/adminOrders'));
@@ -70,15 +72,14 @@ app.use('/api/admin/comments', require('./routes/admin/comments'));
 app.use('/api/messages', messageRoutes);
 app.use('/api/admin/promotions', require('./routes/admin/adminPromotions'));
 app.use('/api/notifications', require('./routes/notification'));
-// ✅ GỌI BOT CHẠY NGẦM Ở ĐÂY 
+
 require('./services/refundCron');
 require('./services/rankCron');
-require('./services/orderCron')
-// Kết nối MongoDB và chạy server
+require('./services/orderCron');
+
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log('MongoDB connected');
-
         PricingService.refreshCache();
         server.listen(process.env.PORT, () => {
             console.log(`Server running at http://localhost:${process.env.PORT}`);
