@@ -20,7 +20,9 @@ const BookCard = ({ book }) => {
     const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
     const hasDiscount = book.discountedPrice && book.discountedPrice < book.price;
     const discountPct = hasDiscount ? Math.round((1 - book.discountedPrice / book.price) * 100) : 0;
-
+    const imageUrl = book?.image?.startsWith('http')
+        ? book.image
+        : `http://localhost:5000${book.image}`;
     return (
         <div
             // Đổi thành group/card để không bị xung đột với group của Slider
@@ -32,7 +34,7 @@ const BookCard = ({ book }) => {
             {/* ── Image ── */}
             <div className="relative overflow-hidden bg-stone-50 aspect-[2/3]">
                 <img
-                    src={imgSrc}
+                    src={imageUrl}
                     alt={book.title || 'Book Cover'}
                     // Sử dụng group-hover/card để chỉ nhận diện hover từ div cha gần nhất này
                     className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover/card:scale-105"

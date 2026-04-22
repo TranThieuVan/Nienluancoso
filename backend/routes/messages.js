@@ -16,9 +16,9 @@ router.put('/:conversationId/toggle-bot', verifyToken, messageController.toggleB
 router.get('/admin/all', verifyToken, verifyStaff, messageController.getAllConversations);
 
 // 🔵 Đếm số tin nhắn chưa đọc - Cũng cần verifyStaff cho Navbar Admin/Staff
-router.get('/unread/count', verifyToken, verifyStaff, messageController.getUnreadCount);
-
+router.get('/unread/count', verifyToken, messageController.getUnreadCount);
+router.get('/admin/unread/count', verifyToken, verifyStaff, messageController.getAdminUnreadCount);
 // 🔵 Đánh dấu là đã đọc
-router.put('/read/:conversationId', verifyToken, verifyStaff, messageController.markMessagesAsRead);
+router.put('/read/:conversationId', verifyToken, messageController.markMessagesAsRead);
 router.delete('/admin/clear-all', verifyToken, verifyAdmin, messageController.deleteAllConversations);
 module.exports = router;

@@ -14,7 +14,7 @@ import {
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faChartPie, faUsers, faFileInvoice, faClipboardCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faCircleXmark, faBolt,
     faMedal, faCrown, faGem, faCircleCheck, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,
-    faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus, faChevronRight,
+    faAngleLeft, faAngleRight, faChartLine, faStar as fasStar, faTruck, faShieldHalved, faMinus, faChevronRight, faStarHalfAlt,
     faMapMarkerAlt, faPhoneAlt, faQrcode, faMoneyBillWave, faTicketAlt, faBullhorn, faPlus, faChevronDown, faBox, faArrowRightFromBracket,
     faPhone
 } from '@fortawesome/free-solid-svg-icons'
@@ -33,7 +33,7 @@ import { faFacebookF, faInstagram, faXTwitter } from '@fortawesome/free-brands-s
 // Khởi tạo thư viện
 library.add(
     // Solid Icons
-    faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear,
+    faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear, faStarHalfAlt,
     faEllipsisV, faPen, faBoxOpen, faUser, faMagnifyingGlass, faXmark, faRotateLeft, faCircleCheck, faFileInvoice, faClipboardCheck,
     faPaperPlane, faEnvelope, faLock, faRightFromBracket, faEdit, faTrash, faEllipsis, faChartPie, faUsers, faBolt,
     faMedal, faCrown, faGem, faChevronUp, faArrowLeft, faBan, faClipboardList, faCircleInfo, faTriangleExclamation,

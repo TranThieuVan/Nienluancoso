@@ -49,7 +49,7 @@ const tools = [
             name: 'search_books',
             description:
                 'Tìm kiếm sách TẤT CẢ TRONG MỘT. ' +
-                'Dùng khi khách hỏi tên sách, tác giả, thể loại, HOẶC mô tả cốt truyện (VD: "siêu anh hùng", "tình yêu"). ' +
+                'Dùng khi khách hỏi tên sách, tác giả, thể loại, nhà xuất bản (NXB), HOẶC mô tả cốt truyện (VD: "siêu anh hùng", "tình yêu"). ' +
                 'Tool này đã tích hợp sẵn cả tìm kiếm chính xác và tìm kiếm mờ. ' +
                 'LƯU Ý: Nếu khách hỏi sách sale/khuyến mãi → truyền "sale" vào query.',
             parameters: {
@@ -67,7 +67,7 @@ const tools = [
             name: 'get_books_by_price',
             description:
                 'Lấy sách rẻ nhất HOẶC đắt nhất. ' +
-                'Có thể lọc theo thể loại nếu khách chỉ định (VD: "rẻ nhất thể loại tình cảm", "đắt nhất truyện kinh dị"). ' +
+                'Có thể lọc theo thể loại HOẶC nhà xuất bản (NXB) nếu khách chỉ định (VD: "rẻ nhất thể loại tình cảm", "đắt nhất truyện kinh dị"). ' +
                 'Truyền genre là từ khóa thể loại của khách — không cần chính xác 100%, hệ thống tự match mờ.',
             parameters: {
                 type: 'object',
@@ -79,6 +79,10 @@ const tools = [
                         type: 'string',
                         description: 'Thể loại khách muốn lọc. Truyền nguyên từ khóa của khách, VD: "tình cảm", "kinh dị", "viễn tưởng". Bỏ qua nếu khách không đề cập thể loại.'
                     },
+                    publisher: { // ✅ BỔ SUNG THÊM THAM SỐ NÀY
+                        type: 'string',
+                        description: 'Nhà xuất bản khách muốn lọc (VD: "nxb trẻ", "kim đồng"). Bỏ qua nếu không đề cập.'
+                    }
                 },
                 required: ['price_type', 'sort'],
             },
@@ -111,6 +115,7 @@ const executeSearchBooks = async (query) => {
     try {
         if (!query?.trim()) return JSON.stringify({ message: 'Từ khóa tìm kiếm trống.' });
         const original = query.trim();
+        const normalizedQuery = original.replace(/nhà xuất bản|nha xuat ban/gi, 'nxb');
         const noAccents = removeAccents(original);
         const isSaleQuery = ['sale', 'giam gia', 'khuyen mai', 'uu dai'].some(kw => noAccents.toLowerCase().includes(kw));
 
@@ -134,7 +139,8 @@ const executeSearchBooks = async (query) => {
                 $or: [
                     { title: { $regex: kw, $options: 'i' } },
                     { author: { $regex: kw, $options: 'i' } },
-                    { genre: { $regex: kw, $options: 'i' } }
+                    { genre: { $regex: kw, $options: 'i' } },
+                    { publisher: { $regex: kw, $options: 'i' } } // ✅ BỔ SUNG TRƯỜNG NXB VÀO ĐÂY
                 ]
             }));
 
@@ -159,54 +165,75 @@ const executeSearchBooks = async (query) => {
     } catch (error) { return JSON.stringify({ message: 'Lỗi hệ thống khi tìm sách.' }); }
 };
 
-const executeGetBooksByPrice = async (price_type, sort = 'asc', limit = 1, genre = null) => {
+const executeGetBooksByPrice = async (price_type, sort = 'asc', limit = 1, genre = null, publisher = null) => {
     try {
         const sortOrder = sort === 'desc' ? -1 : 1;
+        const baseFilter = { stock: { $gt: 0 } };
 
-        // ✅ Dùng collation strength:1 thay vì removeAccents
-        // → MongoDB tự bỏ dấu + hoa/thường khi so sánh
-        // → "tinh cam" / "tình cảm" / "TINH CAM" đều khớp "Tình cảm/Lãng mạn"
-        const buildGenreFilter = (genre) => {
-            if (!genre?.trim()) return {};
-            return { genre: { $regex: genre.trim(), $options: 'i' } };
+        // 1. Xử lý Thể loại (Genre)
+        if (genre?.trim()) {
+            baseFilter.genre = { $regex: genre.trim(), $options: 'i' };
+        }
+
+        // 2. Xử lý Nhà xuất bản (Publisher) kèm trick chuẩn hóa
+        if (publisher?.trim()) {
+            const normalizedPublisher = publisher.replace(/nhà xuất bản|nha xuat ban/gi, 'nxb').trim();
+            baseFilter.publisher = { $regex: normalizedPublisher, $options: 'i' };
+        }
+
+        // 3. Bật Collation nếu có bất kỳ điều kiện lọc chữ nào (để tìm không dấu)
+        const collation = (genre?.trim() || publisher?.trim()) ? { locale: 'vi', strength: 1 } : undefined;
+
+        // Hàm tạo câu thông báo lỗi tự nhiên cho AI
+        const getErrorMessage = (isDiscounted) => {
+            let msg = isDiscounted ? 'Hiện không có sách ' : 'Không tìm thấy sách ';
+            if (genre && publisher) msg += `thể loại "${genre}" của "${publisher}"`;
+            else if (genre) msg += `thể loại "${genre}"`;
+            else if (publisher) msg += `thuộc "${publisher}"`;
+            else msg += 'nào';
+
+            msg += isDiscounted ? ' đang khuyến mãi.' : '.';
+            return msg;
         };
-
-        const genreFilter = buildGenreFilter(genre);
-        const baseFilter = { stock: { $gt: 0 }, ...genreFilter };
-        const collation = genre?.trim() ? { locale: 'vi', strength: 1 } : undefined;
 
         let books;
         if (price_type === 'discounted') {
-            const allBooks = await Book.find(baseFilter).collation(collation || { locale: 'vi', strength: 1 }).lean();
+            // Luồng 1: Tìm sách đang Khuyến Mãi
+            const query = Book.find(baseFilter);
+            if (collation) query.collation(collation);
+            const allBooks = await query.lean();
+
             const priced = PricingService.applyPricing(allBooks);
             books = priced
                 .filter(b => b.discountedPrice !== null)
                 .sort((a, b) => sortOrder === 1 ? a.discountedPrice - b.discountedPrice : b.discountedPrice - a.discountedPrice)
                 .slice(0, limit);
-            if (books.length === 0) return JSON.stringify({
-                message: genre
-                    ? `Hiện không có sách thể loại "${genre}" nào đang khuyến mãi.`
-                    : 'Hiện không có sách nào đang được khuyến mãi.'
-            });
+
+            if (books.length === 0) return JSON.stringify({ message: getErrorMessage(true) });
         } else {
-            const rawBooks = await Book.find(baseFilter).collation(collation || { locale: 'vi', strength: 1 }).sort({ price: sortOrder }).limit(limit).lean();
-            if (rawBooks.length === 0) return JSON.stringify({
-                message: genre
-                    ? `Không tìm thấy sách nào thuộc thể loại "${genre}".`
-                    : 'Không tìm thấy sách nào.'
-            });
+            // Luồng 2: Tìm sách giá thường (Mắc nhất / Rẻ nhất)
+            const query = Book.find(baseFilter).sort({ price: sortOrder }).limit(limit);
+            if (collation) query.collation(collation);
+            const rawBooks = await query.lean();
+
+            if (rawBooks.length === 0) return JSON.stringify({ message: getErrorMessage(false) });
             books = PricingService.applyPricing(rawBooks);
         }
 
+        // Trả về cho AI (Thêm trường publisher để AI có thông tin chém gió với khách)
         return JSON.stringify(books.map((b) => ({
             title: b.title,
             author: b.author,
             genre: b.genre,
+            publisher: b.publisher,
             price: b.price,
             discountedPrice: b.discountedPrice,
             stock: b.stock
         })));
-    } catch (error) { return JSON.stringify({ message: 'Lỗi hệ thống.' }); }
+    } catch (error) {
+        console.error("Lỗi executeGetBooksByPrice:", error);
+        return JSON.stringify({ message: 'Lỗi hệ thống khi lọc sách theo giá.' });
+    }
 };
 
 const executeGetPromotions = async () => {
@@ -475,7 +502,7 @@ exports.sendMessage = async (req, res) => {
                             dbResult = await executeSearchBooks(JSON.parse(toolCall.function.arguments).query);
                         } else if (toolCall.function.name === 'get_books_by_price') {
                             const args = JSON.parse(toolCall.function.arguments);
-                            dbResult = await executeGetBooksByPrice(args.price_type, args.sort, args.limit, args.genre);
+                            dbResult = await executeGetBooksByPrice(args.price_type, args.sort, args.limit, args.genre, args.publisher);
                         } else if (toolCall.function.name === 'get_promotions') {
                             dbResult = await executeGetPromotions();
                         } else if (toolCall.function.name === 'get_recent_orders') {
@@ -545,6 +572,20 @@ exports.getUnreadCount = async (req, res) => {
         const count = await Message.countDocuments({ conversationId: { $in: conversationIds }, sender: { $ne: userId }, readBy: { $ne: userId } });
         res.json({ unreadCount: count });
     } catch (err) { res.status(500).json({ message: 'Lỗi server', error: err.message }); }
+};
+
+exports.getAdminUnreadCount = async (req, res) => {
+    try {
+        const adminId = req.user.id;
+        // Quét TOÀN BỘ hệ thống: Đếm các tin nhắn không phải do Admin này gửi và Admin này chưa đọc
+        const count = await Message.countDocuments({
+            sender: { $ne: adminId },
+            readBy: { $ne: adminId }
+        });
+        res.json({ unreadCount: count });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi server', error: err.message });
+    }
 };
 
 exports.markMessagesAsRead = async (req, res) => {

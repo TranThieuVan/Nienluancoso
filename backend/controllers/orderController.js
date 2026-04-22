@@ -384,3 +384,20 @@ exports.deleteFailedOrder = async (req, res) => {
         res.status(500).json({ message: 'Lỗi server' });
     }
 };
+
+exports.checkBookPurchased = async (req, res) => {
+    try {
+        const userId = req.user._id || req.user.id;
+        const { bookId } = req.params;
+
+        const order = await Order.findOne({
+            user: userId,
+            status: 'completed',
+            'items.book': bookId
+        });
+
+        res.json({ hasPurchased: !!order });
+    } catch (err) {
+        res.status(500).json({ msg: 'Lỗi server' });
+    }
+};

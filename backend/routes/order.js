@@ -17,6 +17,7 @@ router.put('/:id/cancel', auth.verifyToken, orderController.cancelOrder)
 router.put('/:id/request-return', auth.verifyToken, orderController.requestReturn);
 router.put('/:id/submit-tracking', auth.verifyToken, orderController.submitReturnTracking);
 router.put('/:id/pay', orderController.updateOrderToPaid);
+router.get('/check-purchased/:bookId', auth.verifyToken, orderController.checkBookPurchased);
 
 // Xóa vĩnh viễn đơn hàng (Dọn dẹp rác khi hủy thanh toán VNPAY hoặc đóng mã QR)
 router.delete('/:id/hard-delete', auth.verifyToken, orderController.deleteFailedOrder);

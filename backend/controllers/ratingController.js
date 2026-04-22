@@ -1,8 +1,8 @@
-// controllers/ratingController.js
 const Rating = require('../models/Rating');
 const Book = require('../models/Book');
+const Order = require('../models/Order');
 
-// POST hoặc cập nhật rating
+// POST hoặc cập nhật rating (phải có đơn hàng completed)
 exports.rateBook = async (req, res) => {
     try {
         const { bookId, value } = req.body;
@@ -10,6 +10,19 @@ exports.rateBook = async (req, res) => {
 
         if (value < 1 || value > 5) {
             return res.status(400).json({ message: 'Rating phải từ 1 đến 5' });
+        }
+
+        // Nếu chưa có rating trước đó → bắt buộc phải có đơn hàng completed
+        const existingRating = await Rating.findOne({ bookId, userId });
+        if (!existingRating) {
+            const purchasedOrder = await Order.findOne({
+                user: userId,
+                status: 'completed',
+                'items.book': bookId
+            });
+            if (!purchasedOrder) {
+                return res.status(403).json({ message: 'Bạn cần mua và nhận sách này trước khi đánh giá.' });
+            }
         }
 
         const rating = await Rating.findOneAndUpdate(
@@ -51,8 +64,6 @@ exports.getMyRating = async (req, res) => {
     }
 };
 
-// controllers/ratingController.js
-
 exports.getTopRatedBooks = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 10;
@@ -65,23 +76,17 @@ exports.getTopRatedBooks = async (req, res) => {
                     totalRatings: { $sum: 1 }
                 }
             },
-            {
-                $sort: { avgRating: -1, totalRatings: -1 }
-            },
-            {
-                $limit: limit
-            },
+            { $sort: { avgRating: -1, totalRatings: -1 } },
+            { $limit: limit },
             {
                 $lookup: {
-                    from: "books", // tên collection trong MongoDB, không phải tên model
+                    from: "books",
                     localField: "_id",
                     foreignField: "_id",
                     as: "book"
                 }
             },
-            {
-                $unwind: "$book"
-            },
+            { $unwind: "$book" },
             {
                 $project: {
                     _id: "$book._id",
@@ -103,5 +108,3 @@ exports.getTopRatedBooks = async (req, res) => {
         res.status(500).json({ message: "Lỗi khi lấy sách được đánh giá cao" });
     }
 };
-
-

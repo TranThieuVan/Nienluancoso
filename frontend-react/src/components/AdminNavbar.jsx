@@ -37,16 +37,17 @@ const AdminNavbar = () => {
                 })
                 .catch(err => console.error("Lỗi fetch đơn hàng:", err.response?.status));
 
-            // 2. Lấy số lượng tin nhắn (Cần verifyStaff ở Backend mới hết lỗi 403)
-            axios.get('/api/messages/admin/all', config)
+            // 2. Lấy số lượng tin nhắn (DÙNG API ĐẾM CHUYÊN DỤNG VỪA TẠO)
+            axios.get('/api/messages/admin/unread/count', config)
                 .then(res => {
-                    const msgsArray = res.data.conversations || res.data || [];
-                    setUnreadMessagesCount(msgsArray.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0));
+                    // Nhận trực tiếp con số từ Backend, không cần reduce() nữa
+                    setUnreadMessagesCount(res.data.unreadCount || 0);
                 })
                 .catch(err => {
-                    // Nếu vẫn bị 403 thì set bằng 0 để tránh hiện lỗi đỏ console
                     if (err.response?.status === 403) {
                         setUnreadMessagesCount(0);
+                    } else {
+                        console.error("Lỗi đếm tin nhắn:", err);
                     }
                 });
 

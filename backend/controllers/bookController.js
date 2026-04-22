@@ -1,6 +1,7 @@
 const Book = require('../models/Book');
 const Order = require('../models/Order');
 const Promotion = require('../models/Promotion');
+const Rating = require('../models/Rating'); // Bắt buộc thêm dòng này
 const PricingService = require('../services/pricingService');
 const OpenAI = require("openai");
 const fs = require("fs");
@@ -290,96 +291,102 @@ exports.getRecommendations = async (req, res) => {
 
         // 2. Xử lý tính toán nếu không có Cache
         if (allSorted.length === 0) {
-            const currentBook = await Book.findById(bookId).select('+embedding');
+            const currentBook = await Book.findById(bookId).select('+embedding').lean();
 
             if (!currentBook || !currentBook.embedding?.length) {
                 return res.json({ books: [], hasMore: false });
             }
 
-            // ⚡ Candidate Pre-filtering (Lọc ứng viên sơ bộ)
-            const [sameGenreBooks, otherBooks] = await Promise.all([
-                // LUỒNG 1: Cùng thể loại
-                Book.find({
-                    _id: { $ne: currentBook._id },
-                    genre: currentBook.genre,
-                    stock: { $gt: 0 } // Loại sách hết hàng
-                })
-                    .sort({ sold: -1, createdAt: -1 })
-                    .limit(100)
-                    // ĐÃ XÓA 'rating', CHỈ GIỮ LẠI CÁC TRƯỜNG SỐ LIỆU TỔNG HỢP CẦN THIẾT
-                    .select('+embedding author publisher price stock averageRating reviewCount')
-                    .lean(),
+            // ⚡ Candidate Pre-filtering (Lọc ứng viên sơ bộ siêu sạch)
+            const candidates = await Book.find({
+                _id: { $ne: currentBook._id },         // 1. Bỏ sách đang xem
+                stock: { $gt: 0 },                     // 2. Bỏ sách hết hàng
+                embedding: { $exists: true, $ne: [] }, // 3. Bỏ sách chưa có vector AI
 
-                // LUỒNG 2: Khác thể loại
-                Book.find({
-                    _id: { $ne: currentBook._id },
-                    genre: { $ne: currentBook.genre },
-                    stock: { $gt: 0 }
-                })
-                    .sort({ sold: -1, createdAt: -1 })
-                    .limit(50)
-                    .select('+embedding author publisher price stock averageRating reviewCount')
-                    .lean()
-            ]);
+                // 4. Bỏ sách "Khuyết tật"
+                price: { $gt: 0 },
+                image: { $exists: true, $type: 'string', $ne: '' },
+                author: { $exists: true, $type: 'string', $ne: '' },
 
-            // 🧹 Deduplicate
-            const map = new Map();
-            [...sameGenreBooks, ...otherBooks].forEach(b => {
-                map.set(b._id.toString(), b);
-            });
-            const candidates = Array.from(map.values());
+                // 6. Bỏ sách bị tẩy chay (Chỉ chạy được nếu Schema Book có lưu ratingCount/avgRating)
+                $nor: [
+                    { ratingCount: { $gte: 10 }, avgRating: { $lte: 1 } }
+                ]
+            })
+                .select('title image author publisher price stock genre sold createdAt importPrice +embedding')
+                .lean(); // Vì Book.find() không trả về phần tử trùng, không cần dùng Map để deduplicate nữa.
 
             // 🧠 Dynamic threshold (Linh hoạt theo số lượng ứng viên thực tế)
             const threshold = candidates.length < 50 ? 0.2 : 0.25;
 
+            // 🌟 LẤY DỮ LIỆU RATING TỪ COLLECTION MỚI
+            const candidateIds = candidates.map(b => b._id);
+            const ratingsData = await Rating.aggregate([
+                { $match: { bookId: { $in: candidateIds } } },
+                { $group: { _id: "$bookId", averageRating: { $avg: "$value" }, reviewCount: { $sum: 1 } } }
+            ]);
+
+            // Map lại dữ liệu để truy xuất nhanh O(1)
+            const ratingMap = {};
+            ratingsData.forEach(r => {
+                ratingMap[r._id.toString()] = { avg: r.averageRating, count: r.reviewCount };
+            });
+
             // ⚡ HỆ THỐNG GỢI Ý LAI (WEIGHTED HYBRID SCORING)
             const scoredBooks = candidates.map(book => {
-                if (!book.embedding?.length) return { book, finalScore: 0 };
+                if (!book.embedding?.length) return { book, score: 0 };
 
                 // --- 1. TÍNH ĐIỂM AI (COSINE SIMILARITY) ---
-                // Giá trị trả về đã nằm trong khoảng ~[0, 1]
                 const aiScore = cosineSimilarity(currentBook.embedding, book.embedding);
 
-                // --- 2. TÍNH ĐIỂM KINH DOANH (BUSINESS RULES) ---
-                // Chuẩn hóa Business Score về thang điểm [0, 1]
+                // --- 2. TÍNH ĐIỂM KINH DOANH (BUSINESS RULES XỊN XÒ) ---
                 let bizScoreRaw = 0;
-                if (book.author === currentBook.author) bizScoreRaw += 0.5; // Cùng tác giả (Ưu tiên mạnh)
-                if (book.publisher === currentBook.publisher) bizScoreRaw += 0.3; // Cùng NXB
-                if (book.genre === currentBook.genre) bizScoreRaw += 0.2; // Cùng thể loại
-                if (Math.abs(book.price - currentBook.price) < currentBook.price * 0.3) bizScoreRaw += 0.2; // Giá tương đồng
 
-                // Penalty: Nếu tồn kho =0, đánh tụt điểm kinh doanh
+                // [CỘNG] Cùng hệ sinh thái
+                if (book.author === currentBook.author) bizScoreRaw += 0.4;
+                if (book.publisher === currentBook.publisher) bizScoreRaw += 0.2;
+                if (book.genre === currentBook.genre) bizScoreRaw += 0.2;
+
+                // [CỘNG] Series Logic
+                const currentPrefix = currentBook.title.split(' ').slice(0, 3).join(' ').toLowerCase();
+                const candidatePrefix = book.title.split(' ').slice(0, 3).join(' ').toLowerCase();
+                if (currentPrefix === candidatePrefix) bizScoreRaw += 0.5;
+
+                // [CỘNG] High Margin
+                const costPrice = book.importPrice || (book.price * 0.6);
+                if ((book.price - costPrice) / book.price >= 0.4) bizScoreRaw += 0.3;
+
+                // [CỘNG] Xả kho
+                const daysInStore = (Date.now() - new Date(book.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+                if (daysInStore > 180 && book.stock > 10) bizScoreRaw += 0.3;
+
+                // [CỘNG] Trending
+                if (book.sold > 0) bizScoreRaw += Math.min((book.sold / 10) * 0.05, 0.3);
+
+                // [TRỪ] Low Stock
                 if (book.stock < 3) bizScoreRaw -= 0.5;
 
-                // Đảm bảo BizScore luôn nằm trong mốc 0 - 1
+                // [TRỪ] Độ lệch giá cao
+                const priceDiffRatio = Math.abs(book.price - currentBook.price) / currentBook.price;
+                if (priceDiffRatio > 0.5) bizScoreRaw -= 0.3;
+
                 const businessScore = Math.max(0, Math.min(1, bizScoreRaw));
 
-                // --- 3. TÍNH ĐIỂM CỘNG ĐỒNG (RATING) ---
+                // --- 3. TÍNH ĐIỂM CỘNG ĐỒNG ---
+                const bookRatingInfo = ratingMap[book._id.toString()] || { avg: 0, count: 0 };
+                const ratingScore = bookRatingInfo.avg / 5;
 
-                // --- 4. TỔNG HỢP & GIẢI QUYẾT BÀI TOÁN KHỞI ĐỘNG LẠNH (COLD START) ---
-                const reviewCount = book.reviewCount || 0;
-                const currentRating = book.averageRating || 0;
-                const ratingScore = currentRating / 5;
+                // --- 4. TỔNG HỢP & GIẢI QUYẾT COLD START ---
                 let finalScore = 0;
-
-                // Nếu sách CHƯA có lượt đánh giá nào (Sách Mới) -> Dồn trọng số sang AI
-                if (reviewCount < 5) {
-                    const W_AI_NEW = 0.7;
-                    const W_BIZ_NEW = 0.3;
-                    finalScore = (aiScore * W_AI_NEW) + (businessScore * W_BIZ_NEW);
-                }
-                // Nếu sách ĐÃ có đánh giá -> Dùng tỷ lệ chuẩn (0.5 - 0.3 - 0.2)
-                else {
-                    const W_AI = 0.5;
-                    const W_BIZ = 0.3;
-                    const W_RATE = 0.2;
-                    finalScore = (aiScore * W_AI) + (businessScore * W_BIZ) + (ratingScore * W_RATE);
+                if (bookRatingInfo.count < 5) {
+                    finalScore = (aiScore * 0.7) + (businessScore * 0.3);
+                } else {
+                    finalScore = (aiScore * 0.5) + (businessScore * 0.3) + (ratingScore * 0.2);
                 }
 
-                // Gắn thêm các điểm số nhỏ vào object để sau này dễ debug/log
                 return {
                     book,
-                    score: finalScore, // Chữ 'score' này dùng để .sort() bên dưới
+                    score: finalScore,
                     _debug: { aiScore, businessScore, ratingScore }
                 };
             });
@@ -390,9 +397,8 @@ exports.getRecommendations = async (req, res) => {
                 .sort((a, b) => b.score - a.score)
                 .slice(0, MAX_CACHE)
                 .map(item => {
-                    const obj = item.book.toObject();
-                    delete obj.embedding; // Xóa vector nặng trước khi nén vào cache
-                    // console.log(`[Debug Score] ${obj.title}: AI(${item._debug.aiScore.toFixed(2)}) - Biz(${item._debug.businessScore.toFixed(2)}) - Rate(${item._debug.ratingScore.toFixed(2)}) => Total: ${item.score.toFixed(3)}`);
+                    const obj = { ...item.book };
+                    delete obj.embedding; // Xóa vector nặng
                     return obj;
                 });
 
@@ -402,7 +408,7 @@ exports.getRecommendations = async (req, res) => {
                     .sort((a, b) => b.score - a.score)
                     .slice(0, 10)
                     .map(item => {
-                        const obj = item.book.toObject();
+                        const obj = { ...item.book };
                         delete obj.embedding;
                         return obj;
                     });
