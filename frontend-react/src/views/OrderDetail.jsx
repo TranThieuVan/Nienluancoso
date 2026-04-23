@@ -23,12 +23,15 @@ const OrderDetail = () => {
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const token = localStorage.getItem('token');
     const formatPrice = (n) => (n || 0).toLocaleString('vi-VN') + '₫';
     const formatAddress = (a) => `${a.street}, ${a.ward || ''}, ${a.district}, ${a.city}`;
 
-    const loadOrder = async () => {
+    const loadOrder = async (isRefresh = false) => {
+        if (isRefresh) setIsRefreshing(true);
+        else setIsLoading(true);
         try {
             const { data } = await axios.get(`/api/orders/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -39,6 +42,7 @@ const OrderDetail = () => {
             navigate('/orders');
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
@@ -257,9 +261,19 @@ const OrderDetail = () => {
             <div className="bg-white border-b border-gray-100">
                 <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
                     <button onClick={() => navigate('/orders')} className="text-lg font-bold uppercase tracking-widest text-stone-400 hover:text-black transition-colors flex items-center gap-2"><FontAwesomeIcon icon={['fas', 'arrow-left']} /> Đơn hàng của tôi</button>
-                    <div className="text-right">
-                        <span className="text-[15px] text-stone-400 uppercase tracking-[0.3em] font-bold block">Mã đơn hàng</span>
-                        <span className="font-mono font-bold text-black text-lg">#{order._id.slice(-6).toUpperCase()}</span>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => loadOrder(true)}
+                            disabled={isRefreshing}
+                            title="Làm mới"
+                            className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-400 hover:text-black hover:border-black transition-all disabled:opacity-50"
+                        >
+                            <FontAwesomeIcon icon={['fas', 'arrows-rotate']} className={isRefreshing ? 'animate-spin' : ''} />
+                        </button>
+                        <div className="text-right">
+                            <span className="text-[15px] text-stone-400 uppercase tracking-[0.3em] font-bold block">Mã đơn hàng</span>
+                            <span className="font-mono font-bold text-black text-lg">#{order._id.slice(-6).toUpperCase()}</span>
+                        </div>
                     </div>
                 </div>
             </div>

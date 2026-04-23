@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { FaShoppingCart, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaMoneyBillWave, FaExclamationTriangle, FaClock, FaQrcode, FaSave, FaTruck, FaBan, FaCheck } from 'react-icons/fa';
+import { FaShoppingCart, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaMoneyBillWave, FaExclamationTriangle, FaClock, FaQrcode, FaSave, FaTruck, FaBan, FaCheck, FaSyncAlt } from 'react-icons/fa';
 
 const AdminOrderDetail = () => {
   const { id } = useParams();
@@ -12,22 +12,27 @@ const AdminOrderDetail = () => {
   const [adminNote, setAdminNote] = useState('');
   const [callAttempts, setCallAttempts] = useState(0);
   const [largeMediaUrl, setLargeMediaUrl] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchOrder = async (isRefresh = false) => {
+    if (isRefresh) setIsRefreshing(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const { data } = await axios.get(`/api/admin/orders/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOrder(data);
+      setPreviousStatus(data.status);
+      setAdminNote(data.adminNote || '');
+      setCallAttempts(data.callAttempts || 0);
+    } catch (err) {
+      Swal.fire('Lỗi', 'Không thể tải thông tin đơn hàng', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const token = localStorage.getItem('adminToken');
-        const { data } = await axios.get(`/api/admin/orders/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setOrder(data);
-        setPreviousStatus(data.status);
-        setAdminNote(data.adminNote || '');
-        setCallAttempts(data.callAttempts || 0);
-      } catch (err) {
-        Swal.fire('Lỗi', 'Không thể tải thông tin đơn hàng', 'error');
-      }
-    };
     fetchOrder();
   }, [id]);
 
@@ -221,7 +226,18 @@ const AdminOrderDetail = () => {
     <div className="min-h-screen bg-gray-50 p-6 relative">
       <div className="max-w-5xl mx-auto">
         <button onClick={() => navigate('/admin/orders')} className="mb-4 text-sm text-gray-500 hover:text-black font-medium">← Quay lại danh sách</button>
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Chi tiết đơn hàng #{order._id?.slice(-6).toUpperCase()}</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Chi tiết đơn hàng #{order._id?.slice(-6).toUpperCase()}</h1>
+          <button
+            onClick={() => fetchOrder(true)}
+            disabled={isRefreshing}
+            title="Làm mới"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-600 hover:border-indigo-400 hover:text-indigo-600 transition-all disabled:opacity-50"
+          >
+            <FaSyncAlt className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Đang tải...' : 'Làm mới'}
+          </button>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-6">
           <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-6">

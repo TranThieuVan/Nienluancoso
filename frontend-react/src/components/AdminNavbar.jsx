@@ -60,14 +60,24 @@ const AdminNavbar = () => {
 
     useEffect(() => {
         const socket = io('http://localhost:5000');
-        socket.on('new_order_admin', () => fetchNotificationCounts());
-        socket.on('order_updated', () => fetchNotificationCounts());
-        socket.on('new_message_admin', (data) => {
-            if (data && data.senderRole === 'user') fetchNotificationCounts();
+
+        // ✅ Đơn hàng MỚI → tăng trực tiếp, không cần gọi lại API
+        socket.on('new_order_admin', () => {
+            setPendingOrdersCount(prev => prev + 1);
         });
+
+        // ✅ Đơn hàng CẬP NHẬT (vd: pending → confirmed) → fetch lại để đồng bộ số chính xác
+        socket.on('order_updated', () => fetchNotificationCounts());
+
+        // ✅ Tin nhắn mới từ user → tăng trực tiếp (giữ nguyên)
+        socket.on('new_message_admin', (data) => {
+            if (data && data.senderRole === 'user') {
+                setUnreadMessagesCount(prev => prev + 1);
+            }
+        });
+
         return () => socket.disconnect();
     }, []);
-
     return (
         <aside className="fixed top-0 left-0 w-64 h-screen bg-white text-black flex flex-col justify-between shadow-md transition duration-200 z-50">
             <div className='select-none overflow-y-auto'>

@@ -278,7 +278,6 @@ const BookList = () => {
                   className="text-[11px] font-bold border border-gray-200 px-4 py-2 bg-white text-stone-600 outline-none focus:border-black transition-all cursor-pointer uppercase tracking-wider"
                 >
                   <option value="title">Tên A → Z</option>
-                  <option value="sold">Bán chạy nhất</option>
                   <option value="priceHigh">Giá Cao → Thấp</option>
                   <option value="priceLow">Giá Thấp → Cao</option>
                 </select>
