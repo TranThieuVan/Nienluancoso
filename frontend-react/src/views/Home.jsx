@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import bannerImg from '../assets/image/banner3.jpg';
 import FlashSaleSlider from '../components/FlashSaleSlider';
 import SplitText from '../components/SplitText';
-
+import { apiUrl } from '../config/api';
 // Lazy load heavy components
 const BookSlider = lazy(() => import('../components/BookSlider'));
 const TopSellingBooks = lazy(() => import('../components/TopSellingBooks'));
@@ -28,9 +28,9 @@ const Home = () => {
   useEffect(() => {
     const fetchAll = async () => {
       const [topRes, allRes, promoRes] = await Promise.allSettled([
-        axios.get('/api/books/top-selling'),
-        axios.get('/api/books?limit=1000'),
-        axios.get('/api/promotions'),
+        axios.get(apiUrl('/api/books/top-selling')),
+        axios.get(apiUrl('/api/books?limit=1000')),
+        axios.get(apiUrl('/api/promotions')),
       ]);
 
       if (topRes.status === 'fulfilled') setTopBooks(topRes.value.data);

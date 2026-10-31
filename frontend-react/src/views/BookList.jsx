@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Pagination from '../components/Pagination';
 import BookCard from '../components/BookCard';
+import { apiUrl } from '../config/api';
 
 const BookList = () => {
   const navigate = useNavigate();
@@ -45,11 +46,11 @@ const BookList = () => {
     try {
       let response;
       if (sortBy === 'rating') {
-        response = await axios.get('/api/ratings/top-rated');
+        response = await axios.get(apiUrl('/api/ratings/top-rated'));
       } else if (sortBy === 'sold') {
-        response = await axios.get('/api/books/top-selling');
+        response = await axios.get(apiUrl('/api/books/top-selling'));
       } else {
-        response = await axios.get('/api/books?limit=1000');
+        response = await axios.get(apiUrl('/api/books?limit=1000'));
       }
       setBooks(response.data.books || response.data);
     } catch (err) {
@@ -58,23 +59,21 @@ const BookList = () => {
       setIsLoading(false);
     }
   };
-
   const fetchPromotions = async () => {
     try {
-      const res = await axios.get('/api/promotions');
+      const res = await axios.get(apiUrl('/api/promotions'));
       const active = res.data.filter(p => p.isActive && new Date(p.endDate) >= Date.now());
       setPromotions(active);
     } catch (err) {
       console.error('Lỗi tải khuyến mãi:', err);
     }
   };
-
   useEffect(() => {
     const init = async () => {
       await Promise.all([fetchBooks(), fetchPromotions()]);
 
       try {
-        const genreRes = await axios.get('/api/books/genres');
+        const genreRes = await axios.get(apiUrl('/api/books/genres'));
         setGenres(genreRes.data);
       } catch (err) {
         console.error(err);
@@ -82,7 +81,7 @@ const BookList = () => {
 
       // ✅ TẢI DANH SÁCH NHÀ XUẤT BẢN
       try {
-        const pubRes = await axios.get('/api/books/publishers');
+        const pubRes = await axios.get(apiUrl('/api/books/publishers'));
         setPublishers(pubRes.data);
       } catch (err) {
         setPublishers([
