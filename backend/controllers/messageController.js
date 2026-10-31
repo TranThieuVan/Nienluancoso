@@ -355,6 +355,7 @@ const cosineSimilarity = (vecA, vecB) => {
     return (!normA || !normB) ? 0 : dot / (Math.sqrt(normA) * Math.sqrt(normB));
 };
 
+// Tìm kiếm mờ
 const executeSemanticSearch = async (description) => {
     try {
         if (!description?.trim()) return JSON.stringify({ message: 'Mô tả tìm kiếm trống.' });
@@ -370,8 +371,8 @@ const executeSemanticSearch = async (description) => {
 
         if (booksWithEmbedding.length === 0) return JSON.stringify({ message: 'Chưa có dữ liệu embedding.' });
 
-        // Ngưỡng 0.22 — đủ rộng để bắt được sách liên quan gần, không trả rác
-        const SIMILARITY_THRESHOLD = 0.22;
+        // Ngưỡng 0.5 — đủ rộng để bắt được sách liên quan gần, không trả rác
+        const SIMILARITY_THRESHOLD = 0.5;
         const RECOMMEND_LIMIT = 3; // ✅ Top 3 cho use case recommend theo mô tả
         const scored = booksWithEmbedding
             .map(b => ({ ...b, score: cosineSimilarity(queryVector, b.embedding) }))
