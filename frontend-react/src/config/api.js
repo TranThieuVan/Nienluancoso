@@ -13,5 +13,6 @@ export const imageUrl = (path) => {
 
     return apiUrl(path);
 };
+console.log('API BASE URL:', API_URL);
 
 export const SOCKET_URL = API_URL || 'http://localhost:5000';
