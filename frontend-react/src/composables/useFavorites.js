@@ -1,7 +1,7 @@
 import { createContext, useState, useCallback, useContext, useEffect, createElement } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-
+import { apiUrl } from '../config/api';
 // 1. Khởi tạo Context (Đài phát thanh)
 const FavoritesContext = createContext();
 
@@ -15,13 +15,13 @@ export const FavoritesProvider = ({ children }) => {
         if (!token) return;
 
         try {
-            const res = await axios.get('/api/favorites', {
+            const res = await axios.get(apiUrl('/api/favorites'), {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             // Chỉ lưu ID để các icon trái tim so sánh cho nhanh
-            setFavorites(res.data.map(b => b._id));
-
+            const favoriteData = Array.isArray(res.data) ? res.data : [];
+            setFavorites(favoriteData.map(b => b._id));
             return res.data; // Vẫn trả về data gốc
         } catch (err) {
             console.error('Lỗi khi lấy favorites:', err);
@@ -58,8 +58,7 @@ export const FavoritesProvider = ({ children }) => {
         try {
             if (isFavorite(book._id)) {
                 // Xóa khỏi DB
-                await axios.delete(`/api/favorites/remove/${book._id}`, { headers });
-
+                await axios.delete(apiUrl(`/api/favorites/remove/${book._id}`), { headers });
                 // Xóa khỏi State
                 setFavorites((prev) => prev.filter(id => id !== book._id));
                 if (removeCallback) removeCallback(book._id);
@@ -77,8 +76,7 @@ export const FavoritesProvider = ({ children }) => {
                 });
             } else {
                 // Thêm vào DB
-                await axios.post('/api/favorites/add', { bookId: book._id }, { headers });
-
+                await axios.post(apiUrl('/api/favorites/add'), { bookId: book._id }, { headers });
                 // Thêm vào State
                 setFavorites((prev) => [...prev, book._id]);
 
