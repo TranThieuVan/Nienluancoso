@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Pagination from '../components/Pagination';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -273,11 +273,7 @@ const Orders = () => {
                         {firstItem && firstItem.book && (
                           <>
                             <img
-                              src={
-                                firstItem.book.image?.startsWith('http')
-                                  ? firstItem.book.image
-                                  : `http://localhost:5000${firstItem.book.image}`
-                              }
+                              src={getImageUrl(firstItem.book.image)}
                               alt={firstItem.book.title}
                               className="w-12 h-18 md:w-16 md:h-24 object-cover flex-shrink-0 border border-gray-100"
                             />

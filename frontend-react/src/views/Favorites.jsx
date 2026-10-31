@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCart } from '../composables/useCart';
 import { useFavorites } from '../composables/useFavorites';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const Favorites = () => {
   const navigate = useNavigate();
   const [books, setBooks] = useState([]);
@@ -72,7 +72,7 @@ const Favorites = () => {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
             {books.map((book) => {
-              const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
+              const imgSrc = getImageUrl(book.image);
               return (
                 <div
                   key={book._id}

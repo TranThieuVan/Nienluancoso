@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const Checkout = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -302,7 +302,7 @@ const Checkout = () => {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => {
-                    const imgSrc = item.book.image?.startsWith('http') ? item.book.image : `http://localhost:5000${item.book.image}`;
+                    const imgSrc = getImageUrl(item.book.image);
                     const currentPrice = item.book.discountedPrice || item.book.price;
                     return (
                       <div key={item.book._id} className="flex gap-3 items-center pb-4 border-b border-gray-50 last:border-0 last:pb-0">

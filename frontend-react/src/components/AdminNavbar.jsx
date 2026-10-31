@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-
+import { SOCKET_URL } from '../config/api';
 const AdminNavbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -59,7 +59,7 @@ const AdminNavbar = () => {
     useEffect(() => { fetchNotificationCounts(); }, [location.pathname]);
 
     useEffect(() => {
-        const socket = io('http://localhost:5000');
+        const socket = io(SOCKET_URL);
 
         // ✅ Đơn hàng MỚI → tăng trực tiếp, không cần gọi lại API
         socket.on('new_order_admin', () => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const InputSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -122,7 +122,7 @@ const InputSearch = () => {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0"
                   >
                     <img
-                      src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
+                      src={getImageUrl(book.image)}
                       alt={book.title}
                       className="w-8 h-12 object-cover flex-shrink-0"
                     />

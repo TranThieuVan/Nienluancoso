@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-
+import { apiUrl } from '../../config/api';
+import { imageUrl as getImageUrl } from '../../config/api';
 // --- CONSTANTS & HELPERS ---
-const API_URL = 'http://localhost:5000/api';
+const API_URL = apiUrl('/api');
 const INPUT_CLS = 'border border-gray-200 rounded-lg bg-white text-sm text-gray-800 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all';
 const LABEL_CLS = 'block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5';
 const formatPrice = p => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
@@ -361,7 +362,7 @@ const AdminPromotions = () => {
                         ? books.filter(b => b.discountedPrice && b.discountedPrice < b.price).map(b => (
                             <div key={b._id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow relative">
                                 <span className="absolute top-2 right-2 bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-md z-10">-{Math.round((1 - b.discountedPrice / b.price) * 100)}%</span>
-                                <div className="h-44 bg-gray-50 overflow-hidden"><img src={b.image?.startsWith('http') ? b.image : `http://localhost:5000${b.image}`} alt={b.title} className="w-full h-full object-cover" /></div>
+                                <div className="h-44 bg-gray-50 overflow-hidden"><img src={getImageUrl(b.image)} alt={b.title} className="w-full h-full object-cover" /></div>
                                 <div className="p-3">
                                     <h3 className="font-semibold text-gray-800 text-sm line-clamp-2 h-10">{b.title}</h3>
                                     <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{b.author}</p>
@@ -433,7 +434,7 @@ const AdminPromotions = () => {
                                                                 ? filteredBooks.map(b => (
                                                                     <div key={b._id} onMouseDown={e => { e.preventDefault(); setSelectedBooks([...selectedBooks, { ...b, promoDiscountType: 'percent', promoDiscountValue: 1 }]); setBookSearch(''); setShowBookDropdown(false); }}
                                                                         className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex gap-3 border-b border-gray-50 last:border-0">
-                                                                        <img src={`http://localhost:5000${b.image}`} alt="" className="w-8 h-11 object-cover rounded" />
+                                                                        <img src={getImageUrl(b.image)} alt="" className="w-8 h-11 object-cover rounded" />
                                                                         <div>
                                                                             <div className="text-xs font-semibold text-gray-800">{b.title}</div>
                                                                             <div className="text-[11px] text-gray-400 mt-0.5">{b.author} · <span className="text-blue-500 font-semibold">{formatPrice(b.price)}</span></div>
@@ -457,7 +458,7 @@ const AdminPromotions = () => {
                                                             <tbody>
                                                                 {selectedBooks.map(b => (
                                                                     <tr key={b._id} className="border-b border-gray-50 last:border-0 align-top">
-                                                                        <td className="px-3 py-2"><img src={`http://localhost:5000${b.image}`} className="w-8 h-11 object-cover rounded" alt="" /></td>
+                                                                        <td className="px-3 py-2"><img src={getImageUrl(b.image)} className="w-8 h-11 object-cover rounded" alt="" /></td>
                                                                         <td className="px-3 py-2 font-medium text-gray-700 w-48 text-sm">{b.title}</td>
                                                                         <td className="px-3 py-2 line-through text-gray-400 text-sm">{formatPrice(b.price)}</td>
                                                                         <td className="px-3 py-2 w-56">

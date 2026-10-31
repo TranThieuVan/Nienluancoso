@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../../config/api';
 
 // Danh sách thể loại gán cứng để đồng bộ với Backend
 const GENRES = [
@@ -69,7 +70,7 @@ const AddBook = () => {
       });
       if (imageFile) formData.append('image', imageFile);
 
-      await axios.post('http://localhost:5000/api/books', formData, {
+      await axios.post(apiUrl('/api/books'), formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${localStorage.getItem('adminToken')}`

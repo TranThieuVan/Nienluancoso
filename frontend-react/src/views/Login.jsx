@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import ironImg from '../assets/image/iron1.jpg';
 import logoImg from '../assets/image/logo.png';
+import { apiUrl } from '../config/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -33,7 +34,7 @@ const Login = () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await axios.post(apiUrl('/api/auth/login'), {
         email,
         password
       });

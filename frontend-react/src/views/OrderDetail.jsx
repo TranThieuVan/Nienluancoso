@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Swal from 'sweetalert2';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const stepIcons = {
     pending: ['fas', 'file-invoice'],
     confirmed: ['fas', 'clipboard-check'],
@@ -365,7 +365,7 @@ const OrderDetail = () => {
                                     return (
                                         <div key={item.book?._id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                                             <div className="flex items-center gap-4">
-                                                <img src={item.book?.image?.startsWith('http') ? item.book.image : `http://localhost:5000${item.book?.image}`} className="w-14 h-20 object-cover border border-gray-100 flex-shrink-0" alt={item.book?.title} />
+                                                <img src={getImageUrl(item.book?.image)} className="w-14 h-20 object-cover border border-gray-100 flex-shrink-0" alt={item.book?.title} />
                                                 <div><p className="text-sm md:text-base font-semibold text-black line-clamp-2 leading-snug">{item.book?.title}</p><p className="text-sm text-stone-400 mt-1">x{item.quantity}</p></div>
                                             </div>
                                             <p className="text-sm md:text-base md:text-base font-bold text-black flex-shrink-0 ml-4">{formatPrice(currentPrice * item.quantity)}</p>

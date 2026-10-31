@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { FaShoppingCart, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaMoneyBillWave, FaExclamationTriangle, FaClock, FaQrcode, FaSave, FaTruck, FaBan, FaCheck, FaSyncAlt } from 'react-icons/fa';
-
+import { imageUrl } from '../../config/api';
 const AdminOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -40,8 +40,10 @@ const AdminOrderDetail = () => {
   const formatDateTime = (iso) => new Date(iso).toLocaleString('vi-VN');
   const formatAddress = (a) => a ? `${a.street || ''}, ${a.ward || ''}, ${a.district || ''}, ${a.city || ''}` : 'N/A';
 
-  const getImageUrl = (path) => (path?.startsWith('http') || path?.startsWith('data:image') || path?.startsWith('data:video')) ? path : `http://localhost:5000${path}`;
-  const formatPrice = (num) => (num || 0).toLocaleString('vi-VN') + 'đ';
+  const getImageUrl = (path) =>
+    path?.startsWith('http') || path?.startsWith('data:')
+      ? path
+      : imageUrl(path); const formatPrice = (num) => (num || 0).toLocaleString('vi-VN') + 'đ';
 
   const translateStatus = (s) => {
     switch (s) {

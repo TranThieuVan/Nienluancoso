@@ -8,6 +8,7 @@ import logo from '../assets/image/logo.png';
 import NotificationBell from './NotificationBell';
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../composables/cartStore';
+import { apiUrl } from '../config/api';
 
 /* ─── Data ─────────────────────────────────────────── */
 const NAV_LINKS = [
@@ -40,12 +41,15 @@ const Navbar = () => {
 
     const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
     const handleLogout = () => { logout(); setDropdownOpen(false); navigate('/'); };
-    const getAvatarUrl = () => user ? `http://localhost:5000/${user.avatar || 'uploads/avatars/default-user.png'}?t=${Date.now()}` : '';
-
+    const getAvatarUrl = () => user
+        ? `${getImageUrl(user.avatar || '/uploads/avatars/default-user.png')}?t=${Date.now()}`
+        : '';
     const loadCartCount = async () => {
         if (!token) { setCartCount(0); return; }
         try {
-            const { data } = await axios.get('http://localhost:5000/api/cart', { headers: { Authorization: `Bearer ${token}` } });
+            const { data } = await axios.get(apiUrl('/api/cart'), {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setCartCount(data.items?.reduce((s, i) => s + i.quantity, 0) || 0);
         } catch { setCartCount(0); }
     };
@@ -127,7 +131,7 @@ const Navbar = () => {
                                         <div className="text-right leading-none">
                                             <p className="text-[15px] font-bold tracking-widest uppercase text-black group-hover:text-stone-500 transition-colors">{user.name || user.username}</p>
                                         </div>
-                                        <img src={getAvatarUrl()} alt="Avatar" className="w-9 h-9 rounded-full object-cover transition-opacity group-hover:opacity-80" onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }} />
+                                        <img src={getAvatarUrl()} alt="Avatar" className="w-9 h-9 rounded-full object-cover transition-opacity group-hover:opacity-80" onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }} />
                                     </button>
 
                                     <div className={`absolute right-0 top-full mt-4 w-56 bg-white z-[999] transition-all duration-300 origin-top shadow-2xl border border-gray-100 ${dropdownOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
@@ -174,7 +178,7 @@ const Navbar = () => {
                     <div className="px-6 pb-6 mb-2 border-b border-gray-100">
                         {user ? (
                             <div className="flex items-center gap-3">
-                                <img src={getAvatarUrl()} alt="Avatar" className="w-10 h-10 rounded-full object-cover" onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }} />
+                                <img src={getAvatarUrl()} alt="Avatar" className="w-10 h-10 rounded-full object-cover" onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }} />
                                 <div>
                                     <p className="text-[15px] font-bold tracking-[0.15em] uppercase text-black">{user.name || user.username}</p>
                                     <button onClick={handleLogout} className="text-[13px] text-stone-400 hover:text-red-500 mt-1 uppercase tracking-wider">Đăng xuất</button>

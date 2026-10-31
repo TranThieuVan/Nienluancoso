@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
-
+import { apiUrl } from '../../config/api';
 /* ── UTILITIES ── */
 const fmt = (n) => (n ?? 0).toLocaleString('vi-VN') + '₫';
 const fmtShort = (n) => {
@@ -16,7 +16,7 @@ const MONTH_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10
 const getImageUrl = (path, fallbackStr = 'Book') => {
   if (!path) return `https://placehold.co/40x60?text=${fallbackStr}`;
   if (path.startsWith('http')) return path;
-  return `http://localhost:5000${path.startsWith('/') ? '' : '/'}${path}`;
+  return apiUrl(path.startsWith('/') ? path : `/${path}`);
 };
 
 /* ── ATOMS ── */

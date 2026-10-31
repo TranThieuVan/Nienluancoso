@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCart } from '../composables/useCart';
 import { useFavorites } from '../composables/useFavorites';
 import { useAuthStore } from '../stores/auth';
-
+import { imageUrl as getImageUrl } from '../config/api';
 import BookSlider from '../components/BookSlider';
 import BookCard from '../components/BookCard';
 
@@ -287,8 +287,10 @@ const BookDetail = () => {
   };
 
   const getAvatarUrl = (avatar) => {
-    if (!avatar || avatar.includes('default-user.png')) return 'http://localhost:5000/uploads/avatars/default-user.png';
-    return `http://localhost:5000/${avatar}`;
+    if (!avatar || avatar.includes('default-user.png')) {
+      return getImageUrl('/uploads/avatars/default-user.png');
+    }
+    return getImageUrl(avatar.startsWith('/') ? avatar : `/${avatar}`);
   };
 
   // renderStars nhận callbacks tuỳ chỉnh để dùng chung cho display / write / edit
@@ -325,8 +327,7 @@ const BookDetail = () => {
     );
   }
 
-  const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
-
+  const imgSrc = getImageUrl(book.image);
   // Danh sách đánh giá của người khác (bỏ đánh giá của chính mình để không hiện 2 lần)
   const otherComments = comments.filter(cmt => !isCommentOwner(cmt.userId));
 
@@ -463,7 +464,7 @@ const BookDetail = () => {
                     <img
                       src={getAvatarUrl(myComment.userId?.avatar)}
                       className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
-                      onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }}
+                      onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }}
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
@@ -560,7 +561,7 @@ const BookDetail = () => {
                       <img
                         src={getAvatarUrl(cmt.userId?.avatar)}
                         className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
-                        onError={(e) => { e.target.src = 'http://localhost:5000/uploads/avatars/default-user.png'; }}
+                        onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }}
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">

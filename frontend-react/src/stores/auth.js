@@ -17,7 +17,6 @@ export const useAuthStore = create((set, get) => ({
         localStorage.setItem('token', token);
         set({ user: userData, token });
         window.dispatchEvent(new Event('storage')); // ✅ Thêm dòng này
-
     },
 
     logout: () => {
@@ -26,10 +25,12 @@ export const useAuthStore = create((set, get) => ({
         // Nếu trong dự án có dùng 'adminToken', bạn nên remove luôn ở đây cho chắc chắn:
         localStorage.removeItem('adminToken');
 
-        set({ user: null, token: null });
-        window.dispatchEvent(new Event('storage')); // ✅ Thêm dòng này
+        // ✅ Thêm dòng này để xoá lịch sử sách đã xem khi đăng xuất
+        localStorage.removeItem('recentlyViewed');
 
-    },
+        set({ user: null, token: null });
+        window.dispatchEvent(new Event('storage')); // ✅ Giữ nguyên dòng này
+    }, // ✅ SỬA Ở ĐÂY: Chỉ dùng dấu phẩy, KHÔNG đóng ngoặc nhọn } của store tại đây
 
     loadFromLocalStorage: () => {
         set({
@@ -37,8 +38,9 @@ export const useAuthStore = create((set, get) => ({
             token: localStorage.getItem('token') || null,
         });
     },
+
     setUser: (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
         set({ user: userData });
-    },
-}));
+    }
+})); // ✅ Đây mới là chỗ đóng ngoặc cuối cùng của hàm create

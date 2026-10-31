@@ -3,8 +3,8 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-const socket = io('http://localhost:5000', { transports: ['websocket'], reconnection: true });
-
+import { apiUrl, SOCKET_URL } from '../config/api';
+const socket = io(SOCKET_URL, { transports: ['websocket'], reconnection: true });
 const NotificationBell = () => {
     const [notifications, setNotifications] = useState([]);
     const navigate = useNavigate();
@@ -22,7 +22,7 @@ const NotificationBell = () => {
 
         const fetchNotifications = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/notifications');
+                const res = await axios.get(apiUrl('/api/notifications'));
                 setNotifications(res.data);
             } catch (error) { console.error("Lỗi tải thông báo", error); }
         };

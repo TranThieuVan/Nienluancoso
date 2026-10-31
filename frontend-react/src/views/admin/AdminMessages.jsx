@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-
-const SOCKET_URL = "http://localhost:5000";
+import { SOCKET_URL } from '../../config/api';
 
 const AdminMessages = () => {
   const [conversations, setConversations] = useState([]);

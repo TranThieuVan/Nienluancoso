@@ -2,8 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import ironImg from '../assets/image/iron1.jpg';
-import logoImg from '../assets/image/logo.png';
-
+import { apiUrl } from '../config/api';
 const Register = () => {
   const [form, setForm] = useState({
     name: '',
@@ -46,7 +45,7 @@ const Register = () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      await axios.post('http://localhost:5000/api/auth/register', form);
+      await axios.post(apiUrl('/api/auth/register'), form);
       alert('Đăng ký thành công! Hãy đăng nhập nhé.');
       navigate('/login');
     } catch (error) {

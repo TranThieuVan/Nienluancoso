@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Pagination from '../components/Pagination';
 import { useFavorites } from '../composables/useFavorites';
 import BookCard from '../components/BookCard'; // ✅ 1. Import BookCard vào
+import { apiUrl } from '../config/api';
 
 const ViewAllBooks = () => {
   const [searchParams] = useSearchParams();
@@ -31,15 +32,16 @@ const ViewAllBooks = () => {
     const fetchBooks = async () => {
       setIsLoading(true);
       try {
-        let apiUrl = `http://localhost:5000/api/books?page=${currentPage}&limit=${booksPerPage}`;
+        let booksApiUrl = apiUrl(`/api/books?page=${currentPage}&limit=${booksPerPage}`);
+
         if (genreFromUrl) {
-          apiUrl += `&genre=${genreFromUrl}`;
+          booksApiUrl += `&genre=${encodeURIComponent(genreFromUrl)}`;
           setTitle(genreFromUrl);
         } else {
           setTitle('Tất cả sách');
         }
 
-        const { data } = await axios.get(apiUrl);
+        const { data } = await axios.get(booksApiUrl);
 
         setBooks(data.books);
         setTotalPages(data.totalPages);

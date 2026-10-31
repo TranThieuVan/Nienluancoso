@@ -3,8 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { io } from 'socket.io-client';
-
-const SOCKET_URL = "http://localhost:5000";
+import { SOCKET_URL } from '../config/api';
 
 const MessageItem = React.memo(({ msg, isMine }) => (
   <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>

@@ -3,7 +3,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import Pagination from '@/components/Pagination';
-
+import { apiUrl } from '../../config/api';
+import { imageUrl as getImageUrl } from '../../config/api';
 const formatPrice = (n) => (n ?? 0).toLocaleString('vi-VN') + '₫';
 
 const AdminBookList = () => {
@@ -28,7 +29,7 @@ const AdminBookList = () => {
   const fetchBooks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/books?limit=1000');
+      const res = await axios.get(apiUrl('/api/books?limit=1000'));
       const booksArray = res.data.books || res.data || [];
       setBooks(booksArray);
       setGenres([...new Set(booksArray.map(b => b.genre).filter(Boolean))]);
@@ -40,7 +41,7 @@ const AdminBookList = () => {
   const fetchAnalytics = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/books/analytics', {
+      const res = await axios.get(apiUrl('/api/books/analytics'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAnalytics(res.data);
@@ -92,7 +93,10 @@ const AdminBookList = () => {
     if (result.isConfirmed) {
       try {
         const userToken = localStorage.getItem('adminToken') || localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/books/${id}`, { headers: { Authorization: `Bearer ${userToken}` } }); await fetchBooks();
+        await axios.delete(apiUrl(`/api/books/${id}`), {
+          headers: { Authorization: `Bearer ${userToken}` }
+        });
+        await fetchBooks();
         Swal.fire('Đã xóa!', 'Cuốn sách đã được xóa.', 'success');
       } catch { Swal.fire('Lỗi!', 'Xóa không thành công.', 'error'); }
     }
@@ -197,7 +201,7 @@ const AdminBookList = () => {
 
                     <td className="px-4 py-5">
                       <div className="flex items-center gap-4">
-                        <img src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`} alt="book" className="w-12 h-16 object-cover rounded-lg shadow-sm border border-gray-100" />
+                        <img src={getImageUrl(book.image)} alt="book" className="w-12 h-16 object-cover rounded-lg shadow-sm border border-gray-100" />
                         <div className="min-w-0 flex-1">
                           {/* ✅ Tên sách tự cắt (truncate), có thêm title để hover xem đầy đủ */}
                           <p className="text-base font-black text-gray-900 truncate tracking-tight" title={book.title}>{book.title}</p>

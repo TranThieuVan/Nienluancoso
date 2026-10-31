@@ -4,7 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Swal from 'sweetalert2';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
-
+import { apiUrl } from '../config/api';
+import { imageUrl as getImageUrl } from '../config/api';
 // ── RANK CONFIG (Màu sắc bắt mắt, rực rỡ, không dùng gradient) ─────────
 const RANK_CONFIG = {
   'Khách hàng': { label: 'Khách hàng', icon: ['fas', 'user'], bgClass: 'bg-stone-800', textColor: 'text-stone-600' },
@@ -86,7 +87,7 @@ const Profile = () => {
 
   const fetchVouchers = async () => {
     try {
-      const resVouchers = await axios.get('http://localhost:5000/api/vouchers/active', {
+      const resVouchers = await axios.get(apiUrl('/api/vouchers/active'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setVouchers(resVouchers.data);
@@ -240,7 +241,7 @@ const Profile = () => {
               <div className="relative shrink-0">
                 <div className="w-24 h-24 md:w-32 md:h-32 bg-white border border-gray-200 p-1">
                   <img
-                    src={preview || `http://localhost:5000/${user.avatar || 'uploads/avatars/default-user.png'}`}
+                    src={preview || getImageUrl(user.avatar || '/uploads/avatars/default-user.png')}
                     className="w-full h-full object-cover"
                     alt="Avatar"
                   />

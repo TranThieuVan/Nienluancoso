@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../../components/Pagination';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-
+import { apiUrl } from '../../config/api';
 /* ─── Constants ─────────────────────────────────────────────────── */
 const BADGES = {
   pending: { label: 'Đang xử lý', cls: 'bg-yellow-50 text-yellow-800 border border-yellow-200', dot: 'bg-yellow-500' },
@@ -32,7 +32,7 @@ const formatDate = (d) => new Date(d).toLocaleDateString('vi-VN', { day: '2-digi
 const getAvatarUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
-  return `http://localhost:5000${url.startsWith('/') ? '' : '/'}${url}`;
+  return apiUrl(url.startsWith('/') ? url : `/${url}`);
 };
 
 const AdminOrders = () => {

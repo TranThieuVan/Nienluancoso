@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-
-// Danh sách thể loại gán cứng để đồng bộ với Backend
+import { apiUrl } from '../../config/api';// Danh sách thể loại gán cứng để đồng bộ với Backend
+import { imageUrl } from '../../config/api';
 const GENRES = [
   'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',
   'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
@@ -26,7 +26,7 @@ const EditBook = () => {
   useEffect(() => {
     const fetchBook = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/books/${bookId}`);
+        const res = await axios.get(apiUrl(`/api/books/${bookId}`));
         setBook(res.data);
       } catch (err) {
         console.error('Lỗi khi tải thông tin sách:', err);
@@ -85,7 +85,7 @@ const EditBook = () => {
       });
       if (imageFile) formData.append('image', imageFile);
 
-      await axios.put(`http://localhost:5000/api/books/${bookId}`, formData, {
+      await axios.put(apiUrl(`/api/books/${bookId}`), formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${localStorage.getItem('adminToken')}`
@@ -192,7 +192,7 @@ const EditBook = () => {
               {book.image && !imagePreview && (
                 <div className="flex items-center gap-4">
                   <img
-                    src={book.image.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
+                    src={getImageUrl(book.image)}
                     alt="Current"
                     className="w-20 h-28 object-cover border border-gray-200 rounded"
                   />

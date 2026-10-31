@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../../config/api';
 
 /* ─── Icons (Scaled up) ────────────────────────────────────────── */
 const IconSearch = () => (
@@ -59,7 +60,7 @@ const AdminCommentList = () => {
   const fetchComments = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const { data } = await axios.get('http://localhost:5000/api/admin/comments', {
+      const { data } = await axios.get(apiUrl('/api/admin/comments'), {
         params: { search: debouncedSearch, page, limit },
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -78,7 +79,7 @@ const AdminCommentList = () => {
     const token = localStorage.getItem('adminToken');
     if (comment.isHidden) {
       try {
-        await axios.put(`http://localhost:5000/api/admin/comments/${comment._id}/unhide`, {}, {
+        await axios.put(apiUrl(`/api/admin/comments/${comment._id}/unhide`), {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         fetchComments();
@@ -106,7 +107,7 @@ const AdminCommentList = () => {
 
     if (reason) {
       try {
-        await axios.put(`http://localhost:5000/api/admin/comments/${comment._id}/hide`, { reason }, {
+        await axios.put(apiUrl(`/api/admin/comments/${comment._id}/hide`), { reason }, {
           headers: { Authorization: `Bearer ${token}` }
         });
         fetchComments();

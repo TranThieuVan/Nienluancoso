@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useFavorites } from '../composables/useFavorites';
 import { useCart } from '../composables/useCart';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const BookCard = ({ book }) => {
     const navigate = useNavigate();
     const { isFavorite, toggleFavorite } = useFavorites();
@@ -17,12 +17,9 @@ const BookCard = ({ book }) => {
 
     if (!book) return null;
 
-    const imgSrc = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
-    const hasDiscount = book.discountedPrice && book.discountedPrice < book.price;
+    const imgSrc = getImageUrl(book.image); const hasDiscount = book.discountedPrice && book.discountedPrice < book.price;
     const discountPct = hasDiscount ? Math.round((1 - book.discountedPrice / book.price) * 100) : 0;
-    const imageUrl = book?.image?.startsWith('http')
-        ? book.image
-        : `http://localhost:5000${book.image}`;
+    const imageUrl = getImageUrl(book?.image);
     return (
         <div
             // Đổi thành group/card để không bị xung đột với group của Slider

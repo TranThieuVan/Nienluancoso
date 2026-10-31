@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { imageUrl as getImageUrl } from '../config/api';
 
 /* ─────────────────────────────────────────────
    HELPER: Lọc sách
@@ -64,8 +65,7 @@ const Countdown = ({ endDate }) => {
 ───────────────────────────────────────────────*/
 const SaleBookCard = ({ book }) => {
     const navigate = useNavigate();
-    const imgUrl = book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`;
-
+    const imgUrl = getImageUrl(book.image);
     // ✅ GÁN CỨNG: Luôn tính toán và hiển thị số tiền giảm VNĐ
     const diff = (book.price || 0) - (book.discountedPrice || 0);
     const discountLabel = diff > 0 ? `Giảm ${diff.toLocaleString('vi-VN')}₫` : null;

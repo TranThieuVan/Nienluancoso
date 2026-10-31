@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCartStore } from '../composables/cartStore';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const Cart = () => {
   const [cart, setCart] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -174,7 +174,7 @@ const Cart = () => {
                 </div>
 
                 {cart.map((item) => {
-                  const imgSrc = item.book.image?.startsWith('http') ? item.book.image : `http://localhost:5000${item.book.image}`;
+                  const imgSrc = getImageUrl(item.book.image);
                   const outOfStock = item.book.stock === 0;
                   const currentPrice = item.book.discountedPrice || item.book.price;
 

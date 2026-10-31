@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { apiUrl } from '../config/api';
 const SECTIONS = [
     {
         id: 1,
@@ -117,8 +118,7 @@ export default function AboutPage() {
             try {
                 // Thay URL này bằng endpoint API thống kê thực tế của Backend bạn
                 // Giả sử API trả về dạng: { totalBooks: 52100, totalUsers: 205000, avgRating: 4.8 }
-                const { data } = await axios.get("http://localhost:5000/api/stats");
-
+                const { data } = await axios.get(apiUrl('/api/stats'));
                 // Hàm format số thông minh: 52100 -> "52K+"
                 const formatK = (number) => {
                     if (!number) return "0";

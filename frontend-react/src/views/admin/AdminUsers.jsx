@@ -3,11 +3,14 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import Pagination from '../../components/Pagination';
 import { useNavigate } from 'react-router-dom'; // ✨ Import useNavigate
-
+import { imageUrl } from '../../config/api';
 // ── Helpers ──
-const DEFAULT_AVATAR = 'http://localhost:5000/uploads/avatars/default-user.png';
+const DEFAULT_AVATAR = imageUrl('/uploads/avatars/default-user.png');
+
 const getAvatarUrl = (avatar) =>
-  !avatar || avatar.includes('default-user.png') ? DEFAULT_AVATAR : `http://localhost:5000/${avatar}`;
+  !avatar || avatar.includes('default-user.png')
+    ? DEFAULT_AVATAR
+    : imageUrl(avatar.startsWith('/') ? avatar : `/${avatar}`);
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '—';

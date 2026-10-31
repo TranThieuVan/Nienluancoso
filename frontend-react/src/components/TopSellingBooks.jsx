@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-
+import { imageUrl as getImageUrl } from '../config/api';
 const TopSellingBooks = ({ books = [] }) => {
   // ✅ 1. Hứng mảng an toàn (Đề phòng API trả về object { books: [...] })
   const safeBooks = Array.isArray(books) ? books : (books?.books || books?.data || []);
@@ -19,8 +19,7 @@ const TopSellingBooks = ({ books = [] }) => {
             <Link to={`/books/${book._id}`} className="block">
               <div className="overflow-hidden aspect-[3/4]">
                 <img
-                  src={book.image?.startsWith('http') ? book.image : `http://localhost:5000${book.image}`}
-                  alt={book.title}
+                  src={getImageUrl(book.image)} alt={book.title}
                   className="w-full h-full object-cover transition-all duration-300 border-transparent group-hover:border-black border-[4px]"
                 />
               </div>
