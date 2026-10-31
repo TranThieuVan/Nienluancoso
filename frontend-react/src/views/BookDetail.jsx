@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useCart } from '../composables/useCart';
 import { useFavorites } from '../composables/useFavorites';
 import { useAuthStore } from '../stores/auth';
+import { apiUrl } from '../config/api';
 import { imageUrl as getImageUrl } from '../config/api';
 import BookCard from '../components/BookCard';
 
@@ -59,7 +60,7 @@ const BookDetail = () => {
   const fetchComments = async (pageNum = 1, isAppend = false) => {
     try {
       setIsLoadingComments(true);
-      const res = await axios.get(`/api/comments/${id}/comments?page=${pageNum}&limit=5`);
+      const res = await axios.get(apiUrl(`/api/comments/${id}/comments?page=${pageNum}&limit=5`));
       if (isAppend) {
         setComments(prev => [...prev, ...res.data.comments]);
       } else {
@@ -77,7 +78,7 @@ const BookDetail = () => {
   const fetchMyComment = async () => {
     if (!isLoggedIn) return;
     try {
-      const res = await axios.get(`/api/comments/${id}/my`, {
+      const res = await axios.get(apiUrl(`/api/comments/${id}/my`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMyComment(res.data);
@@ -87,7 +88,7 @@ const BookDetail = () => {
   };
 
   const refreshRatingSummary = async (bookId) => {
-    const res = await axios.get(`/api/rating/${bookId}/rating`);
+    const res = await axios.get(apiUrl(`/api/rating/${bookId}/rating`));
     setAverageRating(res.data.average);
     setTotalRatings(res.data.total);
   };
@@ -102,11 +103,11 @@ const BookDetail = () => {
     const loadData = async () => {
       await fetchFavorites();
       try {
-        const res = await axios.get(`/api/books/${id}`);
+        const res = await axios.get(apiUrl(`/api/books/${id}`));
         setBook(res.data);
         setQuantity(1);
 
-        const ratingRes = await axios.get(`/api/rating/${id}/rating`);
+        const ratingRes = await axios.get(apiUrl(`/api/rating/${id}/rating`));
         setAverageRating(ratingRes.data.average);
         setTotalRatings(ratingRes.data.total);
 
@@ -115,7 +116,7 @@ const BookDetail = () => {
         if (isLoggedIn) {
           // Kiểm tra đã mua và nhận hàng chưa
           try {
-            const purchaseRes = await axios.get(`/api/orders/check-purchased/${id}`, {
+            const purchaseRes = await axios.get(apiUrl(`/api/orders/check-purchased/${id}`), {
               headers: { Authorization: `Bearer ${token}` }
             });
             setHasPurchased(purchaseRes.data.hasPurchased);
@@ -129,7 +130,7 @@ const BookDetail = () => {
       } catch (err) { console.error('Lỗi tải dữ liệu chi tiết sách', err); }
 
       try {
-        const recommendRes = await axios.get(`/api/books/${id}/recommend?page=1&limit=6`);
+        const recommendRes = await axios.get(apiUrl(`/api/books/${id}/recommend?page=1&limit=6`));
         setRecommendedBooks(recommendRes.data.books);
         setHasMore(recommendRes.data.hasMore);
         setPage(1);
@@ -167,7 +168,7 @@ const BookDetail = () => {
     setIsLoadingMore(true);
     const nextPage = page + 1;
     try {
-      const res = await axios.get(`/api/books/${id}/recommend?page=${nextPage}&limit=6`);
+      const res = await axios.get(apiUrl(`/api/books/${id}/recommend?page=${nextPage}&limit=6`));
       setRecommendedBooks(prev => [...prev, ...res.data.books]);
       setHasMore(res.data.hasMore);
       setPage(nextPage);
@@ -189,10 +190,10 @@ const BookDetail = () => {
       return Swal.fire('Thiếu số sao', 'Vui lòng chọn số sao đánh giá.', 'warning');
     }
     try {
-      await axios.post('/api/comments', { bookId: book._id, content: msg }, {
+      await axios.post(apiUrl('/api/comments'), { bookId: book._id, content: msg }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      await axios.post('/api/rating', { bookId: book._id, value: newReviewRating }, {
+      await axios.post(apiUrl('/api/rating'), { bookId: book._id, value: newReviewRating }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -260,7 +261,7 @@ const BookDetail = () => {
       icon: 'warning', showCancelButton: true, confirmButtonText: 'Xoá', cancelButtonText: 'Huỷ'
     });
     if (confirm.isConfirmed) {
-      await axios.delete(`/api/comments/${cmtId}`, {
+      await axios.delete(apiUrl(`/api/comments/${cmtId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMyComment(null);
@@ -276,7 +277,7 @@ const BookDetail = () => {
       return;
     }
     try {
-      const res = await axios.get('/api/cart', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(apiUrl('/api/cart'), { headers: { Authorization: `Bearer ${token}` } });
       const items = res.data.items || [];
       const exists = items.find(item => item.book._id === book._id);
       if (!exists) await addToCart(book, quantity);
