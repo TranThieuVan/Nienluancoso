@@ -4,7 +4,7 @@ const adminController = require('../../controllers/admin/adminController');
 const { verifyToken, verifyStaff } = require('../../middleware/authMiddleware')
 router.use(verifyToken, verifyStaff)
 
-const adminDashboardController = require('../../controllers/admin/adminDashBoardController');
+const adminDashboardController = require('../../controllers/admin/adminDashboardController');
 
 router.post('/login', adminController.login);
 router.get('/check', adminController.checkAdmin);
