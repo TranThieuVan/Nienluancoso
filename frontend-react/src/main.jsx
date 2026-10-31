@@ -7,7 +7,10 @@ import './assets/main.css'
 import ScrollToTop from './components/ScrollToTop'
 // Font Awesome Setup
 import { library } from '@fortawesome/fontawesome-svg-core'
+import axios from 'axios'
+import { API_URL } from './config/api'
 
+axios.defaults.baseURL = API_URL
 // Import Icon Solid (fas)
 import {
     faHeart, faBagShopping, faHouse, faArrowRight, faBars, faBook, faComments, faCheck, faSliders, faGear,

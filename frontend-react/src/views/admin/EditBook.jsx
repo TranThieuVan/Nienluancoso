@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { apiUrl } from '../../config/api';// Danh sách thể loại gán cứng để đồng bộ với Backend
-import { imageUrl } from '../../config/api';
+import { apiUrl, imageUrl } from '../../config/api';
 const GENRES = [
   'Comics', 'Kinh tế', 'Chính trị', 'Tình cảm/Lãng mạn',
   'Viễn tưởng', 'Kinh dị', 'Self-help', 'Kinh doanh/Tài chính', 'Bí ẩn/Trinh thám'
@@ -192,7 +191,7 @@ const EditBook = () => {
               {book.image && !imagePreview && (
                 <div className="flex items-center gap-4">
                   <img
-                    src={getImageUrl(book.image)}
+                    src={imageUrl(book.image)}
                     alt="Current"
                     className="w-20 h-28 object-cover border border-gray-200 rounded"
                   />

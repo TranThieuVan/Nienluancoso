@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { SOCKET_URL } from '../../config/api';
-
+import { SOCKET_URL, imageUrl } from '../../config/api';
 const AdminMessages = () => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -201,7 +200,7 @@ const AdminMessages = () => {
               className={`p-3 mb-1 rounded cursor-pointer hover:bg-gray-100 flex select-none items-center justify-between transition-colors ${selectedConversation?._id === conv._id ? 'bg-gray-200' : ''}`}
             >
               <div className="flex items-center gap-3">
-                <img src={`/${conv.participants[0]?.avatar || 'default-avatar.png'}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                <img src={imageUrl(conv.participants[0]?.avatar || '/uploads/avatars/default-user.png')} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                 <div className="flex flex-col">
                   <span className="truncate font-medium">{conv.participant?.name || 'Người dùng'}</span>
                   {conv.isBotActive === false && <span className="text-xs text-red-500 font-semibold mt-0.5">⚠️ Đang gọi Admin</span>}

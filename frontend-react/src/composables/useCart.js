@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useCartStore } from './cartStore';
-
+import { apiUrl } from '../config/api';
 export const useCart = () => {
     const incrementCartCount = useCartStore((state) => state.incrementCartCount);
 
@@ -20,7 +20,7 @@ export const useCart = () => {
 
         try {
             await axios.post(
-                '/api/cart/add',
+                apiUrl('/api/cart/add'),
                 { bookId: book._id, quantity: quantity }, // ✅ Gửi đúng số lượng khách chọn lên Server
                 { headers: { Authorization: `Bearer ${token}` } }
             );
