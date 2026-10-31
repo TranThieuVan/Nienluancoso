@@ -8,7 +8,6 @@ import { useCart } from '../composables/useCart';
 import { useFavorites } from '../composables/useFavorites';
 import { useAuthStore } from '../stores/auth';
 import { imageUrl as getImageUrl } from '../config/api';
-import BookSlider from '../components/BookSlider';
 import BookCard from '../components/BookCard';
 
 const BookDetail = () => {

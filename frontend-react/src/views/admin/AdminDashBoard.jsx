@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 import { apiUrl } from '../../config/api';
+import { imageUrl as getImageUrl } from '../../config/api';
 /* ── UTILITIES ── */
 const fmt = (n) => (n ?? 0).toLocaleString('vi-VN') + '₫';
 const fmtShort = (n) => {

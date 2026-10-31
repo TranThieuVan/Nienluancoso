@@ -9,6 +9,7 @@ import NotificationBell from './NotificationBell';
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../composables/cartStore';
 import { apiUrl } from '../config/api';
+import { imageUrl as getImageUrl } from '../config/api';
 
 /* ─── Data ─────────────────────────────────────────── */
 const NAV_LINKS = [
