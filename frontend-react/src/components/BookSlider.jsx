@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useFavorites } from '../composables/useFavorites';
 import { useCart } from '../composables/useCart';
+import { apiUrl } from '../config/api';
 import BookCard from './BookCard';
 
 const BookSlider = ({ books: initialBooks, genre, title = '', isFlashSale = false }) => {
@@ -20,14 +21,15 @@ const BookSlider = ({ books: initialBooks, genre, title = '', isFlashSale = fals
         const loadBooks = async () => {
             if (initialBooks === undefined) {
                 try {
-                    const res = await axios.get('/api/books?limit=1000');
-                    const dataArray = res.data.books || res.data;
-                    setBooks(genre ? dataArray.filter(b => b.genre === genre) : dataArray);
+                    const params = new URLSearchParams({ page: '1', limit: '12' });
+                    if (genre) params.set('genre', genre);
+                    const res = await axios.get(apiUrl(`/api/books?${params}`));
+                    setBooks(res.data.books || []);
                 } catch (err) {
                     console.error('Lỗi tải sách cho slider:', err);
                 }
             } else {
-                setBooks(initialBooks);
+                setBooks(initialBooks || []);
             }
         };
         loadBooks();

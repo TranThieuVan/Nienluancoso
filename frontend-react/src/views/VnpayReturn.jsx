@@ -7,7 +7,7 @@ const VnpayReturn = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [status, setStatus] = useState('loading');
-    const [message, setMessage] = useState('Đang xử lý kết quả thanh toán...');
+    const [message, setMessage] = useState('Checking your payment...');
 
     useEffect(() => {
         const checkPayment = async () => {
@@ -26,31 +26,29 @@ const VnpayReturn = () => {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     setStatus('success');
-                    setMessage('Đơn hàng của bạn đã được xác nhận và đang được xử lý.');
+                    setMessage('Your payment is confirmed and your order is being processed.');
                     localStorage.removeItem('checkoutItems');
                 } catch (error) {
-                    console.error('Lỗi cập nhật đơn hàng:', error);
+                    console.error('Could not update paid order:', error);
                     setStatus('error');
-                    setMessage('Thanh toán thành công nhưng có lỗi khi ghi nhận đơn. Vui lòng liên hệ hỗ trợ.');
+                    setMessage('Payment succeeded, but we could not update your order. Please contact support.');
                 }
             } else {
-                // NẾU LỖI HOẶC NGƯỜI DÙNG TỰ HỦY -> GỌI API XÓA VĨNH VIỄN ĐƠN TẠM
+                // Remove the temporary order if payment failed or was cancelled.
                 try {
-                    // Đã đổi thành axios.delete và gọi API hard-delete
                     await axios.delete(`/api/orders/${orderId}/hard-delete`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 } catch (deleteError) {
-                    console.error('Lỗi khi dọn dẹp đơn tạm:', deleteError);
+                    console.error('Could not remove temporary order:', deleteError);
                 }
 
-                // Cập nhật lại thông báo cho hợp lý với việc Hard Delete
                 if (responseCode === '24') {
                     setStatus('error');
-                    setMessage('Bạn đã hủy giao dịch. Đơn hàng tạm đã được dọn dẹp, vui lòng đặt lại giỏ hàng nếu muốn.');
+                    setMessage('You cancelled the payment. The temporary order was removed. You can try again from your cart.');
                 } else {
                     setStatus('error');
-                    setMessage(`Giao dịch thất bại (Mã lỗi: ${responseCode}). Đơn hàng tạm đã được dọn dẹp.`);
+                    setMessage(`Payment failed (code: ${responseCode}). The temporary order was removed.`);
                 }
             }
         };
@@ -62,7 +60,7 @@ const VnpayReturn = () => {
         loading: {
             icon: null,
             spin: true,
-            label: 'Đang kiểm tra...',
+            label: 'Checking payment...',
             color: 'text-black',
             bg: 'bg-stone-50',
             border: 'border-gray-200',
@@ -70,7 +68,7 @@ const VnpayReturn = () => {
         success: {
             icon: 'circle-check',
             spin: false,
-            label: 'Thanh toán thành công',
+            label: 'Payment successful',
             color: 'text-black',
             bg: 'bg-black',
             border: 'border-black',
@@ -79,7 +77,7 @@ const VnpayReturn = () => {
         error: {
             icon: 'circle-xmark',
             spin: false,
-            label: 'Giao dịch thất bại',
+            label: 'Payment failed',
             color: 'text-black',
             bg: 'bg-stone-50',
             border: 'border-gray-200',
@@ -107,7 +105,7 @@ const VnpayReturn = () => {
 
                 {/* ── Label ── */}
                 <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-3">
-                    {status === 'loading' ? 'Xử lý' : status === 'success' ? 'VNPAY' : 'Thông báo'}
+                    {status === 'loading' ? 'Payment' : status === 'success' ? 'VNPAY' : 'Notice'}
                 </p>
 
                 {/* ── Title ── */}
@@ -127,21 +125,21 @@ const VnpayReturn = () => {
                             to="/"
                             className="px-8 py-3 hover-flip-btn text-sm tracking-wide"
                         >
-                            Trang chủ
+                            Home
                         </Link>
                         {status === 'success' ? (
                             <Link
                                 to="/orders"
                                 className="px-8 py-3 hover-flip-btn text-sm tracking-wide"
                             >
-                                Xem đơn hàng
+                                View order
                             </Link>
                         ) : (
                             <button
                                 onClick={() => navigate('/cart')}
                                 className="px-8 py-3 border border-black text-black text-sm font-medium hover:bg-black hover:text-white transition-colors duration-200 tracking-wide"
                             >
-                                Thanh toán lại
+                                Try payment again
                             </button>
                         )}
                     </div>

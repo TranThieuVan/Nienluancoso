@@ -212,7 +212,7 @@ const ChatBox = ({ userId, onClose }) => {
           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
           <div>
             <p className="text-sm font-semibold leading-tight">{isBotActive ? 'Trợ lý AI' : 'Nhân viên CSKH'}</p>
-            <p className="text-[10px] tracking-wide text-white/80">{isBotActive ? 'BookNest · Luôn sẵn sàng hỗ trợ' : 'Đang trực tuyến'}</p>
+            <p className="text-[10px] tracking-wide text-white/80">{isBotActive ? 'BookNest · Here to help' : 'Online now'}</p>
           </div>
         </div>
         <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors">
@@ -228,8 +228,8 @@ const ChatBox = ({ userId, onClose }) => {
               <FontAwesomeIcon icon={['fas', 'comments']} className="text-white text-lg" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-black">Xin chào!</p>
-              <p className="text-xs text-stone-400 mt-1">Hỏi tôi về sách, phí ship, đơn hàng...</p>
+              <p className="text-sm font-semibold text-black">Hello!</p>
+              <p className="text-xs text-stone-400 mt-1">Ask about books, shipping, or orders.</p>
             </div>
           </div>
         )}
@@ -252,14 +252,14 @@ const ChatBox = ({ userId, onClose }) => {
       {isBotActive && !hasRequestedHuman && (
         <div className="px-4 py-2.5 bg-stone-100 border-t border-gray-100 text-center flex-shrink-0">
           <button onClick={() => sendMessage('[REQUEST_HUMAN]')} disabled={isBusy} className="text-xs font-semibold text-stone-600 hover:text-black underline transition-colors disabled:opacity-50">
-            Bạn cần gặp nhân viên hỗ trợ trực tiếp?
+            Need help from a support agent?
           </button>
         </div>
       )}
 
       {/* Input */}
       <div className="flex items-center gap-2 px-4 py-3 bg-white border-t border-gray-100 flex-shrink-0">
-        <input ref={inputRef} type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder={isThinking ? 'Đang xử lý...' : 'Hỏi về sách, phí ship...'} className="flex-1 bg-stone-50 border border-gray-200 focus:border-black outline-none px-4 py-2.5 text-sm transition-colors disabled:opacity-50" disabled={isBusy} />
+        <input ref={inputRef} type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder={isThinking ? 'Thinking...' : 'Ask about books or shipping...'} className="flex-1 bg-stone-50 border border-gray-200 focus:border-black outline-none px-4 py-2.5 text-sm transition-colors disabled:opacity-50" disabled={isBusy} />
         <button onClick={() => sendMessage()} disabled={!newMessage.trim() || isBusy} className={`w-10 h-10 text-white flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${isBotActive ? 'bg-black hover:bg-stone-800' : 'bg-stone-500 hover:bg-black'}`}>
           <FontAwesomeIcon icon={['fas', 'paper-plane']} className="text-xs" />
         </button>

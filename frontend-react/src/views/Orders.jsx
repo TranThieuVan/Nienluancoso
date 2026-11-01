@@ -18,9 +18,9 @@ const Orders = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
-  const formatPrice = (n) => (n || 0).toLocaleString('vi-VN') + '₫';
+  const formatPrice = (n) => (n || 0).toLocaleString('en-US') + '₫';
   const formatDate = (isoString) =>
-    new Date(isoString).toLocaleDateString('vi-VN', {
+    new Date(isoString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -28,17 +28,17 @@ const Orders = () => {
 
   const statusConfig = (status) => {
     switch (status) {
-      case 'pending': return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Đang xử lý' };
-      case 'confirmed': return { text: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200', label: 'Đã xác nhận' };
-      case 'delivering': return { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Đang giao' };
-      case 'delivered': return { text: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', label: 'Đã giao' };
-      case 'completed': return { text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Hoàn tất' };
-      case 'failed_delivery': return { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', label: 'Giao thất bại' };
-      case 'return_requested': return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', label: 'Yêu cầu trả hàng' };
-      case 'return_approved': return { text: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Đã duyệt trả hàng' };
-      case 'returning': return { text: 'text-fuchsia-600', bg: 'bg-fuchsia-50', border: 'border-fuchsia-200', label: 'Đang hoàn về' };
-      case 'returned': return { text: 'text-stone-600', bg: 'bg-stone-100', border: 'border-stone-300', label: 'Đã trả hàng' };
-      case 'cancelled': return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: 'Đã hủy' };
+      case 'pending': return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: 'Processing' };
+      case 'confirmed': return { text: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200', label: 'Confirmed' };
+      case 'delivering': return { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', label: 'In transit' };
+      case 'delivered': return { text: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', label: 'Delivered' };
+      case 'completed': return { text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Completed' };
+      case 'failed_delivery': return { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', label: 'Delivery failed' };
+      case 'return_requested': return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', label: 'Return requested' };
+      case 'return_approved': return { text: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200', label: 'Return approved' };
+      case 'returning': return { text: 'text-fuchsia-600', bg: 'bg-fuchsia-50', border: 'border-fuchsia-200', label: 'Return in transit' };
+      case 'returned': return { text: 'text-stone-600', bg: 'bg-stone-100', border: 'border-stone-300', label: 'Returned' };
+      case 'cancelled': return { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: 'Cancelled' };
       default: return { text: 'text-stone-600', bg: 'bg-stone-50', border: 'border-stone-200', label: status };
     }
   };
@@ -135,7 +135,7 @@ const Orders = () => {
 
   const handleCustomFilter = () => {
     if (!customStartDate || !customEndDate) {
-      alert("Vui lòng chọn đầy đủ từ ngày và đến ngày.");
+      alert("Select both a start and end date.");
       return;
     }
     setCurrentPage(1);
@@ -153,9 +153,9 @@ const Orders = () => {
       {/* ── HEADER ── */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-6 py-8">
-          <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-stone-400 mb-1">Tài khoản</p>
+          <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-stone-400 mb-1">Account</p>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-black">Đơn Hàng Của Tôi</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-black">My Orders</h1>
 
             {/* ── BỘ LỌC THỜI GIAN ── */}
             <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -164,14 +164,14 @@ const Orders = () => {
                 onChange={handleTimeFilterChange}
                 className="text-sm md:text-base border border-gray-200 focus:border-black outline-none px-4 py-2.5 bg-white transition-colors cursor-pointer"
               >
-                <option value="all">Tất cả thời gian</option>
-                <option value="today">Hôm nay</option>
-                <option value="yesterday">Hôm qua</option>
-                <option value="3days">3 ngày qua</option>
-                <option value="7days">7 ngày qua</option>
-                <option value="30days">30 ngày qua</option>
-                <option value="365days">1 năm qua</option>
-                <option value="custom">Thời gian cụ thể</option>
+                <option value="all">Any time</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="3days">Past 3 days</option>
+                <option value="7days">Past 7 days</option>
+                <option value="30days">Past 30 days</option>
+                <option value="365days">Past year</option>
+                <option value="custom">Custom range</option>
               </select>
 
               {timeFilter === 'custom' && (
@@ -193,7 +193,7 @@ const Orders = () => {
                     onClick={handleCustomFilter}
                     className="bg-black text-white px-4 py-2 text-sm md:text-base font-bold hover:bg-stone-800 transition-colors"
                   >
-                    Lọc
+                    Apply
                   </button>
                 </div>
               )}
@@ -211,7 +211,7 @@ const Orders = () => {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-40">
               <div className="w-10 h-10 border-4 border-stone-100 border-t-black rounded-full animate-spin mb-4" />
-              <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-stone-400">Đang tải...</p>
+              <p className="text-[10px] md:text-xs tracking-[0.3em] uppercase text-stone-400">Loading orders...</p>
             </div>
 
             /* ── EMPTY ── */
@@ -219,14 +219,14 @@ const Orders = () => {
             <div className="bg-white border border-gray-100 flex flex-col items-center justify-center py-24 gap-4">
               <FontAwesomeIcon icon={['fas', 'box-open']} className="text-4xl text-stone-200" />
               <div className="text-center">
-                <p className="text-base md:text-lg font-semibold text-black mb-1">Chưa có đơn hàng nào</p>
-                <p className="text-sm md:text-base text-stone-400">Không tìm thấy đơn hàng trong khoảng thời gian này.</p>
+                <p className="text-base md:text-lg font-semibold text-black mb-1">No orders yet</p>
+                <p className="text-sm md:text-base text-stone-400">No orders were found for this time range.</p>
               </div>
               <button
                 onClick={() => navigate('/books')}
                 className="mt-2 px-8 py-3 bg-black text-white text-sm md:text-base font-bold uppercase tracking-widest hover:bg-stone-800 transition-colors"
               >
-                Khám phá sách
+                Browse books
               </button>
             </div>
 
@@ -247,14 +247,14 @@ const Orders = () => {
                     <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-stone-50/60">
                       <div className="flex items-center gap-5">
                         <div>
-                          <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Mã đơn</span>
+                          <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Order ID</span>
                           <span className="font-mono text-sm md:text-base font-bold text-black">
                             #{order._id.slice(-6).toUpperCase()}
                           </span>
                         </div>
                         <div className="w-px h-5 bg-gray-200" />
                         <div>
-                          <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Ngày đặt</span>
+                          <span className="text-[9px] md:text-[11px] text-stone-400 uppercase font-bold tracking-[0.2em] block">Order date</span>
                           <span className="text-sm md:text-base font-medium text-black">{formatDate(order.createdAt)}</span>
                         </div>
                       </div>
@@ -275,6 +275,8 @@ const Orders = () => {
                             <img
                               src={getImageUrl(firstItem.book.image)}
                               alt={firstItem.book.title}
+                              loading="lazy"
+                              decoding="async"
                               className="w-12 h-18 md:w-16 md:h-24 object-cover flex-shrink-0 border border-gray-100"
                             />
                             <div className="flex-1 min-w-0">
@@ -286,7 +288,7 @@ const Orders = () => {
                               </p>
                               {moreCount > 0 && (
                                 <p className="text-xs md:text-sm font-bold text-stone-500 mt-1">
-                                  + {moreCount} sản phẩm khác
+                                  + {moreCount} more item{moreCount === 1 ? '' : 's'}
                                 </p>
                               )}
                             </div>
@@ -297,7 +299,7 @@ const Orders = () => {
                       {/* Total + CTA */}
                       <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-2 border-t sm:border-t-0 border-gray-100 pt-4 sm:pt-0">
                         <div className="sm:text-right">
-                          <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-widest mb-0.5">Tổng tiền</p>
+                          <p className="text-[10px] md:text-xs text-stone-400 uppercase tracking-widest mb-0.5">Total</p>
                           <p className="text-base md:text-lg font-black text-black">
                             {formatPrice(order.totalPrice)}
                           </p>
@@ -306,7 +308,7 @@ const Orders = () => {
                           onClick={() => navigate(`/orders/${order._id}`)}
                           className="px-5 py-2 md:py-2.5 border border-black text-black text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-all"
                         >
-                          Xem chi tiết
+                          View details
                         </button>
                       </div>
                     </div>
@@ -316,7 +318,7 @@ const Orders = () => {
                       <div className="mx-5 mb-5 px-4 py-3 bg-amber-50 border border-amber-200 flex items-center gap-2.5">
                         <FontAwesomeIcon icon={['fas', 'circle-info']} className="text-amber-500 flex-shrink-0" />
                         <p className="text-amber-800 text-xs md:text-sm font-bold">
-                          Hệ thống sẽ hoàn tiền trong thời gian sớm nhất, vui lòng chờ!
+                          Your refund will be processed as soon as possible.
                         </p>
                       </div>
                     )}

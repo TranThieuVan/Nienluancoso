@@ -25,6 +25,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     <div className="flex justify-center items-center gap-1 select-none">
       {/* Prev */}
       <button
+        aria-label="Previous page"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-500 hover:border-black hover:text-black transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -54,6 +55,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
       {/* Next */}
       <button
+        aria-label="Next page"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="w-9 h-9 flex items-center justify-center border border-gray-200 text-stone-500 hover:border-black hover:text-black transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"

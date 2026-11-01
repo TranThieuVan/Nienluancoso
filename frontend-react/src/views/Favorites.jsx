@@ -33,15 +33,15 @@ const Favorites = () => {
       {/* ── PAGE HEADER ── */}
       <div className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-10">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">Của tôi</p>
+            <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">My account</p>
           <div className="flex items-end justify-between">
-            <h1 className="text-3xl font-bold text-black">Sách Yêu Thích</h1>
+            <h1 className="text-3xl font-bold text-black">Favorites</h1>
             {!isLoading && books.length > 0 && (
-              <p className="text-sm text-stone-400 pb-1">{books.length} cuốn sách</p>
+              <p className="text-sm text-stone-400 pb-1">{books.length} books</p>
             )}
           </div>
           <p className="text-sm text-stone-500 mt-2 max-w-xl">
-            Danh sách những cuốn sách được tôi tuyển chọn và yêu thích.
+            Books you have saved for later.
           </p>
         </div>
       </div>
@@ -51,7 +51,7 @@ const Favorites = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs tracking-widest uppercase text-stone-400">Đang tải...</p>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Loading favorites...</p>
           </div>
         ) : books.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 gap-5">
@@ -59,14 +59,14 @@ const Favorites = () => {
               <FontAwesomeIcon icon={['far', 'heart']} className="text-2xl text-stone-300" />
             </div>
             <div className="text-center">
-              <p className="text-black font-semibold mb-1">Chưa có sách yêu thích</p>
-              <p className="text-stone-400 text-sm">Hãy khám phá và thêm những cuốn sách bạn yêu thích.</p>
+              <p className="text-black font-semibold mb-1">No favorites yet</p>
+              <p className="text-stone-400 text-sm">Browse the collection and save books you like.</p>
             </div>
             <button
               onClick={() => navigate('/books')}
               className="mt-2 px-8 py-3 hover-flip-btn"
             >
-              Khám phá sách
+              Browse books
             </button>
           </div>
         ) : (
@@ -83,6 +83,8 @@ const Favorites = () => {
                     <img
                       src={imgSrc}
                       alt={book.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
                       onClick={() => navigate(`/books/${book._id}`)}
                     />
@@ -91,7 +93,7 @@ const Favorites = () => {
                     <button
                       onClick={() => handleToggleFavorite(book)}
                       className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-110 opacity-0 group-hover:opacity-100"
-                      title="Bỏ yêu thích"
+                      title="Remove from favorites"
                     >
                       <FontAwesomeIcon
                         icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
@@ -121,14 +123,14 @@ const Favorites = () => {
                     </h3>
                     <p className="text-[11px] text-stone-400 mt-1">{book.author}</p>
                     <p className="text-sm font-bold text-black mt-2 mb-3">
-                      {book.price.toLocaleString('vi-VN')}₫
+                      {book.price.toLocaleString('en-US')}₫
                     </p>
 
                     <button
                       onClick={() => addToCart(book)}
                       className="mt-auto w-full py-2 hover-flip-btn text-sm"
                     >
-                      Thêm vào giỏ
+                      Add to cart
                     </button>
                   </div>
                 </div>

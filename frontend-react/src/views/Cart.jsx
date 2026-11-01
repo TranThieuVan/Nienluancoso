@@ -11,7 +11,7 @@ const Cart = () => {
   const setCartCountStore = useCartStore((state) => state.setCartCount);
   const token = localStorage.getItem('token');
 
-  const formatPrice = (n) => n.toLocaleString('vi-VN');
+  const formatPrice = (n) => n.toLocaleString('en-US');
 
   const loadCart = async () => {
     try {
@@ -98,7 +98,7 @@ const Cart = () => {
 
   const proceedToCheckout = () => {
     if (selectedItems.length === 0) {
-      alert('Vui lòng chọn ít nhất một sản phẩm để thanh toán');
+      alert('Select at least one item before checkout.');
       return;
     }
     const selected = cart.filter(item => selectedItems.includes(item.book._id));
@@ -123,8 +123,8 @@ const Cart = () => {
     <div className="min-h-screen bg-stone-50">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Của tôi</p>
-          <h1 className="text-3xl font-bold text-black">Giỏ Hàng</h1>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">My account</p>
+          <h1 className="text-3xl font-bold text-black">Shopping Cart</h1>
         </div>
       </div>
 
@@ -135,11 +135,11 @@ const Cart = () => {
               <div className="bg-white border border-gray-100 flex flex-col items-center justify-center py-24 gap-4">
                 <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-4xl text-stone-200" />
                 <div className="text-center">
-                  <p className="font-semibold text-black mb-1">Giỏ hàng trống</p>
-                  <p className="text-stone-400 text-sm">Hãy thêm sản phẩm vào giỏ hàng của bạn.</p>
+                  <p className="font-semibold text-black mb-1">Your cart is empty</p>
+                  <p className="text-stone-400 text-sm">Add a book to get started.</p>
                 </div>
                 <button onClick={() => navigate('/books')} className="mt-2 px-8 py-3 hover-flip-btn">
-                  Tiếp tục mua sắm
+                  Continue shopping
                 </button>
               </div>
             ) : (
@@ -156,7 +156,7 @@ const Cart = () => {
                       className="w-4 h-4 accent-black cursor-pointer"
                     />
                     <label className="text-sm font-medium text-stone-600 cursor-pointer select-none">
-                      Chọn tất cả ({selectableIds.length} sản phẩm)
+                      Select all ({selectableIds.length} items)
                     </label>
                   </div>
 
@@ -167,7 +167,7 @@ const Cart = () => {
                       className="text-sm font-bold text-red-500 hover:text-red-700 transition-colors flex items-center gap-2 animate-in fade-in zoom-in duration-200"
                     >
                       <FontAwesomeIcon icon={['fas', 'trash']} />
-                      Xóa ({selectedItems.length})
+                      Remove ({selectedItems.length})
                     </button>
                   )}
 
@@ -191,7 +191,7 @@ const Cart = () => {
                           )}
                         </div>
 
-                        <img src={imgSrc} className="w-20 h-28 md:w-16 md:h-24 object-cover flex-shrink-0 cursor-pointer" alt={item.book.title} onClick={() => navigate(`/books/${item.book._id}`)} />
+                        <img src={imgSrc} loading="lazy" decoding="async" className="w-20 h-28 md:w-16 md:h-24 object-cover flex-shrink-0 cursor-pointer" alt={item.book.title} onClick={() => navigate(`/books/${item.book._id}`)} />
 
                         {/* pr-8 trên mobile để tránh đè lên nút Xóa góc phải */}
                         <div className="flex-1 min-w-0 pr-8 md:pr-0">
@@ -200,9 +200,9 @@ const Cart = () => {
                           </h3>
                           <p className="text-sm text-stone-400 mt-1">{item.book.author}</p>
                           {outOfStock ? (
-                            <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 px-2 py-0.5">Hết hàng</span>
+                            <span className="inline-block mt-2 text-[11px] text-red-500 bg-red-50 px-2 py-0.5">Out of stock</span>
                           ) : (
-                            <p className="text-sm text-stone-400 mt-1">Còn {item.book.stock} sản phẩm</p>
+                            <p className="text-sm text-stone-400 mt-1">{item.book.stock} in stock</p>
                           )}
                           {item.book.discountedPrice ? (
                             <div className="mt-2 flex items-baseline gap-2">
@@ -230,13 +230,13 @@ const Cart = () => {
                         )}
 
                         <div className="flex flex-col items-end md:items-center gap-1 md:gap-2 flex-shrink-0 min-w-[88px]">
-                          <p className="text-sm text-stone-400 hidden md:block">Thành tiền</p>
+                          <p className="text-sm text-stone-400 hidden md:block">Subtotal</p>
                           <p className={`font-bold text-sm md:text-base ${outOfStock ? 'text-stone-300' : 'text-black'}`}>
                             {outOfStock ? '—' : `${formatPrice(currentPrice * item.quantity)}₫`}
                           </p>
 
                           {/* Nút xóa: Nằm góc phải trên cùng ở Mobile, nằm dưới Thành tiền ở Desktop */}
-                          <button onClick={() => removeItem(item.book._id)} className="absolute top-4 right-4 md:static md:mt-1 text-stone-300 hover:text-red-400 transition-colors" title="Xóa">
+                          <button onClick={() => removeItem(item.book._id)} className="absolute top-4 right-4 md:static md:mt-1 text-stone-300 hover:text-red-400 transition-colors" title="Remove">
                             <FontAwesomeIcon icon={['fas', 'trash']} className="text-sm md:text-base" />
                           </button>
                         </div>
@@ -253,25 +253,25 @@ const Cart = () => {
           {cart.length > 0 && (
             <div className="w-full lg:w-[32%] sticky top-24">
               <div className="bg-white border border-gray-100 p-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-black mb-5 pb-4 border-b border-gray-100">Thông tin đơn hàng</h2>
+                <h2 className="text-sm font-bold uppercase tracking-widest text-black mb-5 pb-4 border-b border-gray-100">Order summary</h2>
                 <div className="space-y-3 mb-5">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-stone-500">Sản phẩm đã chọn ({selectedItems.length})</span>
+                    <span className="text-stone-500">Selected items ({selectedItems.length})</span>
                     <span className="font-semibold text-black">{formatPrice(totalSelected)}₫</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-stone-500">Phí vận chuyển</span>
-                    <span className="text-black font-medium">40.000đ</span>
+                    <span className="text-stone-500">Shipping</span>
+                    <span className="text-black font-medium">40,000₫</span>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-4 mb-6">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-black">Tổng tiền</span>
+                    <span className="font-semibold text-black">Total</span>
                     <span className="text-xl font-bold text-black">{formatPrice(totalSelected)}₫</span>
                   </div>
                 </div>
-                <button onClick={proceedToCheckout} className="w-full py-3.5 hover-flip-btn uppercase tracking-widest text-sm font-bold">Thanh toán</button>
-                <button onClick={() => navigate('/books')} className="w-full mt-3 py-2.5 text-sm text-stone-400 hover:text-black transition-colors tracking-wide">← Tiếp tục mua sắm</button>
+                <button onClick={proceedToCheckout} className="w-full py-3.5 hover-flip-btn uppercase tracking-widest text-sm font-bold">Checkout</button>
+                <button onClick={() => navigate('/books')} className="w-full mt-3 py-2.5 text-sm text-stone-400 hover:text-black transition-colors tracking-wide">← Continue shopping</button>
               </div>
             </div>
           )}

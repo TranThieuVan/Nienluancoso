@@ -20,7 +20,7 @@ const Skeleton = () => (
 
 const Home = () => {
   const [topBooks, setTopBooks] = useState([]);
-  const [allBooks, setAllBooks] = useState([]);
+  const [saleBooks, setSaleBooks] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [isBannerLoaded, setIsBannerLoaded] = useState(false);
   const navigate = useNavigate();
@@ -29,29 +29,26 @@ const Home = () => {
     const fetchAll = async () => {
       const [topRes, allRes, promoRes] = await Promise.allSettled([
         axios.get(apiUrl('/api/books/top-selling')),
-        axios.get(apiUrl('/api/books?limit=1000')),
+        axios.get(apiUrl('/api/books?filter=sale&limit=100')),
         axios.get(apiUrl('/api/promotions')),
       ]);
 
       if (topRes.status === 'fulfilled') setTopBooks(topRes.value.data);
-      if (allRes.status === 'fulfilled') setAllBooks(allRes.value.data.books || []);
+      if (allRes.status === 'fulfilled') setSaleBooks(allRes.value.data.books || []);
       if (promoRes.status === 'fulfilled') setPromotions(promoRes.value.data || []);
     };
 
     fetchAll();
   }, []);
 
-  const getBooksByGenre = (genre) =>
-    allBooks.filter(book => book.genre === genre);
-
   // ✅ ĐÃ SỬA: Biến "genre" phải khớp chính xác 100% với validGenres trong Backend
   const genreSections = [
-    { genre: 'Comics', title: 'Truyện Tranh', sub: 'Những bộ truyện tranh nổi bật nhất' },
-    { genre: 'Viễn tưởng', title: 'Viễn Tưởng', sub: 'Bay bổng cùng những thế giới kỳ diệu' },
-    { genre: 'Bí ẩn/Trinh thám', title: 'Trinh Thám', sub: 'Hồi hộp và gay cấn từng trang' },
-    { genre: 'Tình cảm/Lãng mạn', title: 'Lãng Mạn', sub: 'Những câu chuyện tình yêu đẹp nhất' },
-    { genre: 'Self-help', title: 'Phát Triển Bản Thân', sub: 'Nâng cấp tư duy và kỹ năng' },
-    { genre: 'Kinh doanh/Tài chính', title: 'Tài Chính', sub: 'Nền tảng vững chắc cho sự thành công' },
+    { genre: 'Comics', title: 'Comics', sub: 'Featured graphic novels and comics' },
+    { genre: 'Viễn tưởng', title: 'Science Fiction', sub: 'Explore extraordinary worlds' },
+    { genre: 'Bí ẩn/Trinh thám', title: 'Mystery', sub: 'Clues, suspense, and unexpected turns' },
+    { genre: 'Tình cảm/Lãng mạn', title: 'Romance', sub: 'Stories about love and connection' },
+    { genre: 'Self-help', title: 'Personal Growth', sub: 'Ideas and tools for everyday life' },
+    { genre: 'Kinh doanh/Tài chính', title: 'Business & Finance', sub: 'Build your knowledge and make informed decisions' },
   ];
 
   return (
@@ -103,15 +100,15 @@ const Home = () => {
 
 
       {/* ── FLASH SALE ── */}
-      {promotions.length > 0 && allBooks.length > 0 && (
+      {promotions.length > 0 && saleBooks.length > 0 && (
         <div id="flash-sale" className="scroll-mt-24">
-          <FlashSaleSlider promotions={promotions} allBooks={allBooks} />
+          <FlashSaleSlider promotions={promotions} allBooks={saleBooks} />
         </div>
       )}
 
       {/* ── TOP SELLING ── */}
       <section className="max-w-7xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold mb-6">Top Sách Nổi Bật</h2>
+        <h2 className="text-3xl font-bold mb-6">Best Sellers</h2>
         <Suspense fallback={<Skeleton />}>
           <TopSellingBooks books={topBooks} />
         </Suspense>
@@ -127,7 +124,6 @@ const Home = () => {
             <p className="text-[17px] text-stone-400 mb-2">{section.sub}</p>
             <Suspense fallback={<Skeleton />}>
               <BookSlider
-                books={getBooksByGenre(section.genre)}
                 genre={section.genre}
                 title={section.title}
               />

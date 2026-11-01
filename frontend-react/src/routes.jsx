@@ -7,35 +7,33 @@ import UserLayout from '@/layouts/UserLayout';
 import AdminLayout from '@/layouts/AdminLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 
-// --- IMPORT CÁC TRANG CƠ BẢN ---
-import Home from '@/views/Home';
-import Login from '@/views/Login';
-import Register from '@/views/Register';
-import About from '@/views/About';
-import Cart from '@/views/Cart';
-import BookDetail from '@/views/BookDetail';
-import Favorites from '@/views/Favorites';
-import Orders from '@/views/Orders';
-import OrderDetail from '@/views/OrderDetail';
-import Profile from '@/views/Profile';
-import Checkout from '@/views/Checkout';
-import SearchResults from '@/views/SearchResults';
-import BookList from '@/views/BookList';
-import VnpayReturn from './views/VnpayReturn';
-import AdminDashboard from '@/views/admin/AdminDashBoard';
-import AdminBookList from '@/views/admin/AdminBookList';
-import AddBook from '@/views/admin/AddBook';
-import EditBook from '@/views/admin/EditBook';
-import AdminUsers from '@/views/admin/AdminUsers';
-import AdminOrders from '@/views/admin/AdminOrders';
-import AdminCommentList from '@/views/admin/AdminCommentList';
-import AdminVouchers from '@/views/admin/AdminVouchers';
-import AdminPromotions from './views/admin/AdminPromotions';
-
 const ViewAllBooks = lazy(() => import('@/views/ViewAllBooks'));
 const AdminOrderDetail = lazy(() => import('@/views/admin/AdminOrderDetail'));
 const AdminRevenue = lazy(() => import('@/views/admin/AdminRevenue'));
 const AdminMessages = lazy(() => import('@/views/admin/AdminMessages'));
+const AdminDashboard = lazy(() => import('@/views/admin/AdminDashBoard'));
+const AdminBookList = lazy(() => import('@/views/admin/AdminBookList'));
+const AddBook = lazy(() => import('@/views/admin/AddBook'));
+const EditBook = lazy(() => import('@/views/admin/EditBook'));
+const AdminUsers = lazy(() => import('@/views/admin/AdminUsers'));
+const AdminOrders = lazy(() => import('@/views/admin/AdminOrders'));
+const AdminCommentList = lazy(() => import('@/views/admin/AdminCommentList'));
+const AdminVouchers = lazy(() => import('@/views/admin/AdminVouchers'));
+const AdminPromotions = lazy(() => import('./views/admin/AdminPromotions'));
+const Home = lazy(() => import('@/views/Home'));
+const Login = lazy(() => import('@/views/Login'));
+const Register = lazy(() => import('@/views/Register'));
+const About = lazy(() => import('@/views/About'));
+const Cart = lazy(() => import('@/views/Cart'));
+const BookDetail = lazy(() => import('@/views/BookDetail'));
+const Favorites = lazy(() => import('@/views/Favorites'));
+const Orders = lazy(() => import('@/views/Orders'));
+const OrderDetail = lazy(() => import('@/views/OrderDetail'));
+const Profile = lazy(() => import('@/views/Profile'));
+const Checkout = lazy(() => import('@/views/Checkout'));
+const SearchResults = lazy(() => import('@/views/SearchResults'));
+const BookList = lazy(() => import('@/views/BookList'));
+const VnpayReturn = lazy(() => import('./views/VnpayReturn'));
 
 // --- GUARDS ---
 const PrivateRoute = ({ children }) => {
@@ -71,7 +69,7 @@ const AppRoutes = () => {
         }
     }, [location.pathname]);
 
-    const FallbackLoading = <div className="p-10 text-center text-gray-500">Đang tải...</div>;
+    const FallbackLoading = <div className="p-10 text-center text-gray-500">Loading...</div>;
 
     return (
         <Suspense fallback={FallbackLoading}>

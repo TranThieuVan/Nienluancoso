@@ -12,7 +12,7 @@ export const useCart = () => {
         if (!token) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Vui lòng đăng nhập để thêm vào giỏ hàng!',
+                title: 'Please sign in to add items to your cart.',
                 confirmButtonColor: '#8B4513',
             });
             return;
@@ -31,7 +31,7 @@ export const useCart = () => {
             Swal.fire({
                 toast: true,
                 icon: 'success',
-                title: `Đã thêm ${quantity} sản phẩm vào giỏ`,
+                title: `${quantity} item${quantity === 1 ? '' : 's'} added to cart`,
                 position: 'bottom-end',
                 showConfirmButton: false,
                 timer: 2000,
@@ -43,8 +43,8 @@ export const useCart = () => {
             console.error('Lỗi khi thêm vào giỏ hàng:', err);
             Swal.fire({
                 icon: 'error',
-                title: 'Không thể thêm vào giỏ hàng',
-                text: err?.response?.data?.message || 'Vui lòng thử lại sau',
+                title: 'Could not add this item to your cart.',
+                text: 'Please try again.',
                 confirmButtonColor: '#8B4513',
             });
         }

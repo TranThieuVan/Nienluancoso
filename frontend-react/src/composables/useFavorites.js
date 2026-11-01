@@ -45,7 +45,7 @@ export const FavoritesProvider = ({ children }) => {
             Swal.fire({
                 toast: true,
                 icon: 'warning',
-                title: 'Vui lòng đăng nhập!',
+                title: 'Please sign in first.',
                 position: 'bottom-end',
                 showConfirmButton: false,
                 timer: 2000,
@@ -66,7 +66,7 @@ export const FavoritesProvider = ({ children }) => {
                 Swal.fire({
                     toast: true,
                     icon: 'info',
-                    title: 'Đã xóa khỏi mục yêu thích',
+                    title: 'Removed from favorites',
                     position: 'bottom-end',
                     showConfirmButton: false,
                     timer: 2000,
@@ -83,7 +83,7 @@ export const FavoritesProvider = ({ children }) => {
                 Swal.fire({
                     toast: true,
                     icon: 'success',
-                    title: 'Đã thêm vào mục yêu thích',
+                    title: 'Added to favorites',
                     position: 'bottom-end',
                     showConfirmButton: false,
                     timer: 2000,

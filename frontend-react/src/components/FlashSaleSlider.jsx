@@ -45,7 +45,7 @@ const useCountdown = (endDate) => {
 
 const Countdown = ({ endDate }) => {
     const { h, m, s, expired } = useCountdown(endDate);
-    if (expired) return <span className="text-xs text-stone-500 tracking-wide">Đã kết thúc</span>;
+    if (expired) return <span className="text-xs text-stone-500 tracking-wide">Ended</span>;
     return (
         <div className="flex items-center gap-1.5">
             {[h, m, s].map((unit, i) => (
@@ -68,7 +68,7 @@ const SaleBookCard = ({ book }) => {
     const imgUrl = getImageUrl(book.image);
     // ✅ GÁN CỨNG: Luôn tính toán và hiển thị số tiền giảm VNĐ
     const diff = (book.price || 0) - (book.discountedPrice || 0);
-    const discountLabel = diff > 0 ? `Giảm ${diff.toLocaleString('vi-VN')}₫` : null;
+    const discountLabel = diff > 0 ? `Save ${diff.toLocaleString('en-US')}₫` : null;
 
     return (
         <div
@@ -79,6 +79,8 @@ const SaleBookCard = ({ book }) => {
                 <img
                     src={imgUrl}
                     alt={book.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 mix-blend-multiply"
                 />
                 {/* ✅ GIỮ NGUYÊN Ô MÀU ĐỎ ROSE TRUYỀN THỐNG */}
@@ -92,8 +94,8 @@ const SaleBookCard = ({ book }) => {
                 <h3 className="text-lg font-bold text-black line-clamp-2 leading-snug mb-1 group-hover/card:text-rose-600 transition-colors">{book.title}</h3>
                 <p className="text-[15px] text-stone-500 truncate mb-4">{book.author}</p>
                 <div className="mt-auto">
-                    <p className="text-[14px] text-stone-400 line-through tabular-nums">{book.price?.toLocaleString('vi-VN')}₫</p>
-                    <p className="text-lg font-black text-rose-600 leading-tight tabular-nums mt-0.5">{book.discountedPrice?.toLocaleString('vi-VN')}₫</p>
+                    <p className="text-[14px] text-stone-400 line-through tabular-nums">{book.price?.toLocaleString('en-US')}₫</p>
+                    <p className="text-lg font-black text-rose-600 leading-tight tabular-nums mt-0.5">{book.discountedPrice?.toLocaleString('en-US')}₫</p>
                 </div>
             </div>
         </div>
@@ -149,7 +151,7 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                                 <div className="flex flex-col sm:items-end gap-5 shrink-0">
                                     <div className="flex items-center gap-3 bg-white px-5 py-3 border border-black">
                                         <span className="text-[12px] tracking-[0.2em] uppercase font-bold text-black">
-                                            Kết thúc sau
+                                            Ends in
                                         </span>
                                         <Countdown endDate={promotion.endDate} />
                                     </div>
@@ -158,7 +160,7 @@ const FlashSaleSlider = ({ promotions = [], allBooks = [] }) => {
                                         onClick={() => navigate(`/books?filter=sale&promo=${promotion._id}`)}
                                         className="text-[12px] tracking-[0.2em] uppercase font-bold text-black border-b-2 border-black pb-0.5 hover:text-gray-500 hover:border-gray-500 transition-colors"
                                     >
-                                        Xem tất cả {saleBooks.length} sách
+                                        View all {saleBooks.length} books
                                     </button>
                                 </div>
                             </div>

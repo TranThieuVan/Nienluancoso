@@ -27,7 +27,7 @@ const Login = () => {
     e.preventDefault();
 
     if (!email || !password) {
-      setErrorMessage('Vui lòng nhập đầy đủ thông tin.');
+      setErrorMessage('Please enter your email and password.');
       return;
     }
 
@@ -54,8 +54,8 @@ const Login = () => {
         loginAction(user, token);
         navigate('/');
       }
-    } catch (err) {
-      setErrorMessage(err.response?.data?.msg || 'Đăng nhập thất bại. Vui lòng thử lại.');
+    } catch {
+      setErrorMessage('Sign-in failed. Check your details and try again.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +70,7 @@ const Login = () => {
       <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white select-none">
         <div className="max-w-lg w-full p-8 rounded">
           <img src={logoImg} alt="Logo" className="mx-auto mb-8 w-60" />
-          <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Đăng Nhập</h2>
+          <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">Sign In</h2>
 
           {/* ✅ KHUNG CẢNH BÁO TẬP TRUNG */}
           <div className="min-h-[56px] mb-4 w-full">
@@ -98,7 +98,7 @@ const Login = () => {
             </div>
 
             <div className="mb-6 relative select-none">
-              <label className="block font-medium text-lg mb-2">Mật khẩu</label>
+              <label className="block font-medium text-lg mb-2">Password</label>
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -121,14 +121,14 @@ const Login = () => {
               disabled={loading}
             >
               {loading && <span className="absolute left-1/2 -translate-x-16 animate-spin"><i className="fas fa-spinner"></i></span>}
-              <span>Đăng Nhập</span>
+              <span>Sign In</span>
             </button>
           </form>
 
           <p className="text-center mt-6 text-base text-gray-600">
-            Chưa có tài khoản?{' '}
+            Don't have an account?{' '}
             <Link to="/register" className="text-blue-600 font-bold hover:underline transition-all">
-              Đăng ký ngay
+              Create one
             </Link>
           </p>
         </div>

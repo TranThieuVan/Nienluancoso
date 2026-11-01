@@ -8,6 +8,7 @@ const ChatIcon = ({ onToggle, isOpen }) => {
   const timeoutRef = useRef(null);
 
   const fetchUnreadCount = async () => {
+    if (document.visibilityState === 'hidden') return;
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
@@ -48,7 +49,7 @@ const ChatIcon = ({ onToggle, isOpen }) => {
   const handleClick = () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Bạn cần đăng nhập để sử dụng chức năng chat.');
+      alert('Please sign in to use chat.');
       return;
     }
     if (onToggle) onToggle();

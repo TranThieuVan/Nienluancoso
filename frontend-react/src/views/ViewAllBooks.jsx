@@ -6,6 +6,7 @@ import Pagination from '../components/Pagination';
 import { useFavorites } from '../composables/useFavorites';
 import BookCard from '../components/BookCard'; // ✅ 1. Import BookCard vào
 import { apiUrl } from '../config/api';
+import { genreLabel } from '../config/labels';
 
 const ViewAllBooks = () => {
   const [searchParams] = useSearchParams();
@@ -16,7 +17,7 @@ const ViewAllBooks = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalBooksCount, setTotalBooksCount] = useState(0);
 
-  const [title, setTitle] = useState('Tất cả sách');
+  const [title, setTitle] = useState(genreFromUrl ? genreLabel(genreFromUrl) : 'All Books');
   const [isLoading, setIsLoading] = useState(true);
   const booksPerPage = 21;
 
@@ -36,9 +37,9 @@ const ViewAllBooks = () => {
 
         if (genreFromUrl) {
           booksApiUrl += `&genre=${encodeURIComponent(genreFromUrl)}`;
-          setTitle(genreFromUrl);
+          setTitle(genreLabel(genreFromUrl));
         } else {
-          setTitle('Tất cả sách');
+          setTitle('All Books');
         }
 
         const { data } = await axios.get(booksApiUrl);
@@ -74,12 +75,12 @@ const ViewAllBooks = () => {
       <div className="border-b border-gray-100 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-10">
           <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">
-            {genreFromUrl ? 'Thể loại' : 'Thư viện'}
+            {genreFromUrl ? 'Genre' : 'Library'}
           </p>
           <div className="flex items-end justify-between">
             <h1 className="text-3xl font-bold text-black">{title}</h1>
             {!isLoading && (
-              <p className="text-sm text-stone-400 pb-1">{totalBooksCount} đầu sách</p>
+              <p className="text-sm text-stone-400 pb-1">{totalBooksCount} books</p>
             )}
           </div>
         </div>
@@ -90,12 +91,12 @@ const ViewAllBooks = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs tracking-widest uppercase text-stone-400">Đang tải...</p>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Loading books...</p>
           </div>
         ) : books.length === 0 ? (
           <div className="text-center py-24">
             <FontAwesomeIcon icon={['far', 'folder-open']} className="text-4xl text-stone-200 mb-4" />
-            <p className="text-stone-400 text-sm">Không có sách nào trong thể loại này.</p>
+            <p className="text-stone-400 text-sm">No books found in this genre.</p>
           </div>
         ) : (
           <>

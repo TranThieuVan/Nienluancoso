@@ -11,20 +11,20 @@ const Footer = () => {
                     <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-3">Est. 2025</p>
                     <h2 className="text-2xl font-bold text-white mb-4">BookNest</h2>
                     <p className="text-sm text-stone-400 leading-relaxed max-w-xs">
-                        Nền tảng mua sách trực tuyến với hàng ngàn đầu sách chất lượng, hỗ trợ người dùng 24/7.
+                        Your online bookstore for discovering great reads, with support available around the clock.
                     </p>
                 </div>
 
                 {/* ── Links ── */}
                 <div>
-                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-5">Điều hướng</p>
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-5">Explore</p>
                     <ul className="space-y-3">
                         {[
-                            { to: '/', label: 'Trang chủ' },
-                            { to: '/books', label: 'Sách' },
-                            { to: '/favorites', label: 'Yêu thích' },
-                            { to: '/cart', label: 'Giỏ hàng' },
-                            { to: '/profile', label: 'Tài khoản' },
+                            { to: '/', label: 'Home' },
+                            { to: '/books', label: 'Books' },
+                            { to: '/favorites', label: 'Favorites' },
+                            { to: '/cart', label: 'Cart' },
+                            { to: '/profile', label: 'Account' },
                         ].map(link => (
                             <li key={link.to}>
                                 <Link
@@ -40,7 +40,7 @@ const Footer = () => {
 
                 {/* ── Contact ── */}
                 <div>
-                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-5">Liên hệ</p>
+                    <p className="text-[10px] tracking-[0.4em] uppercase text-stone-500 mb-5">Contact</p>
                     <ul className="space-y-4">
                         {[
                             { icon: 'phone', text: '0123 456 789' },
@@ -85,7 +85,7 @@ const Footer = () => {
                         © 2025 BookNest. All rights reserved.
                     </p>
                     <p className="text-xs text-stone-700 tracking-widest uppercase">
-                        Sách · Tri thức · Cảm hứng
+                        Books · Knowledge · Inspiration
                     </p>
                 </div>
             </div>

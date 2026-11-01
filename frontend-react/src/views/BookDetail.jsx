@@ -10,6 +10,7 @@ import { useAuthStore } from '../stores/auth';
 import { apiUrl } from '../config/api';
 import { imageUrl as getImageUrl } from '../config/api';
 import BookCard from '../components/BookCard';
+import { genreLabel } from '../config/labels';
 
 const BookDetail = () => {
   const { id } = useParams();
@@ -57,10 +58,11 @@ const BookDetail = () => {
     return currentUserId && commentUserId && currentUserId === commentUserId;
   };
 
-  const fetchComments = async (pageNum = 1, isAppend = false) => {
+  const fetchComments = async (pageNum = 1, isAppend = false, signal) => {
     try {
       setIsLoadingComments(true);
-      const res = await axios.get(apiUrl(`/api/comments/${id}/comments?page=${pageNum}&limit=5`));
+      const res = await axios.get(apiUrl(`/api/comments/${id}/comments?page=${pageNum}&limit=5`), { signal });
+      if (signal?.aborted) return;
       if (isAppend) {
         setComments(prev => [...prev, ...res.data.comments]);
       } else {
@@ -69,28 +71,31 @@ const BookDetail = () => {
       setHasMoreComments(res.data.hasMore);
       setCommentPage(pageNum);
     } catch (err) {
-      console.error('Lỗi khi tải bình luận', err);
+      if (!signal?.aborted) console.error('Lỗi khi tải bình luận', err);
     } finally {
-      setIsLoadingComments(false);
+      if (!signal?.aborted) setIsLoadingComments(false);
     }
   };
 
-  const fetchMyComment = async () => {
+  const fetchMyComment = async (signal) => {
     if (!isLoggedIn) return;
     try {
       const res = await axios.get(apiUrl(`/api/comments/${id}/my`), {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        signal
       });
-      setMyComment(res.data);
+      if (!signal?.aborted) setMyComment(res.data);
     } catch (err) {
-      console.error('Lỗi lấy đánh giá cá nhân', err);
+      if (!signal?.aborted) console.error('Lỗi lấy đánh giá cá nhân', err);
     }
   };
 
-  const refreshRatingSummary = async (bookId) => {
-    const res = await axios.get(apiUrl(`/api/rating/${bookId}/rating`));
-    setAverageRating(res.data.average);
-    setTotalRatings(res.data.total);
+  const refreshRatingSummary = async (bookId, signal) => {
+    const res = await axios.get(apiUrl(`/api/rating/${bookId}/rating`), { signal });
+    if (!signal?.aborted) {
+      setAverageRating(res.data.average);
+      setTotalRatings(res.data.total);
+    }
   };
 
   const handleCollapseComments = () => {
@@ -100,45 +105,52 @@ const BookDetail = () => {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+
     const loadData = async () => {
-      await fetchFavorites();
-      try {
-        const res = await axios.get(apiUrl(`/api/books/${id}`));
-        setBook(res.data);
-        setQuantity(1);
+      setBook(null);
+      setQuantity(1);
+      setMyComment(null);
+      setHasPurchased(false);
+      setRecommendedBooks([]);
+      setHasMore(false);
+      setPage(1);
+      fetchFavorites();
 
-        const ratingRes = await axios.get(apiUrl(`/api/rating/${id}/rating`));
-        setAverageRating(ratingRes.data.average);
-        setTotalRatings(ratingRes.data.total);
+      const requests = [
+        axios.get(apiUrl(`/api/books/${id}`), { signal })
+          .then(res => { if (!signal.aborted) setBook(res.data); })
+          .catch(err => { if (!signal.aborted) console.error('Lỗi tải dữ liệu chi tiết sách', err); }),
+        refreshRatingSummary(id, signal)
+          .catch(err => { if (!signal.aborted) console.error('Lỗi khi tải điểm đánh giá', err); }),
+        fetchComments(1, false, signal),
+        axios.get(apiUrl(`/api/books/${id}/recommend?page=1&limit=6`), { signal })
+          .then(res => {
+            if (signal.aborted) return;
+            setRecommendedBooks(res.data.books || []);
+            setHasMore(res.data.hasMore);
+          })
+          .catch(err => { if (!signal.aborted) console.error('Lỗi khi lấy sách đề xuất:', err); }),
+      ];
 
-        await fetchComments();
+      if (isLoggedIn) {
+        requests.push(
+          axios.get(apiUrl(`/api/orders/check-purchased/${id}`), {
+            headers: { Authorization: `Bearer ${token}` },
+            signal
+          }).then(res => { if (!signal.aborted) setHasPurchased(res.data.hasPurchased); })
+            .catch(err => { if (!signal.aborted) console.error('Lỗi kiểm tra trạng thái mua hàng', err); }),
+          fetchMyComment(signal)
+        );
+      }
 
-        if (isLoggedIn) {
-          // Kiểm tra đã mua và nhận hàng chưa
-          try {
-            const purchaseRes = await axios.get(apiUrl(`/api/orders/check-purchased/${id}`), {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            setHasPurchased(purchaseRes.data.hasPurchased);
-          } catch (err) {
-            console.error('Lỗi kiểm tra trạng thái mua hàng', err);
-          }
-
-          // Lấy đánh giá cá nhân (nếu có)
-          await fetchMyComment();
-        }
-      } catch (err) { console.error('Lỗi tải dữ liệu chi tiết sách', err); }
-
-      try {
-        const recommendRes = await axios.get(apiUrl(`/api/books/${id}/recommend?page=1&limit=6`));
-        setRecommendedBooks(recommendRes.data.books);
-        setHasMore(recommendRes.data.hasMore);
-        setPage(1);
-      } catch (err) { console.error('Lỗi khi lấy sách đề xuất:', err); }
+      await Promise.allSettled(requests);
     };
 
     loadData();
     window.scrollTo(0, 0);
+    return () => controller.abort();
   }, [id, isLoggedIn, token, fetchFavorites]);
 
   useEffect(() => {
@@ -184,10 +196,10 @@ const BookDetail = () => {
   // Gửi đánh giá mới (comment + rating cùng lúc)
   const submitReview = async () => {
     if (!msg.trim()) {
-      return Swal.fire('Thiếu nội dung', 'Vui lòng nhập nhận xét của bạn.', 'warning');
+      return Swal.fire('Review required', 'Please enter your review.', 'warning');
     }
     if (newReviewRating === 0) {
-      return Swal.fire('Thiếu số sao', 'Vui lòng chọn số sao đánh giá.', 'warning');
+      return Swal.fire('Rating required', 'Please select a star rating.', 'warning');
     }
     try {
       await axios.post(apiUrl('/api/comments'), { bookId: book._id, content: msg }, {
@@ -205,14 +217,14 @@ const BookDetail = () => {
       await refreshRatingSummary(book._id);
       await fetchComments(1, false);
     } catch (err) {
-      Swal.fire('Lỗi', err.response?.data?.message || 'Lỗi khi gửi đánh giá', 'error');
+      Swal.fire('Error', 'Could not submit your review. Please try again.', 'error');
     }
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
+    return date.toLocaleDateString('en-US', {
       day: '2-digit', month: '2-digit', year: 'numeric'
     });
   };
@@ -228,7 +240,7 @@ const BookDetail = () => {
   // Lưu chỉnh sửa (comment + rating cùng lúc)
   const saveEdit = async (cmtId) => {
     if (!editContent.trim()) {
-      return Swal.fire('Lỗi', 'Nội dung không được để trống', 'error');
+      return Swal.fire('Review required', 'Review text cannot be empty.', 'error');
     }
     try {
       await axios.put(`/api/comments/${cmtId}`, { content: editContent }, {
@@ -248,17 +260,17 @@ const BookDetail = () => {
       await refreshRatingSummary(book._id);
       await fetchComments(1, false);
 
-      Swal.fire('Thành công', 'Đã cập nhật đánh giá', 'success');
+      Swal.fire('Review updated', 'Your changes have been saved.', 'success');
     } catch (err) {
-      Swal.fire('Lỗi', err.response?.data?.message || 'Không thể cập nhật', 'error');
+      Swal.fire('Error', 'Could not update your review.', 'error');
     }
   };
 
   const deleteComment = async (cmtId) => {
     const confirm = await Swal.fire({
-      title: 'Xác nhận xoá?',
-      text: 'Bạn có chắc muốn xoá đánh giá này?',
-      icon: 'warning', showCancelButton: true, confirmButtonText: 'Xoá', cancelButtonText: 'Huỷ'
+      title: 'Delete review?',
+      text: 'This action cannot be undone.',
+      icon: 'warning', showCancelButton: true, confirmButtonText: 'Delete', cancelButtonText: 'Cancel'
     });
     if (confirm.isConfirmed) {
       await axios.delete(apiUrl(`/api/comments/${cmtId}`), {
@@ -267,13 +279,13 @@ const BookDetail = () => {
       setMyComment(null);
       await refreshRatingSummary(book._id);
       await fetchComments(1, false);
-      Swal.fire('Đã xoá', '', 'success');
+      Swal.fire('Review deleted', '', 'success');
     }
   };
 
   const handleBuyNow = async () => {
     if (!isLoggedIn) {
-      Swal.fire({ icon: 'warning', title: 'Vui lòng đăng nhập để thanh toán!', confirmButtonColor: '#000' });
+      Swal.fire({ icon: 'warning', title: 'Please sign in to check out.', confirmButtonColor: '#000' });
       return;
     }
     try {
@@ -283,7 +295,7 @@ const BookDetail = () => {
       if (!exists) await addToCart(book, quantity);
       localStorage.setItem('preselectItem', book._id);
       navigate('/cart');
-    } catch (error) { console.error('Lỗi khi mua ngay:', error); }
+    } catch (error) { console.error('Buy now failed:', error); }
   };
 
   const getAvatarUrl = (avatar) => {
@@ -322,7 +334,7 @@ const BookDetail = () => {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm tracking-widest uppercase text-stone-400">Đang tải...</p>
+        <p className="text-sm tracking-widest uppercase text-stone-400">Loading book...</p>
       </div>
     );
   }
@@ -348,13 +360,13 @@ const BookDetail = () => {
             {/* Book Details */}
             <div className="order-3 md:order-none mb-10 md:mb-0 border border-gray-100 p-6">
               <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-4 pb-3 border-b border-gray-100">
-                Chi tiết sản phẩm
+                Book details
               </h2>
               <div className="space-y-3">
                 {[
-                  { label: 'Nhà xuất bản', value: book.publisher || 'Đang cập nhật' },
-                  { label: 'Thể loại', value: book.genre },
-                  { label: 'Tác giả', value: book.author },
+                  { label: 'Publisher', value: book.publisher || 'Not provided' },
+                  { label: 'Genre', value: genreLabel(book.genre) },
+                  { label: 'Author', value: book.author },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex gap-6">
                     <span className="text-sm text-stone-400 w-24 flex-shrink-0 pt-0.5">{label}</span>
@@ -365,7 +377,7 @@ const BookDetail = () => {
 
               {book.description && (
                 <div className="mt-6 pt-5 border-t border-gray-100">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-3">Mô tả</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 mb-3">Description</h3>
                   <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-line">{book.description}</p>
                 </div>
               )}
@@ -377,7 +389,7 @@ const BookDetail = () => {
               {/* Header + điểm trung bình */}
               <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-100">
                 <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400">
-                  Đánh giá & Bình luận
+                  Reviews & Ratings
                 </h2>
                 {totalRatings > 0 && (
                   <div className="flex items-center gap-2">
@@ -394,7 +406,7 @@ const BookDetail = () => {
               {isLoggedIn && hasPurchased && !myComment && (
                 <div className="mb-6 p-4 border border-gray-100 bg-stone-50/40">
                   <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">
-                    Viết đánh giá của bạn
+                    Write a review
                   </p>
                   {/* Chọn số sao */}
                   <div className="flex items-center gap-1.5 text-xl mb-3">
@@ -406,7 +418,7 @@ const BookDetail = () => {
                     })}
                     {newReviewRating > 0 && (
                       <span className="text-xs text-stone-400 ml-2">
-                        {['', 'Rất tệ', 'Tệ', 'Bình thường', 'Tốt', 'Xuất sắc'][newReviewRating]}
+                        {['', 'Very poor', 'Poor', 'Average', 'Good', 'Excellent'][newReviewRating]}
                       </span>
                     )}
                   </div>
@@ -418,19 +430,19 @@ const BookDetail = () => {
                       onChange={handleMsgChange}
                       className="flex-1 resize-none overflow-hidden p-3 bg-transparent outline-none text-sm"
                       rows="2"
-                      placeholder="Chia sẻ cảm nhận của bạn về cuốn sách này..."
+                      placeholder="Share your thoughts about this book..."
                     />
                     <button
                       onClick={submitReview}
                       disabled={!msg.trim() || newReviewRating === 0}
                       className="p-3 text-stone-400 hover:text-black disabled:opacity-30 transition-colors"
-                      title="Gửi đánh giá"
+                      title="Submit review"
                     >
                       <FontAwesomeIcon icon={['fas', 'paper-plane']} />
                     </button>
                   </div>
                   {newReviewRating === 0 && (
-                    <p className="text-xs text-stone-400 mt-1.5">* Vui lòng chọn số sao để gửi đánh giá</p>
+                    <p className="text-xs text-stone-400 mt-1.5">* Select a star rating to submit your review.</p>
                   )}
                 </div>
               )}
@@ -438,31 +450,33 @@ const BookDetail = () => {
               {/* Chưa mua sách */}
               {isLoggedIn && !hasPurchased && !myComment && (
                 <div className="text-sm text-stone-400 italic mb-6 p-4 bg-stone-50 border border-gray-100">
-                  Bạn cần <span className="text-black font-medium not-italic">mua và nhận sách</span> để có thể đánh giá.
+                  You need to <span className="text-black font-medium not-italic">purchase and receive this book</span> before reviewing it.
                 </div>
               )}
 
               {/* Chưa đăng nhập */}
               {!isLoggedIn && (
                 <div className="text-sm text-stone-400 italic mb-6 p-4 bg-stone-50 border border-gray-100">
-                  Vui lòng{' '}
+                  Please{' '}
                   <span
                     className="text-black underline cursor-pointer"
                     onClick={() => navigate('/login')}
                   >
-                    đăng nhập
+                    sign in
                   </span>{' '}
-                  để đánh giá.
+                  to leave a review.
                 </div>
               )}
 
               {/* Đánh giá của chính mình (ghim lên đầu) */}
               {myComment && (
                 <div className="mb-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Đánh giá của bạn</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Your review</p>
                   <div className="flex gap-3 pb-5 border-b border-gray-100 bg-stone-50/40 p-3 -mx-1">
                     <img
                       src={getAvatarUrl(myComment.userId?.avatar)}
+                      loading="lazy"
+                      decoding="async"
                       className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
                       onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }}
                     />
@@ -485,13 +499,13 @@ const BookDetail = () => {
                                 onClick={() => startEdit(myComment)}
                                 className="flex items-center gap-2.5 px-4 py-2 hover:bg-stone-50 w-full text-left text-sm text-stone-600"
                               >
-                                <FontAwesomeIcon icon={['fas', 'pen']} className="text-sm" />Chỉnh sửa
+                                <FontAwesomeIcon icon={['fas', 'pen']} className="text-sm" />Edit
                               </button>
                               <button
                                 onClick={() => deleteComment(myComment._id)}
                                 className="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 w-full text-left text-sm text-red-500"
                               >
-                                <FontAwesomeIcon icon={['fas', 'trash']} className="text-sm" />Xoá
+                                <FontAwesomeIcon icon={['fas', 'trash']} className="text-sm" />Delete
                               </button>
                             </div>
                           )}
@@ -520,7 +534,7 @@ const BookDetail = () => {
                             })}
                             {editReviewRating > 0 && (
                               <span className="text-xs text-stone-400 ml-1">
-                                {['', 'Rất tệ', 'Tệ', 'Bình thường', 'Tốt', 'Xuất sắc'][editReviewRating]}
+                                {['', 'Very poor', 'Poor', 'Average', 'Good', 'Excellent'][editReviewRating]}
                               </span>
                             )}
                           </div>
@@ -535,13 +549,13 @@ const BookDetail = () => {
                               onClick={() => saveEdit(myComment._id)}
                               className="text-sm font-semibold text-black hover:underline"
                             >
-                              Lưu
+                              Save
                             </button>
                             <button
                               onClick={() => { setEditId(null); setEditContent(''); setEditReviewRating(0); }}
                               className="text-sm text-stone-400 hover:underline"
                             >
-                              Huỷ
+                              Cancel
                             </button>
                           </div>
                         </div>
@@ -553,13 +567,15 @@ const BookDetail = () => {
 
               {/* Danh sách đánh giá của người khác */}
               {otherComments.length === 0 && !myComment ? (
-                <p className="text-stone-400 text-sm py-6 text-center">Chưa có đánh giá nào.</p>
+                <p className="text-stone-400 text-sm py-6 text-center">No reviews yet.</p>
               ) : otherComments.length > 0 ? (
                 <div className="space-y-5">
                   {otherComments.map((cmt) => (
                     <div key={cmt._id} className="flex gap-3 pb-5 border-b border-gray-100 last:border-0">
                       <img
                         src={getAvatarUrl(cmt.userId?.avatar)}
+                        loading="lazy"
+                        decoding="async"
                         className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-gray-100"
                         onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }}
                       />
@@ -575,7 +591,7 @@ const BookDetail = () => {
                           </div>
                         )}
                         {cmt.isHidden ? (
-                          <p className="text-sm text-red-400 italic mt-1">Bình luận đã bị ẩn: {cmt.hiddenReason}</p>
+                          <p className="text-sm text-red-400 italic mt-1">This review is hidden: {cmt.hiddenReason}</p>
                         ) : (
                           <p className="text-sm text-stone-600 mt-1 leading-relaxed">{cmt.content}</p>
                         )}
@@ -590,7 +606,7 @@ const BookDetail = () => {
                           onClick={handleCollapseComments}
                           className="text-sm font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors"
                         >
-                          Ẩn bớt
+                          Show less
                         </button>
                       )}
                       {hasMoreComments && (
@@ -599,7 +615,7 @@ const BookDetail = () => {
                           disabled={isLoadingComments}
                           className="text-sm font-bold uppercase tracking-widest text-stone-500 hover:text-black transition-colors disabled:opacity-50"
                         >
-                          {isLoadingComments ? 'Đang tải...' : 'Xem thêm đánh giá'}
+                          {isLoadingComments ? 'Loading...' : 'Load more reviews'}
                         </button>
                       )}
                     </div>
@@ -618,7 +634,7 @@ const BookDetail = () => {
             <div className="order-2 md:order-none mb-10 md:mb-0 md:sticky md:top-24">
               {/* Genre Tag */}
               <span className="inline-block text-[10px] tracking-[0.3em] uppercase border border-stone-200 text-stone-400 px-3 py-1 mb-4">
-                {book.genre}
+                {genreLabel(book.genre)}
               </span>
 
               {/* Title */}
@@ -634,7 +650,7 @@ const BookDetail = () => {
                 <div className="flex gap-0.5 text-sm">
                   {renderStars(averageRating)}
                 </div>
-                <span className="text-sm text-stone-400">({totalRatings} đánh giá)</span>
+                <span className="text-sm text-stone-400">({totalRatings} reviews)</span>
               </div>
 
               {/* Giá Sale và Giá gốc */}
@@ -642,18 +658,18 @@ const BookDetail = () => {
                 {book.discountedPrice && book.discountedPrice < book.price ? (
                   <div className="flex items-end gap-3">
                     <p className="text-4xl font-bold text-rose-600 tracking-tight">
-                      {book.discountedPrice.toLocaleString('vi-VN')}₫
+                      {book.discountedPrice.toLocaleString('en-US')}₫
                     </p>
                     <p className="text-lg text-stone-400 line-through mb-1">
-                      {book.price.toLocaleString('vi-VN')}₫
+                      {book.price.toLocaleString('en-US')}₫
                     </p>
                     <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-1 tracking-widest mb-1.5 shadow-sm">
-                      Giảm {(book.price - book.discountedPrice).toLocaleString('vi-VN')}₫
+                      Save {(book.price - book.discountedPrice).toLocaleString('en-US')}₫
                     </span>
                   </div>
                 ) : (
                   <p className="text-4xl font-bold text-black tracking-tight">
-                    {book.price.toLocaleString('vi-VN')}₫
+                    {book.price.toLocaleString('en-US')}₫
                   </p>
                 )}
               </div>
@@ -662,12 +678,12 @@ const BookDetail = () => {
               {book.stock > 0 ? (
                 <p className="text-sm text-stone-500 flex items-center gap-2 mb-6">
                   <span className="w-1.5 h-1.5 rounded-full bg-stone-500 inline-block" />
-                  Còn hàng · {book.stock} sản phẩm
+                  In stock · {book.stock} available
                 </p>
               ) : (
                 <p className="text-sm text-red-500 flex items-center gap-2 mb-6">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-                  Hết hàng
+                  Out of stock
                 </p>
               )}
 
@@ -691,7 +707,7 @@ const BookDetail = () => {
                       <FontAwesomeIcon icon={['fas', 'plus']} className="text-sm" />
                     </button>
                   </div>
-                  <span className="text-sm text-stone-400">Tối đa {book.stock} sản phẩm</span>
+                  <span className="text-sm text-stone-400">Maximum {book.stock}</span>
                 </div>
               )}
 
@@ -703,14 +719,14 @@ const BookDetail = () => {
                     disabled={book.stock === 0}
                     className="flex-1 py-3.5 hover-flip-btn"
                   >
-                    Thêm vào giỏ
+                    Add to cart
                   </button>
                   <button
                     onClick={handleBuyNow}
                     disabled={book.stock === 0}
                     className="flex-1 py-3.5 hover-flip-btn"
                   >
-                    Mua ngay
+                    Buy now
                   </button>
                 </div>
 
@@ -722,16 +738,16 @@ const BookDetail = () => {
                     icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
                     className={isFavorite(book._id) ? 'text-red-500' : ''}
                   />
-                  {isFavorite(book._id) ? 'Đã thêm vào yêu thích' : 'Thêm vào yêu thích'}
+                  {isFavorite(book._id) ? 'Added to favorites' : 'Add to favorites'}
                 </button>
               </div>
 
               {/* Trust Badges */}
               <div className="border border-gray-100 p-4 space-y-3">
                 {[
-                  { icon: 'truck', text: 'Vận chuyển nhanh chóng' },
-                  { icon: 'rotate-left', text: 'Đổi trả trong 7 ngày nếu sản phẩm lỗi' },
-                  { icon: 'shield-halved', text: 'Cam kết sách chính hãng, chất lượng' },
+                  { icon: 'truck', text: 'Fast, reliable shipping' },
+                  { icon: 'rotate-left', text: '7-day returns for damaged items' },
+                  { icon: 'shield-halved', text: 'Authentic books, guaranteed' },
                 ].map(({ icon, text }) => (
                   <div key={text} className="flex items-center gap-3 text-sm text-stone-500">
                     <FontAwesomeIcon icon={['fas', icon]} className="text-stone-300 w-4 flex-shrink-0" />
@@ -747,8 +763,8 @@ const BookDetail = () => {
         {recommendedBooks.length > 0 && (
           <section className="mt-20 pt-12 border-t border-gray-100">
             <div className="text-center mb-10">
-              <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">Gợi ý cho bạn</p>
-              <h2 className="text-2xl font-bold text-black">Sản phẩm liên quan</h2>
+              <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">Recommended for you</p>
+              <h2 className="text-2xl font-bold text-black">You may also like</h2>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5">
@@ -764,7 +780,7 @@ const BookDetail = () => {
                   disabled={isLoadingMore}
                   className="px-10 py-3 hover-flip-btn"
                 >
-                  {isLoadingMore ? 'Đang tải...' : 'Xem thêm'}
+                  {isLoadingMore ? 'Loading...' : 'Load more'}
                 </button>
               </div>
             )}
@@ -775,8 +791,8 @@ const BookDetail = () => {
         {recentBooks.length > 0 && (
           <section className="mt-20 pt-12 border-t border-gray-100">
             <div className="text-center mb-10">
-              <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">Lịch sử duyệt</p>
-              <h2 className="text-2xl font-bold text-black">Sách Bạn Vừa Xem</h2>
+              <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-2">Browsing history</p>
+              <h2 className="text-2xl font-bold text-black">Recently viewed</h2>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5">

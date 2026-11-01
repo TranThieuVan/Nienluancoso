@@ -10,12 +10,13 @@ import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../composables/cartStore';
 import { apiUrl } from '../config/api';
 import { imageUrl as getImageUrl } from '../config/api';
+import { genreLabel } from '../config/labels';
 
 /* ─── Data ─────────────────────────────────────────── */
 const NAV_LINKS = [
-    { to: '/', label: 'Trang chủ' },
-    { to: '/books', label: 'Kho Sách' },
-    { to: '/about', label: 'Giới thiệu' },
+    { to: '/', label: 'Home' },
+    { to: '/books', label: 'Books' },
+    { to: '/about', label: 'About' },
 ];
 
 const GENRES = [
@@ -43,7 +44,7 @@ const Navbar = () => {
     const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
     const handleLogout = () => { logout(); setDropdownOpen(false); navigate('/'); };
     const getAvatarUrl = () => user
-        ? `${getImageUrl(user.avatar || '/uploads/avatars/default-user.png')}?t=${Date.now()}`
+        ? getImageUrl(user.avatar || '/uploads/avatars/default-user.png')
         : '';
     const loadCartCount = async () => {
         if (!token) { setCartCount(0); return; }
@@ -95,13 +96,13 @@ const Navbar = () => {
                         ))}
                         <div className="relative flex items-center h-10" onMouseEnter={onGenreEnter} onMouseLeave={onGenreLeave}>
                             <span className="text-[15px] tracking-[0.15em] uppercase font-bold text-stone-400 hover:text-black transition-colors duration-200 relative pb-1.5 after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full flex items-center gap-1.5 cursor-pointer">
-                                Thể loại <FontAwesomeIcon icon={['fas', 'chevron-down']} className={`text-[10px] transition-transform duration-200 ${showGenres ? 'rotate-180' : ''}`} />
+                                Genres <FontAwesomeIcon icon={['fas', 'chevron-down']} className={`text-[10px] transition-transform duration-200 ${showGenres ? 'rotate-180' : ''}`} />
                             </span>
                             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 z-50 transition-all duration-300 origin-top ${showGenres ? 'opacity-100 scale-y-100 translate-y-0' : 'opacity-0 scale-y-95 -translate-y-2 pointer-events-none'}`}>
                                 <div className="w-56 bg-white py-3 shadow-2xl border border-gray-100">
                                     {GENRES.map((genre) => (
                                         <button key={genre} onClick={() => goToGenre(genre)} className="w-full text-left px-5 py-3 text-[13px] font-bold tracking-[0.2em] uppercase text-stone-500 hover:text-black hover:bg-stone-50 transition-colors">
-                                            {genre}
+                                            {genreLabel(genre)}
                                         </button>
                                     ))}
                                 </div>
@@ -114,10 +115,10 @@ const Navbar = () => {
                         <div className="flex items-center gap-1">
                             <InputSearch />
                             <NotificationBell />
-                            <Link to="/favorites" className={iconBtn} title="Yêu thích">
+                            <Link to="/favorites" className={iconBtn} title="Favorites">
                                 <FontAwesomeIcon icon={['far', 'heart']} className="text-[20px]" />
                             </Link>
-                            <Link to="/cart" className={iconBtn} title="Giỏ hàng">
+                            <Link to="/cart" className={iconBtn} title="Cart">
                                 <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-[20px]" />
                                 {cartCount > 0 && <span className="absolute top-1.5 right-1 inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 text-[10px] font-bold text-white bg-black rounded-full">{cartCount}</span>}
                             </Link>
@@ -138,8 +139,8 @@ const Navbar = () => {
                                     <div className={`absolute right-0 top-full mt-4 w-56 bg-white z-[999] transition-all duration-300 origin-top shadow-2xl border border-gray-100 ${dropdownOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         <div className="py-2">
                                             {[
-                                                { to: '/profile', icon: ['far', 'user'], label: 'Hồ sơ cá nhân' },
-                                                { to: '/orders', icon: ['fas', 'box'], label: 'Lịch sử mua hàng' },
+                                                { to: '/profile', icon: ['far', 'user'], label: 'My profile' },
+                                                { to: '/orders', icon: ['fas', 'box'], label: 'Order history' },
                                             ].map(({ to, icon, label }) => (
                                                 <Link key={to} to={to} onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-5 py-3.5 text-[13px] tracking-[0.15em] uppercase font-bold text-stone-500 hover:text-black hover:bg-stone-50 transition-colors">
                                                     <FontAwesomeIcon icon={icon} className="w-4 text-stone-300" /> {label}
@@ -147,14 +148,14 @@ const Navbar = () => {
                                             ))}
                                             <div className="h-px bg-gray-100 mx-5 my-1" />
                                             <button onClick={handleLogout} className="flex items-center gap-3 w-full text-left px-5 py-3.5 text-[13px] tracking-[0.15em] uppercase font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                                                <FontAwesomeIcon icon={['fas', 'arrow-right-from-bracket']} className="w-4" /> Đăng xuất
+                                                <FontAwesomeIcon icon={['fas', 'arrow-right-from-bracket']} className="w-4" /> Sign out
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             ) : (
                                 <Link to="/login" className="flex items-center gap-2 text-[15px] tracking-[0.2em] font-bold text-black hover:text-stone-500 transition-colors pl-2">
-                                    ĐĂNG NHẬP <FontAwesomeIcon icon={['far', 'user']} className="text-[18px]" />
+                                    SIGN IN <FontAwesomeIcon icon={['far', 'user']} className="text-[18px]" />
                                 </Link>
                             )}
                         </div>
@@ -182,7 +183,7 @@ const Navbar = () => {
                                 <img src={getAvatarUrl()} alt="Avatar" className="w-10 h-10 rounded-full object-cover" onError={(e) => { e.target.src = getImageUrl('/uploads/avatars/default-user.png'); }} />
                                 <div>
                                     <p className="text-[15px] font-bold tracking-[0.15em] uppercase text-black">{user.name || user.username}</p>
-                                    <button onClick={handleLogout} className="text-[13px] text-stone-400 hover:text-red-500 mt-1 uppercase tracking-wider">Đăng xuất</button>
+                                    <button onClick={handleLogout} className="text-[13px] text-stone-400 hover:text-red-500 mt-1 uppercase tracking-wider">Sign out</button>
                                 </div>
                             </div>
                         ) : (
@@ -201,12 +202,12 @@ const Navbar = () => {
                         ))}
                         <details className="group">
                             <summary className="flex items-center justify-between py-3 text-[15px] tracking-[0.2em] uppercase font-bold text-stone-400 hover:text-black cursor-pointer list-none transition-colors">
-                                Thể loại <FontAwesomeIcon icon={['fas', 'chevron-down']} className="text-[11px] transition-transform duration-200 group-open:rotate-180" />
+                                Genres <FontAwesomeIcon icon={['fas', 'chevron-down']} className="text-[11px] transition-transform duration-200 group-open:rotate-180" />
                             </summary>
                             <div className="pl-4 py-1">
                                 {GENRES.map(genre => (
                                     <button key={genre} onClick={() => goToGenre(genre)} className="block w-full text-left py-2.5 text-[12px] tracking-[0.15em] uppercase font-bold text-stone-400 hover:text-black transition-colors">
-                                        {genre}
+                                        {genreLabel(genre)}
                                     </button>
                                 ))}
                             </div>
@@ -215,10 +216,10 @@ const Navbar = () => {
 
                     {user && (
                         <div className="mt-6 px-6 pt-6 border-t border-gray-100 space-y-1">
-                            <p className="text-[15px] uppercase tracking-[0.3em] text-stone-700 font-bold mb-3">Tài khoản</p>
+                            <p className="text-[15px] uppercase tracking-[0.3em] text-stone-700 font-bold mb-3">Account</p>
                             {[
-                                { to: '/profile', label: 'Hồ sơ cá nhân' },
-                                { to: '/orders', label: 'Lịch sử mua hàng' },
+                                { to: '/profile', label: 'My profile' },
+                                { to: '/orders', label: 'Order history' },
                             ].map(({ to, label }) => (
                                 <Link key={to} to={to} onClick={() => setMenuOpen(false)} className="block py-2.5 text-[13px] tracking-[0.15em] uppercase font-bold text-stone-400 hover:text-black transition-colors">
                                     {label}

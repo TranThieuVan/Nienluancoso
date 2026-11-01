@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
-import { imageUrl as getImageUrl } from '../config/api';
+import { apiUrl, imageUrl as getImageUrl } from '../config/api';
 const InputSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -33,22 +33,28 @@ const InputSearch = () => {
       return;
     }
 
+    const controller = new AbortController();
     const fetchSuggestions = async () => {
+      if (controller.signal.aborted) return;
       setIsLoading(true);
       try {
-        const res = await axios.get(`/api/books?search=${encodeURIComponent(searchQuery.trim())}`);
-        const foundBooks = res.data.books || [];
-        setSuggestions(foundBooks.slice(0, 5));
+        const params = new URLSearchParams({ search: searchQuery.trim(), limit: '5' });
+        const res = await axios.get(apiUrl(`/api/books?${params}`), { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setSuggestions(res.data.books || []);
         setShowSuggestions(true);
       } catch (error) {
-        console.error('Lỗi khi gợi ý sách:', error);
+        if (!controller.signal.aborted) console.error('Lỗi khi gợi ý sách:', error);
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
     const timeoutId = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   const emitSearch = () => {
@@ -96,7 +102,7 @@ const InputSearch = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
-            placeholder="Tìm tên sách, tác giả..."
+            placeholder="Search books or authors..."
             className="w-full pl-4 pr-10 py-3 text-sm bg-stone-50 focus:bg-white outline-none transition-colors placeholder:text-stone-400"
           />
           {isLoading ? (
@@ -124,6 +130,8 @@ const InputSearch = () => {
                     <img
                       src={getImageUrl(book.image)}
                       alt={book.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-8 h-12 object-cover flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
@@ -133,11 +141,11 @@ const InputSearch = () => {
                     <div className="flex flex-col items-end flex-shrink-0 pl-2">
                       {book.discountedPrice && book.discountedPrice < book.price ? (
                         <>
-                          <p className="text-xs font-bold text-rose-600">{book.discountedPrice.toLocaleString('vi-VN')}₫</p>
-                          <p className="text-[10px] text-stone-400 line-through">{book.price?.toLocaleString('vi-VN')}₫</p>
+                          <p className="text-xs font-bold text-rose-600">{book.discountedPrice.toLocaleString('en-US')}₫</p>
+                          <p className="text-[10px] text-stone-400 line-through">{book.price?.toLocaleString('en-US')}₫</p>
                         </>
                       ) : (
-                        <p className="text-xs font-bold text-black">{book.price?.toLocaleString('vi-VN')}₫</p>
+                        <p className="text-xs font-bold text-black">{book.price?.toLocaleString('en-US')}₫</p>
                       )}
                     </div>
                   </li>
@@ -151,7 +159,7 @@ const InputSearch = () => {
               </ul>
             ) : (
               <div className="px-4 py-6 text-center text-xs text-stone-400">
-                Không tìm thấy sách nào phù hợp.
+                No matching books found.
               </div>
             )}
           </div>

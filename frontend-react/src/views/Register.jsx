@@ -24,9 +24,9 @@ const Register = () => {
   // Gom tất cả lỗi vào 1 mảng để hiển thị tập trung
   const validationErrors = [];
   if (hasSubmitted) {
-    if (passwordTooShort) validationErrors.push('Mật khẩu phải có ít nhất 8 ký tự.');
-    if (!passwordTooShort && missingUppercase) validationErrors.push('Mật khẩu phải có ít nhất 1 chữ cái viết hoa.');
-    if (passwordMismatch) validationErrors.push('Mật khẩu không khớp.');
+    if (passwordTooShort) validationErrors.push('Password must be at least 8 characters.');
+    if (!passwordTooShort && missingUppercase) validationErrors.push('Password must include at least one uppercase letter.');
+    if (passwordMismatch) validationErrors.push('Passwords do not match.');
   }
 
   const handleChange = (e) => {
@@ -46,10 +46,10 @@ const Register = () => {
     setErrorMessage('');
     try {
       await axios.post(apiUrl('/api/auth/register'), form);
-      alert('Đăng ký thành công! Hãy đăng nhập nhé.');
+      alert('Registration complete. Please sign in.');
       navigate('/login');
-    } catch (error) {
-      setErrorMessage(error.response?.data?.msg || 'Đăng ký thất bại. Vui lòng thử lại.');
+    } catch {
+      setErrorMessage('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ const Register = () => {
 
       <div className="w-full md:w-2/5 xl:w-1/5 flex items-center justify-center bg-white select-none">
         <div className="max-w-lg w-full p-6 sm:p-8 rounded">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 text-gray-800">Đăng Ký</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 text-gray-800">Create Account</h2>
 
           {/* ✅ KHUNG CẢNH BÁO TẬP TRUNG (Chỉ hiện khi có lỗi) */}
           <div className="min-h-[64px] mb-4 w-full">
@@ -86,7 +86,7 @@ const Register = () => {
           <form onSubmit={handleRegister}>
             {/* Các ô input xếp sát nhau siêu gọn */}
             <div className="mb-4">
-              <label className="block font-medium text-base sm:text-lg mb-1">Tên người dùng</label>
+              <label className="block font-medium text-base sm:text-lg mb-1">Name</label>
               <input
                 name="name"
                 value={form.name}
@@ -110,7 +110,7 @@ const Register = () => {
             </div>
 
             <div className="mb-4">
-              <label className="block font-medium text-base sm:text-lg mb-1">Mật khẩu</label>
+              <label className="block font-medium text-base sm:text-lg mb-1">Password</label>
               <input
                 name="password"
                 value={form.password}
@@ -122,7 +122,7 @@ const Register = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-base sm:text-lg mb-1">Nhập lại mật khẩu</label>
+              <label className="block font-medium text-base sm:text-lg mb-1">Confirm password</label>
               <input
                 name="confirmPassword"
                 value={form.confirmPassword}
@@ -139,14 +139,14 @@ const Register = () => {
               disabled={loading}
             >
               {loading && <span className="absolute left-1/2 -translate-x-16 animate-spin"><i className="fas fa-spinner"></i></span>}
-              <span>Đăng Ký</span>
+              <span>Create Account</span>
             </button>
           </form>
 
           <p className="text-center mt-6 text-base text-gray-600">
-            Đã có tài khoản?{' '}
+            Already have an account?{' '}
             <Link to="/login" className="text-blue-600 font-bold hover:underline transition-all">
-              Đăng nhập
+              Sign in
             </Link>
           </p>
         </div>

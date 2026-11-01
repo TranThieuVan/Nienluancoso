@@ -33,6 +33,8 @@ const BookCard = ({ book }) => {
                 <img
                     src={imageUrl}
                     alt={book.title || 'Book Cover'}
+                    loading="lazy"
+                    decoding="async"
                     // Sử dụng group-hover/card để chỉ nhận diện hover từ div cha gần nhất này
                     className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover/card:scale-105"
                     onClick={() => goToDetail(book._id)}
@@ -50,7 +52,7 @@ const BookCard = ({ book }) => {
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleFavorite(book); }}
                         className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
-                        title={isFavorite(book._id) ? 'Bỏ yêu thích' : 'Yêu thích'}
+                        title={isFavorite(book._id) ? 'Remove from favorites' : 'Add to favorites'}
                     >
                         <FontAwesomeIcon
                             icon={[isFavorite(book._id) ? 'fas' : 'far', 'heart']}
@@ -60,7 +62,7 @@ const BookCard = ({ book }) => {
                     <button
                         onClick={(e) => { e.stopPropagation(); addToCart(book); }}
                         className="w-9 h-9 bg-white rounded-full flex items-center justify-center hover:bg-stone-100 transition-colors shadow-sm"
-                        title="Thêm vào giỏ"
+                        title="Add to cart"
                     >
                         <FontAwesomeIcon icon={['fas', 'bag-shopping']} className="text-stone-700 text-sm" />
                     </button>
@@ -89,15 +91,15 @@ const BookCard = ({ book }) => {
                     {hasDiscount ? (
                         <>
                             <span className="text-lg font-bold text-black truncate">
-                                {book.discountedPrice?.toLocaleString('vi-VN')}₫
+                                {book.discountedPrice?.toLocaleString('en-US')}₫
                             </span>
                             <span className="text-[13px] text-stone-400 line-through truncate">
-                                {book.price?.toLocaleString('vi-VN')}₫
+                                {book.price?.toLocaleString('en-US')}₫
                             </span>
                         </>
                     ) : (
                         <span className="text-lg font-bold text-black truncate">
-                            {book.price?.toLocaleString('vi-VN')}₫
+                                {book.price?.toLocaleString('en-US')}₫
                         </span>
                     )}
                 </div>

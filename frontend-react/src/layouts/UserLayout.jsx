@@ -34,7 +34,7 @@ const UserLayout = () => {
             {userId && isChatOpen && (
                 <Suspense fallback={
                     <div className="fixed bottom-20 right-5 p-4 bg-white shadow-lg rounded">
-                        Đang tải trợ lý AI...
+                        Loading support chat...
                     </div>
                 }>
                     {/* key={userId} đảm bảo ChatBox reset sạch khi đổi tài khoản */}

@@ -35,7 +35,7 @@ const Checkout = () => {
   // State khóa nút bấm, ngăn chặn người dùng spam click tạo nhiều đơn hàng ảo
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const formatPrice = (n) => (n || 0).toLocaleString('vi-VN') + '₫';
+  const formatPrice = (n) => (n || 0).toLocaleString('en-US') + '₫';
   const formatAddress = (addr) => {
     if (!addr.street) return '';
     return `${addr.street}, ${addr.ward}, ${addr.district}, ${addr.city}`;
@@ -56,14 +56,17 @@ const Checkout = () => {
       try {
         const selected = localStorage.getItem('checkoutItems');
         if (!selected) {
-          await Swal.fire('Không có sản phẩm', 'Vui lòng chọn sản phẩm trước khi thanh toán.', 'info');
+          await Swal.fire('Your cart is empty', 'Choose items before checking out.', 'info');
           return navigate('/cart');
         }
 
         const parsedItems = JSON.parse(selected);
         setCart(parsedItems.filter(item => item.book && item.book.price != null));
 
-        const addrRes = await axios.get('/api/addresses', { headers: { Authorization: `Bearer ${token}` } });
+        const [addrRes, voucherRes] = await Promise.all([
+          axios.get('/api/addresses', { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get('/api/vouchers/active', { headers: { Authorization: `Bearer ${token}` } })
+        ]);
         setAddresses(addrRes.data);
 
         if (addrRes.data.length > 0) {
@@ -73,17 +76,24 @@ const Checkout = () => {
           setForm({ ...defaultAddress });
         }
 
-        const resProvinces = await axios.get('https://provinces.open-api.vn/api/p/');
-        setProvinces(resProvinces.data);
-
-        const voucherRes = await axios.get('/api/vouchers/active', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
         setVouchers(voucherRes.data);
       } catch (err) { console.error('Lỗi tải dữ liệu', err); }
     };
     loadData();
   }, [navigate, token]);
+
+  useEffect(() => {
+    if (!showAddressModal || !showNewAddressForm || provinces.length > 0) return;
+
+    const controller = new AbortController();
+    axios.get('https://provinces.open-api.vn/api/p/', { signal: controller.signal })
+      .then(res => setProvinces(res.data))
+      .catch(error => {
+        if (!controller.signal.aborted) console.error('Lỗi tải danh sách tỉnh thành:', error);
+      });
+
+    return () => controller.abort();
+  }, [showAddressModal, showNewAddressForm, provinces.length]);
 
   const handleProvinceChange = async (e) => {
     const provinceCode = e.target.value;
@@ -135,7 +145,7 @@ const Checkout = () => {
 
         Swal.fire({
           toast: true, position: 'top-end', icon: 'info',
-          title: 'Đã hủy giao dịch',
+          title: 'Payment cancelled',
           showConfirmButton: false, timer: 2500
         });
       } catch (err) {
@@ -160,7 +170,7 @@ const Checkout = () => {
   const addNewAddress = async () => {
     const { fullName, phone, street, ward, district, city } = newAddress;
     if (!fullName || !phone || !street || !ward || !district || !city) {
-      return Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ địa chỉ.', 'warning');
+      return Swal.fire('Missing information', 'Complete the shipping address.', 'warning');
     }
     try {
       const res = await axios.post('/api/addresses', newAddress, { headers: { Authorization: `Bearer ${token}` } });
@@ -168,9 +178,9 @@ const Checkout = () => {
       setTempSelectedAddressId(res.data._id);
       setNewAddress({ fullName: '', phone: '', street: '', ward: '', district: '', city: '' });
       setShowNewAddressForm(false);
-      Swal.fire('Đã thêm địa chỉ', '', 'success');
+      Swal.fire('Address added', '', 'success');
     } catch {
-      Swal.fire('Lỗi', 'Không thể thêm địa chỉ.', 'error');
+      Swal.fire('Error', 'Could not add the address.', 'error');
     }
   };
 
@@ -187,11 +197,11 @@ const Checkout = () => {
 
       Swal.fire({
         toast: true, position: 'top-end', icon: 'success',
-        title: `Đã áp dụng mã ${res.data.voucherCode}`,
+        title: `Code ${res.data.voucherCode} applied`,
         showConfirmButton: false, timer: 2000
       });
     } catch (err) {
-      Swal.fire('Thất bại', err.response?.data?.message || 'Mã giảm giá không hợp lệ', 'error');
+      Swal.fire('Could not apply code', 'Check the voucher and try again.', 'error');
     }
   };
 
@@ -205,13 +215,13 @@ const Checkout = () => {
     if (isProcessing) return;
 
     if (!form.fullName || !form.phone || !form.street) {
-      return Swal.fire('Thiếu thông tin', 'Vui lòng chọn hoặc thêm địa chỉ giao hàng.', 'warning');
+      return Swal.fire('Missing information', 'Choose or add a shipping address.', 'warning');
     }
 
     Swal.fire({
-      title: 'Xác nhận đặt hàng?',
-      html: `Bạn sẽ thanh toán số tiền <b>${formatPrice(totalAmount)}</b> bằng phương thức <b>${paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng' :
-        paymentMethod === 'vnpay' ? 'VNPAY' : 'Chuyển khoản VietQR'
+      title: 'Confirm your order?',
+      html: `You will pay <b>${formatPrice(totalAmount)}</b> using <b>${paymentMethod === 'cod' ? 'Cash on delivery' :
+        paymentMethod === 'vnpay' ? 'VNPAY' : 'VietQR bank transfer'
         }</b>.<br/>Bạn có chắc chắn muốn tiếp tục?`,
       icon: 'question',
       showCancelButton: true,
@@ -225,8 +235,8 @@ const Checkout = () => {
         cancelButton: 'px-6 py-3 mx-2 border border-gray-200 text-stone-600 text-sm font-bold uppercase tracking-widest hover:border-stone-400 transition-colors'
       },
 
-      confirmButtonText: 'Đồng ý đặt hàng',
-      cancelButtonText: 'Kiểm tra lại',
+      confirmButtonText: 'Place order',
+      cancelButtonText: 'Review order',
       reverseButtons: true
     }).then((result) => {
       if (result.isConfirmed) {
@@ -238,7 +248,7 @@ const Checkout = () => {
     if (isProcessing) return; // Chặn người dùng click liên tục
 
     if (!form.fullName || !form.phone || !form.street) {
-      return Swal.fire('Thiếu thông tin', 'Vui lòng chọn hoặc thêm địa chỉ giao hàng.', 'warning');
+      return Swal.fire('Missing information', 'Choose or add a shipping address.', 'warning');
     }
 
     setIsProcessing(true); // KHÓA NÚT LẠI
@@ -260,7 +270,7 @@ const Checkout = () => {
       } else if (paymentMethod === 'transfer') {
         generateQR(orderId);
       } else {
-        await Swal.fire('Thành công', 'Đơn hàng đã được đặt!', 'success');
+        await Swal.fire('Order placed', 'Your order has been submitted.', 'success');
         localStorage.removeItem('checkoutItems');
         navigate('/orders');
       }
@@ -268,10 +278,10 @@ const Checkout = () => {
       console.error(err);
 
       // Lấy thông báo lỗi từ backend trả về (trường 'msg' trong orderController)
-      const errorMessage = err.response?.data?.msg || 'Không thể đặt hàng. Vui lòng thử lại sau.';
+      const errorMessage = 'Unable to place the order. Please try again.';
 
       // Hiển thị lỗi ra cho người dùng biết
-      Swal.fire('Thất bại', errorMessage, 'error');
+      Swal.fire('Order failed', errorMessage, 'error');
 
     } finally {
       setIsProcessing(false); // MỞ LẠI NÚT NẾU CHẠY XONG HOẶC GẶP LỖI
@@ -285,8 +295,8 @@ const Checkout = () => {
     <div className="min-h-screen bg-stone-50">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-600 mb-1">Mua hàng</p>
-          <h1 className="text-3xl font-bold text-black">Thanh Toán</h1>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-600 mb-1">Purchase</p>
+          <h1 className="text-3xl font-bold text-black">Checkout</h1>
         </div>
       </div>
 
@@ -295,10 +305,10 @@ const Checkout = () => {
           <div className="w-full md:w-[40%] flex flex-col gap-4">
             <div className="bg-white border border-gray-100 p-6">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">
-                Sản phẩm đã chọn ({cart.length})
+                Selected items ({cart.length})
               </h2>
               {cart.length === 0 ? (
-                <p className="text-stone-600 text-sm italic">Không có sản phẩm nào.</p>
+                <p className="text-stone-600 text-sm italic">No items selected.</p>
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => {
@@ -306,7 +316,7 @@ const Checkout = () => {
                     const currentPrice = item.book.discountedPrice || item.book.price;
                     return (
                       <div key={item.book._id} className="flex gap-3 items-center pb-4 border-b border-gray-50 last:border-0 last:pb-0">
-                        <img src={imgSrc} className="w-12 h-16 object-cover flex-shrink-0" alt={item.book.title} />
+                        <img src={imgSrc} loading="lazy" decoding="async" className="w-12 h-16 object-cover flex-shrink-0" alt={item.book.title} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-black line-clamp-2 leading-snug">{item.book.title}</p>
                           <p className="text-xs text-stone-600 mt-0.5">x{item.quantity}</p>
@@ -322,53 +332,53 @@ const Checkout = () => {
             </div>
 
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">Mã khuyến mãi</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4">Vouchers</h2>
               <button onClick={() => setShowVoucherModal(true)} className={`w-full flex items-center justify-between p-3.5 border transition-colors duration-200 ${appliedVoucher ? 'border-black bg-black/5' : 'border-gray-200 hover:border-stone-400'}`}>
                 <div className="flex items-center gap-3 select-none">
                   <FontAwesomeIcon icon={['fas', 'ticket-alt']} className={appliedVoucher ? 'text-black' : 'text-stone-300'} />
-                  <span className={`text-sm font-medium ${appliedVoucher ? 'text-black' : 'text-stone-600'}`}>{appliedVoucher ? `Mã: ${appliedVoucher}` : 'Chọn mã khuyến mãi'}</span>
+                  <span className={`text-sm font-medium ${appliedVoucher ? 'text-black' : 'text-stone-600'}`}>{appliedVoucher ? `Code: ${appliedVoucher}` : 'Choose a voucher'}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  {appliedVoucher && <span onClick={handleRemoveVoucher} className="text-s text-red-800 hover:text-red-500 font-bold">Bỏ</span>}
+                  {appliedVoucher && <span onClick={handleRemoveVoucher} className="text-s text-red-800 hover:text-red-500 font-bold">Remove</span>}
                   <FontAwesomeIcon icon={['fas', 'chevron-right']} className="text-stone-300 text-xs" />
                 </div>
               </button>
             </div>
 
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4 pb-3 border-b border-gray-100">Tổng cộng</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-4 pb-3 border-b border-gray-100">Order total</h2>
               <div className="space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-stone-500">Tạm tính</span><span className="font-medium text-black">{formatPrice(subTotal)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-stone-500">Phí vận chuyển</span><span className="font-medium text-black">{formatPrice(shippingFee)}</span></div>
-                {discountAmount > 0 && <div className="flex justify-between text-sm"><span className="text-stone-500">Giảm giá</span><span className="font-medium text-green-600">-{formatPrice(discountAmount)}</span></div>}
-                <div className="flex justify-between items-center pt-3 border-t border-gray-100"><span className="font-bold text-black">Tổng cộng</span><span className="text-2xl font-bold text-black">{formatPrice(totalAmount)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-medium text-black">{formatPrice(subTotal)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-stone-500">Shipping</span><span className="font-medium text-black">{formatPrice(shippingFee)}</span></div>
+                {discountAmount > 0 && <div className="flex justify-between text-sm"><span className="text-stone-500">Discount</span><span className="font-medium text-green-600">-{formatPrice(discountAmount)}</span></div>}
+                <div className="flex justify-between items-center pt-3 border-t border-gray-100"><span className="font-bold text-black">Total</span><span className="text-2xl font-bold text-black">{formatPrice(totalAmount)}</span></div>
               </div>
             </div>
           </div>
 
           <div className="w-full md:w-[60%] flex flex-col gap-4">
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">Địa chỉ giao hàng</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">Shipping address</h2>
               {form.fullName ? (
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1"><p className="font-semibold text-sm text-black">{form.fullName}</p><span className="text-stone-300">·</span><p className="text-sm text-stone-500">{form.phone}</p></div>
                     <p className="text-sm text-stone-500">{formatAddress(form)}</p>
                   </div>
-                  <button onClick={() => setShowAddressModal(true)} className="flex-shrink-0 text-xs px-4 py-2 hover-flip-btn select-none">Thay đổi</button>
+                  <button onClick={() => setShowAddressModal(true)} className="flex-shrink-0 text-xs px-4 py-2 hover-flip-btn select-none">Change</button>
                 </div>
               ) : (
-                <div className="text-center py-6"><p className="text-stone-600 text-sm mb-4">Bạn chưa có địa chỉ giao hàng</p><button onClick={() => { setShowAddressModal(true); setShowNewAddressForm(true); }} className="px-8 py-2.5 hover-flip-btn">Thêm địa chỉ</button></div>
+                <div className="text-center py-6"><p className="text-stone-600 text-sm mb-4">You don't have a shipping address yet.</p><button onClick={() => { setShowAddressModal(true); setShowNewAddressForm(true); }} className="px-8 py-2.5 hover-flip-btn">Add address</button></div>
               )}
             </div>
 
             <div className="bg-white border border-gray-100 p-6">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">Phương thức thanh toán</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-stone-600 mb-5 pb-4 border-b border-gray-100">Payment method</h2>
               <div className="space-y-3 select-none ">
                 {[
-                  { value: 'vnpay', label: 'Thanh toán qua VNPAY', sub: 'Thẻ ATM, Visa, Mastercard', icon: null, imgSrc: 'https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR-1.png' },
-                  { value: 'cod', label: 'Thanh toán khi nhận hàng', sub: 'COD · Nhận hàng trả tiền', icon: 'money-bill-wave', iconColor: 'text-green-500' },
-                  { value: 'transfer', label: 'Chuyển khoản VietQR', sub: 'Quét mã QR ngân hàng', icon: 'qrcode', iconColor: 'text-blue-500' },
+                  { value: 'vnpay', label: 'Pay with VNPAY', sub: 'ATM card, Visa, Mastercard', icon: null, imgSrc: 'https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR-1.png' },
+                  { value: 'cod', label: 'Cash on delivery', sub: 'Pay when your order arrives', icon: 'money-bill-wave', iconColor: 'text-green-500' },
+                  { value: 'transfer', label: 'VietQR bank transfer', sub: 'Scan your bank app QR code', icon: 'qrcode', iconColor: 'text-blue-500' },
                 ].map(method => (
                   <label key={method.value} className={`flex items-center gap-4 p-4 border cursor-pointer transition-all duration-200 ${paymentMethod === method.value ? 'border-black bg-stone-50' : 'border-gray-100 hover:border-stone-300'}`}>
                     <input type="radio" checked={paymentMethod === method.value} onChange={() => setPaymentMethod(method.value)} className="accent-black w-4 h-4" />
@@ -384,7 +394,7 @@ const Checkout = () => {
               disabled={isProcessing}
               className={`w-full py-4 uppercase tracking-widest font-bold text-sm select-none transition-all duration-300 ${isProcessing ? 'bg-stone-300 text-stone-500 cursor-not-allowed' : 'hover-flip-btn'}`}
             >
-              {isProcessing ? 'Đang xử lý...' : (paymentMethod === 'cod' ? 'Xác nhận đặt hàng' : `Thanh toán · ${formatPrice(totalAmount)}`)}
+              {isProcessing ? 'Processing...' : (paymentMethod === 'cod' ? 'Place order' : `Pay · ${formatPrice(totalAmount)}`)}
             </button>
           </div>
         </div>
@@ -394,12 +404,12 @@ const Checkout = () => {
         <div className="fixed inset-0 bg-black/50 flex justify-center items-end md:items-center z-[110] p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md shadow-2xl relative flex flex-col max-h-[85vh] transition-all duration-300">
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-              <div><h3 className="text-sm font-bold uppercase tracking-widest text-black">Mã khuyến mãi</h3><p className="text-xs text-stone-600 mt-0.5">{vouchers.length} mã khả dụng</p></div>
+              <div><h3 className="text-sm font-bold uppercase tracking-widest text-black">Vouchers</h3><p className="text-xs text-stone-600 mt-0.5">{vouchers.length} available</p></div>
               <button onClick={() => setShowVoucherModal(false)} className="w-8 h-8 flex items-center justify-center text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button>
             </div>
             <div className="p-4 overflow-y-auto space-y-3 select-none">
               {vouchers.length === 0 ? (
-                <div className="text-center py-12 text-stone-600"><FontAwesomeIcon icon={['fas', 'ticket-alt']} className="text-3xl text-stone-200 mb-3" /><p className="text-sm">Hiện không có mã giảm giá nào.</p></div>
+                <div className="text-center py-12 text-stone-600"><FontAwesomeIcon icon={['fas', 'ticket-alt']} className="text-3xl text-stone-200 mb-3" /><p className="text-sm">No vouchers are available right now.</p></div>
               ) : (
                 vouchers.map(v => {
                   const isEligible = subTotal >= v.minOrderValue;
@@ -409,10 +419,10 @@ const Checkout = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm text-black tracking-wide">{v.code}</p>
                         <p className="text-sm font-semibold text-stone-600 mt-0.5">Giảm {v.discountType === 'fixed' ? formatPrice(v.discountValue) : `${v.discountValue}%`} {v.discountType === 'percent' && v.maxDiscountAmount ? ` (Tối đa ${formatPrice(v.maxDiscountAmount)})` : ''}</p>
-                        <p className="text-xs text-stone-600 mt-1">Đơn tối thiểu {formatPrice(v.minOrderValue)}</p>
+                        <p className="text-xs text-stone-600 mt-1">Minimum order {formatPrice(v.minOrderValue)}</p>
                       </div>
                       <div className="flex-shrink-0">{appliedVoucher === v.code ? <FontAwesomeIcon icon={['fas', 'check-circle']} className="text-black text-xl" /> : <div className={`w-5 h-5 rounded-full border-2 ${isEligible ? 'border-stone-300' : 'border-stone-200'}`} />}</div>
-                      {!isEligible && <div className="absolute top-2 right-2 text-[10px] text-red-400 bg-red-50 px-2 py-0.5 border border-red-100">Chưa đủ điều kiện</div>}
+                      {!isEligible && <div className="absolute top-2 right-2 text-[10px] text-red-400 bg-red-50 px-2 py-0.5 border border-red-100">Not eligible</div>}
                     </div>
                   );
                 })
@@ -425,23 +435,23 @@ const Checkout = () => {
       {showQRModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-[100] p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm shadow-2xl relative">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center"><h3 className="text-sm font-bold uppercase tracking-widest text-black">Quét mã VietQR</h3><button onClick={handleCloseQRModal} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center"><h3 className="text-sm font-bold uppercase tracking-widest text-black">Scan VietQR code</h3><button onClick={handleCloseQRModal} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
             <div className="p-6 space-y-4 text-center">
-              <p className="text-xs text-stone-600">Dùng App ngân hàng để quét mã và thanh toán tự động</p>
+              <p className="text-xs text-stone-600">Scan with your banking app to pay.</p>
               <div className="bg-stone-50 p-3 border border-gray-100"><img src={qrUrl} alt="VietQR" className="w-full h-auto mx-auto" /></div>
               <div className="bg-stone-50 p-4 text-left space-y-2 text-sm border border-gray-100">
-                <div className="flex justify-between"><span className="text-stone-600">Số tiền</span><span className="font-bold text-black">{formatPrice(totalAmount)}</span></div>
-                <p className="text-xs text-stone-600">Nội dung chuyển khoản đã tích hợp trong mã QR.</p>
+                <div className="flex justify-between"><span className="text-stone-600">Amount</span><span className="font-bold text-black">{formatPrice(totalAmount)}</span></div>
+                <p className="text-xs text-stone-600">The transfer note is included in the QR code.</p>
               </div>
               <button onClick={() => {
                 localStorage.removeItem('checkoutItems');
                 Swal.fire(
-                  'Ghi nhận thành công',
-                  'Hệ thống đang chờ Admin xác nhận khoản tiền của bạn. Trạng thái đơn sẽ được cập nhật sớm nhất!',
+                  'Payment noted',
+                  'We are waiting for payment confirmation. Your order status will update once verified.',
                   'success'
                 );
                 navigate('/orders');
-              }} className="w-full py-3 hover-flip-btn">Tôi đã chuyển khoản xong</button>
+              }} className="w-full py-3 hover-flip-btn">I have completed the transfer</button>
             </div>
           </div>
         </div>
@@ -450,7 +460,7 @@ const Checkout = () => {
       {showAddressModal && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white"><h3 className="text-sm font-bold uppercase tracking-widest text-black">Địa chỉ giao hàng</h3><button onClick={() => { setShowAddressModal(false); setShowNewAddressForm(false); }} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white"><h3 className="text-sm font-bold uppercase tracking-widest text-black">Shipping address</h3><button onClick={() => { setShowAddressModal(false); setShowNewAddressForm(false); }} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
             <div className="p-5 space-y-4">
               {addresses.length > 0 && (
                 <div className="space-y-2 max-h-[220px] overflow-y-auto select-none">
@@ -462,21 +472,21 @@ const Checkout = () => {
                   ))}
                 </div>
               )}
-              {!showNewAddressForm && <button onClick={() => setShowNewAddressForm(true)} className="text-sm text-black font-semibold hover:underline flex items-center gap-2 select-none"><FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" /> Thêm địa chỉ mới</button>}
+              {!showNewAddressForm && <button onClick={() => setShowNewAddressForm(true)} className="text-sm text-black font-semibold hover:underline flex items-center gap-2 select-none"><FontAwesomeIcon icon={['fas', 'plus']} className="text-xs" /> Add new address</button>}
               {showNewAddressForm && (
                 <div className="border border-gray-100 p-4 bg-stone-50 space-y-3 relative select-none">
-                  <div className="flex items-center justify-between mb-1"><h4 className="text-xs font-bold uppercase tracking-widest text-stone-600">Địa chỉ mới</h4><button onClick={() => setShowNewAddressForm(false)} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
-                  <div className="grid grid-cols-2 gap-3"><input value={newAddress.fullName} onChange={e => setNewAddress({ ...newAddress, fullName: e.target.value })} placeholder="Họ và tên" className={inputClass} /><input value={newAddress.phone} onChange={e => setNewAddress({ ...newAddress, phone: e.target.value })} placeholder="Số điện thoại" className={inputClass} /></div>
+                  <div className="flex items-center justify-between mb-1"><h4 className="text-xs font-bold uppercase tracking-widest text-stone-600">New address</h4><button onClick={() => setShowNewAddressForm(false)} className="text-stone-600 hover:text-black transition-colors"><FontAwesomeIcon icon={['fas', 'xmark']} /></button></div>
+                  <div className="grid grid-cols-2 gap-3"><input value={newAddress.fullName} onChange={e => setNewAddress({ ...newAddress, fullName: e.target.value })} placeholder="Full name" className={inputClass} /><input value={newAddress.phone} onChange={e => setNewAddress({ ...newAddress, phone: e.target.value })} placeholder="Phone number" className={inputClass} /></div>
                   <div className="grid grid-cols-3 gap-3">
-                    <select onChange={handleProvinceChange} className={selectClass}><option value="">Tỉnh / Thành phố</option>{provinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>
-                    <select onChange={handleDistrictChange} disabled={!districts.length} className={selectClass}><option value="">Quận / Huyện</option>{districts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}</select>
-                    <select onChange={e => setNewAddress({ ...newAddress, ward: wards.find(w => w.code == e.target.value)?.name })} disabled={!wards.length} className={selectClass}><option value="">Phường / Xã</option>{wards.map(w => <option key={w.code} value={w.code}>{w.name}</option>)}</select>
+                    <select onChange={handleProvinceChange} className={selectClass}><option value="">Province / City</option>{provinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}</select>
+                    <select onChange={handleDistrictChange} disabled={!districts.length} className={selectClass}><option value="">District</option>{districts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}</select>
+                    <select onChange={e => setNewAddress({ ...newAddress, ward: wards.find(w => w.code == e.target.value)?.name })} disabled={!wards.length} className={selectClass}><option value="">Ward</option>{wards.map(w => <option key={w.code} value={w.code}>{w.name}</option>)}</select>
                   </div>
-                  <input value={newAddress.street} onChange={e => setNewAddress({ ...newAddress, street: e.target.value })} placeholder="Số nhà, tên đường" className={inputClass} />
-                  <div className="text-right"><button onClick={addNewAddress} className="px-6 py-2.5 hover-flip-btn text-sm">Lưu địa chỉ</button></div>
+                  <input value={newAddress.street} onChange={e => setNewAddress({ ...newAddress, street: e.target.value })} placeholder="Street address" className={inputClass} />
+                  <div className="text-right"><button onClick={addNewAddress} className="px-6 py-2.5 hover-flip-btn text-sm">Save address</button></div>
                 </div>
               )}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 select-none"><button onClick={() => { setShowAddressModal(false); setShowNewAddressForm(false); }} className="px-5 py-2.5 border border-gray-200 text-sm text-stone-600 hover:border-stone-400 transition-colors">Huỷ</button><button onClick={confirmAddressSelection} className="px-6 py-2.5 hover-flip-btn text-sm">Xác nhận</button></div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 select-none"><button onClick={() => { setShowAddressModal(false); setShowNewAddressForm(false); }} className="px-5 py-2.5 border border-gray-200 text-sm text-stone-600 hover:border-stone-400 transition-colors">Cancel</button><button onClick={confirmAddressSelection} className="px-6 py-2.5 hover-flip-btn text-sm">Confirm</button></div>
             </div>
           </div>
         </div>

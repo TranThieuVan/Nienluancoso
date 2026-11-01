@@ -10,7 +10,7 @@ const PaypalButton = ({ totalAmount, onSuccess }) => {
                     purchase_units: [
                         {
                             amount: {
-                                // PayPal dùng USD, nên bạn cần chia tỉ giá (ví dụ 25000)
+                                // PayPal uses USD, so convert from VND using the current exchange rate.
                                 value: (totalAmount / 25000).toFixed(2),
                             },
                         },
@@ -22,8 +22,8 @@ const PaypalButton = ({ totalAmount, onSuccess }) => {
                 console.log("Thanh toán thành công:", order);
                 onSuccess(order); // Gọi hàm xử lý sau khi trả tiền xong
             }}
-            onError={(err) => {
-                Swal.fire("Lỗi", "Giao dịch PayPal bị lỗi!", "error");
+            onError={() => {
+                Swal.fire("Error", "The PayPal transaction failed.", "error");
             }}
         />
     );

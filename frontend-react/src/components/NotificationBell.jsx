@@ -76,6 +76,40 @@ const NotificationBell = () => {
     }, [notifications, deletedIds, readIds]);
 
     const displayNotifications = visibleNotifications.slice(0, 5);
+    const getNotificationTitle = (notification) => {
+        if (notification.type === 'voucher') return 'New voucher available';
+        if (notification.type === 'promotion') {
+            const promotionName = notification.title?.replace(/^🔥\s*Khuyến mãi sốc:\s*/, '');
+            return promotionName ? `Special offer: ${promotionName}` : 'Special offer';
+        }
+        if (notification.type === 'order') {
+            if (notification.title?.includes('Giao hàng thất bại')) return 'Delivery failed';
+            if (notification.title?.includes('Hoàn tiền thành công')) return 'Refund issued';
+            if (notification.title?.includes('Duyệt trả hàng')) return 'Return approved';
+            if (notification.title?.includes('Khiếu nại bị từ chối')) return 'Return request declined';
+        }
+        return notification.title;
+    };
+    const getNotificationMessage = (notification) => {
+        if (notification.type === 'voucher') {
+            const code = notification.message?.match(/mã\s+(.+?)\s+để nhận/i)?.[1];
+            return code ? `Use code ${code} to claim your discount.` : 'A new voucher is available.';
+        }
+        if (notification.type === 'promotion' && notification.message === 'Nhiều tựa sách đang được giảm giá cực mạnh. Khám phá ngay!') {
+            return 'Explore a wide selection of books on sale now.';
+        }
+        if (notification.type === 'order') {
+            const orderId = notification.message?.match(/#([A-Z0-9]+)/i)?.[1];
+            if (notification.title?.includes('Giao hàng thất bại')) return `Order #${orderId || ''} could not be delivered. Please check the delivery details.`;
+            if (notification.title?.includes('Hoàn tiền thành công')) return `A refund for order #${orderId || ''} has been sent to your account.`;
+            if (notification.title?.includes('Duyệt trả hàng')) return `The return for order #${orderId || ''} was approved. Please send the item back.`;
+            if (notification.title?.includes('Khiếu nại bị từ chối')) {
+                const reason = notification.message?.match(/Lý do:\s*(.*)$/i)?.[1];
+                return `The return request for order #${orderId || ''} was declined.${reason ? ` Reason: ${reason}` : ''}`;
+            }
+        }
+        return notification.message;
+    };
 
     return (
         <>
@@ -84,8 +118,8 @@ const NotificationBell = () => {
                     <div className="bg-white border-l-4 border-blue-500 shadow-xl rounded-r-lg p-4 w-72 flex items-start space-x-3 cursor-pointer" onClick={() => setIsOpen(true)}>
                         <span className="text-2xl">{toastNoti.type === 'voucher' ? '🎟️' : '🔥'}</span>
                         <div className="flex-1">
-                            <h4 className="text-sm font-bold text-gray-800">{toastNoti.title}</h4>
-                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{toastNoti.message}</p>
+                            <h4 className="text-sm font-bold text-gray-800">{getNotificationTitle(toastNoti)}</h4>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{getNotificationMessage(toastNoti)}</p>
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); setToastNoti(null); }} className="text-gray-400 hover:text-gray-600">✕</button>
                     </div>
@@ -110,8 +144,8 @@ const NotificationBell = () => {
                 {isOpen && (
                     <div className="absolute right-0 top-full mt-3 w-72 bg-white rounded-lg shadow-2xl overflow-hidden z-50 border border-gray-100">
                         <div className="px-4 py-3 bg-gray-50 flex justify-between items-center">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-stone-800">Thông báo</h3>
-                            {unreadCount > 0 && <span className="text-[10px] text-blue-600 font-bold">{unreadCount} mới</span>}
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-stone-800">Notifications</h3>
+                            {unreadCount > 0 && <span className="text-[10px] text-blue-600 font-bold">{unreadCount} new</span>}
                         </div>
 
                         <ul className="max-h-72 overflow-y-auto">
@@ -133,16 +167,16 @@ const NotificationBell = () => {
                                             }}
                                             className={`relative px-4 py-3 border-t border-gray-50 cursor-pointer transition group ${!isRead ? 'bg-blue-50/20 hover:bg-blue-50/40' : 'bg-white hover:bg-stone-50'}`}
                                         >
-                                            <button onClick={(e) => handleDelete(e, noti._id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1" title="Xóa">
+                                            <button onClick={(e) => handleDelete(e, noti._id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1" title="Delete">
                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
 
                                             <div className="flex items-start space-x-3 pr-4">
                                                 <span className="text-base mt-0.5">{noti.type === 'voucher' ? '🎟️' : '🔥'}</span>
                                                 <div className="flex flex-col flex-1">
-                                                    <span className={`text-[13px] ${!isRead ? 'font-bold text-black' : 'font-medium text-stone-700'}`}>{noti.title}</span>
-                                                    <span className={`text-[11px] mt-0.5 line-clamp-2 ${!isRead ? 'text-stone-700' : 'text-stone-500'}`}>{noti.message}</span>
-                                                    <span className="text-[9px] text-stone-400 mt-1.5">{new Date(noti.createdAt).toLocaleString('vi-VN')}</span>
+                                                    <span className={`text-[13px] ${!isRead ? 'font-bold text-black' : 'font-medium text-stone-700'}`}>{getNotificationTitle(noti)}</span>
+                                                    <span className={`text-[11px] mt-0.5 line-clamp-2 ${!isRead ? 'text-stone-700' : 'text-stone-500'}`}>{getNotificationMessage(noti)}</span>
+                                                    <span className="text-[9px] text-stone-400 mt-1.5">{new Date(noti.createdAt).toLocaleString('en-US')}</span>
                                                 </div>
                                                 {!isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></span>}
                                             </div>
@@ -150,7 +184,7 @@ const NotificationBell = () => {
                                     )
                                 })
                             ) : (
-                                <li className="px-4 py-8 text-center text-xs text-stone-400">Không có thông báo mới.</li>
+                                <li className="px-4 py-8 text-center text-xs text-stone-400">No new notifications.</li>
                             )}
                         </ul>
                     </div>

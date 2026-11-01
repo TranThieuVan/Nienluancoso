@@ -54,7 +54,7 @@ const SearchResults = () => {
       {/* ── PAGE HEADER ── */}
       <div className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Tìm kiếm</p>
+          <p className="text-[10px] tracking-[0.4em] uppercase text-stone-400 mb-1">Search</p>
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <h1 className="text-3xl font-bold text-black">
               "{query}"
@@ -68,7 +68,7 @@ const SearchResults = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs tracking-widest uppercase text-stone-400">Đang tìm kiếm...</p>
+            <p className="text-xs tracking-widest uppercase text-stone-400">Searching...</p>
           </div>
         ) : filteredBooks.length > 0 ? (
           <>
@@ -94,14 +94,14 @@ const SearchResults = () => {
               <FontAwesomeIcon icon={['fas', 'magnifying-glass']} className="text-xl text-stone-300" />
             </div>
             <div className="text-center">
-              <p className="font-semibold text-black mb-1">Không tìm thấy kết quả</p>
+              <p className="font-semibold text-black mb-1">No results found</p>
               <p className="text-sm text-stone-400">
-                Không có sách nào phù hợp với từ khoá <span className="text-black font-medium">"{query}"</span>
+                No books match <span className="text-black font-medium">"{query}"</span>
               </p>
             </div>
             <div className="text-xs text-stone-400 mt-2 space-y-1 text-center">
-              <p>Thử kiểm tra lại chính tả</p>
-              <p>Hoặc tìm với từ khoá ngắn hơn</p>
+              <p>Check the spelling</p>
+              <p>Or try a shorter search term</p>
             </div>
           </div>
         )}

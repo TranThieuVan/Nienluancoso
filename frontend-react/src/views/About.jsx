@@ -5,29 +5,29 @@ const SECTIONS = [
     {
         id: 1,
         imageLeft: false,
-        tag: "Câu chuyện của chúng tôi",
-        heading: "Nơi mỗi trang sách\nlà một hành trình.",
-        body: "Được thành lập vào năm 2025, Booknest ra đời từ niềm tin rằng sách không chỉ là vật phẩm — mà là cánh cửa mở ra những thế giới chưa từng được khám phá. Chúng tôi là những người yêu sách, bởi những người yêu sách, dành cho những người yêu sách.",
+        tag: "Our story",
+        heading: "Every page opens\na new journey.",
+        body: "Founded in 2025, BookNest was built on the belief that books are more than objects: they are doors to worlds waiting to be explored. We are readers, building a bookstore for readers.",
         image: "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&q=80",
-        alt: "Thư viện sách cổ điển",
+        alt: "A classic library",
     },
     {
         id: 2,
         imageLeft: true,
-        tag: "Triết lý biên tập",
-        heading: "Chúng tôi chọn lọc\nbằng trái tim.",
-        body: "Mỗi cuốn sách trên Booknest đều trải qua quá trình tuyển chọn kỹ lưỡng từ đội ngũ biên tập viên giàu kinh nghiệm. Chúng tôi không theo đuổi số lượng — chúng tôi theo đuổi chất lượng và sự phù hợp với từng độc giả.",
+        tag: "Our editorial approach",
+        heading: "Thoughtfully chosen,\nreader by reader.",
+        body: "Every book on BookNest is carefully selected by our editorial team. We value quality and relevance over volume, helping each reader find a book worth their time.",
         image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80",
-        alt: "Biên tập sách",
+        alt: "Bookshelves in a bookstore",
     },
     {
         id: 3,
         imageLeft: false,
-        tag: "Cộng đồng",
-        heading: "Đọc cùng nhau\nhơn đọc một mình.",
-        body: "Booknest không chỉ là một cửa hàng. Chúng tôi xây dựng một cộng đồng nơi các độc giả chia sẻ, đánh giá và khám phá sách cùng nhau. Mỗi review, mỗi cuộc trò chuyện đều là một phần của hành trình.",
+        tag: "Community",
+        heading: "Reading is better\ntogether.",
+        body: "BookNest is more than a shop. It is a community where readers share reviews, conversations, and discoveries. Every contribution becomes part of the journey.",
         image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80",
-        alt: "Cộng đồng đọc sách",
+        alt: "A group of friends sharing a moment",
     },
 ];
 
@@ -66,6 +66,8 @@ function Section({ data, index }) {
                 <img
                     src={image}
                     alt={alt}
+                    loading="lazy"
+                    decoding="async"
                     className={`w-full h-full object-cover transition-transform duration-[1.5s] ease-out ${inView ? "scale-100" : "scale-110"
                         }`}
                 />
@@ -107,9 +109,9 @@ function Section({ data, index }) {
 export default function AboutPage() {
     // 1. Khởi tạo state chứa dữ liệu thống kê (mặc định hiển thị "..." trong lúc chờ API)
     const [stats, setStats] = useState([
-        { num: "...", label: "Đầu sách" },
-        { num: "...", label: "Thành viên" },
-        { num: "...", label: "Đánh giá" }
+        { num: "...", label: "Books" },
+        { num: "...", label: "Members" },
+        { num: "...", label: "Average rating" }
     ]);
 
     // 2. Gọi API để lấy dữ liệu thật
@@ -127,17 +129,17 @@ export default function AboutPage() {
                 };
 
                 setStats([
-                    { num: formatK(data.totalBooks), label: "Đầu sách" },
-                    { num: formatK(data.totalUsers), label: "Thành viên" },
-                    { num: `${data.avgRating || 5}★`, label: "Đánh giá" }
+                    { num: formatK(data.totalBooks), label: "Books" },
+                    { num: formatK(data.totalUsers), label: "Members" },
+                    { num: `${data.avgRating || 5}★`, label: "Average rating" }
                 ]);
             } catch (error) {
                 console.error("Lỗi khi tải thống kê:", error);
                 // Fallback: Nếu API lỗi thì hiển thị số mặc định cho đẹp
                 setStats([
-                    { num: "50K+", label: "Đầu sách" },
-                    { num: "200K+", label: "Thành viên" },
-                    { num: "5★", label: "Đánh giá" }
+                    { num: "50K+", label: "Books" },
+                    { num: "200K+", label: "Members" },
+                    { num: "5★", label: "Average rating" }
                 ]);
             }
         };
@@ -152,16 +154,16 @@ export default function AboutPage() {
                 <div className="max-w-none grid grid-cols-1 md:grid-cols-3 md:pt-12 md:pb-20 gap-12 items-end">
                     <div className="space-y-8 md:col-span-2">
                         <h1 className="text-7xl lg:text-8xl xl:text-9xl md:mb-24 lg:mb-0 font-bold leading-[0.9] tracking-tighter text-black uppercase">
-                            Chúng tôi <br />
-                            <span className="text-gray-300 italic font-medium">tin vào</span> <br />
-                            sức mạnh <br />
-                            của sách.
+                            We believe <br />
+                            <span className="text-gray-300 italic font-medium">in the</span> <br />
+                            power <br />
+                            of books.
                         </h1>
                     </div>
 
                     <div className="md:pb-4 space-y-12">
                         <p className="text-2xl text-gray-500 leading-relaxed max-w-md">
-                            Booknest là điểm đến của những tâm hồn yêu đọc — nơi tri thức được trao đi với sự trân trọng và chăm chút tận tâm.
+                            BookNest is a destination for curious readers, where knowledge is shared with care and attention.
                         </p>
 
                         {/* CẬP NHẬT: Map qua state 'stats' thay vì mảng cứng */}

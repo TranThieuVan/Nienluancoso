@@ -7,7 +7,7 @@ const TopSellingBooks = ({ books = [] }) => {
   // Thay vì return null làm trắng trang, hãy hiển thị câu thông báo để dễ Debug
   if (safeBooks.length === 0) return (
     <div className="mt-10 py-10 text-center text-gray-500 font-medium border-2 border-dashed border-gray-200 rounded-lg">
-      Chưa có dữ liệu sách bán chạy.
+      No best-selling books to show yet.
     </div>
   );
 
@@ -20,6 +20,8 @@ const TopSellingBooks = ({ books = [] }) => {
               <div className="overflow-hidden aspect-[3/4]">
                 <img
                   src={getImageUrl(book.image)} alt={book.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-all duration-300 border-transparent group-hover:border-black border-[4px]"
                 />
               </div>
@@ -42,11 +44,11 @@ const TopSellingBooks = ({ books = [] }) => {
                   </p>
 
                   <p className="text-[15px] font-semibold text-gray-500 truncate">
-                    {Number(book.price || 0).toLocaleString('vi-VN')}₫
+                    {Number(book.price || 0).toLocaleString('en-US')}₫
                   </p>
 
                   <p className="text-[17px]  text-red-800 truncate">
-                    Đã bán: {book.totalSold ?? book.sold ?? 0}
+                    Sold: {book.totalSold ?? book.sold ?? 0}
                   </p>
 
                 </div>
