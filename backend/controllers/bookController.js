@@ -7,6 +7,8 @@ const OpenAI = require("openai");
 const fs = require("fs");
 const path = require("path");
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     // baseURL: "https://openrouter.ai/api/v1", // Bỏ comment nếu dùng OpenRouter
@@ -112,21 +114,30 @@ exports.getAllBooks = async (req, res) => {
     try {
         const filter = {};
         const now = new Date();
+        const andFilters = [];
 
         if (req.query.genre) filter.genre = req.query.genre;
         if (req.query.publisher) filter.publisher = req.query.publisher; // ✅ Hỗ trợ lọc theo NXB
-        if (req.query.search) {
-            filter.$or = [
-                { title: { $regex: req.query.search, $options: 'i' } },
-                { author: { $regex: req.query.search, $options: 'i' } }
-            ];
+        const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        if (search) {
+            andFilters.push({
+                $or: [
+                    { title: { $regex: escapeRegex(search), $options: 'i' } },
+                    { author: { $regex: escapeRegex(search), $options: 'i' } }
+                ]
+            });
         }
+
         if (req.query.filter === 'sale') {
-            const promos = await Promotion.find({
+            let promos = await Promotion.find({
                 isActive: true,
                 startDate: { $lte: now },
                 endDate: { $gte: now }
-            });
+            }).lean();
+
+            if (req.query.promo) {
+                promos = promos.filter(p => String(p._id) === req.query.promo);
+            }
 
             if (promos.length === 0) {
                 filter._id = { $in: [] };
@@ -147,22 +158,25 @@ exports.getAllBooks = async (req, res) => {
                     const conditions = [];
                     if (saleGenres.length > 0) conditions.push({ genre: { $in: saleGenres } });
                     if (saleBookIds.length > 0) conditions.push({ _id: { $in: saleBookIds } });
-                    filter.$or = conditions.length > 0 ? conditions : [{ _id: { $in: [] } }];
+                    andFilters.push(conditions.length > 0 ? { $or: conditions } : { _id: { $in: [] } });
                 }
             }
         }
 
+        if (andFilters.length > 0) filter.$and = andFilters;
+
         let sort = { createdAt: -1 };
+        if (req.query.sort === 'title_asc') sort = { title: 1 };
         if (req.query.sort === 'price_asc') sort = { price: 1 };
         if (req.query.sort === 'price_desc') sort = { price: -1 };
 
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
         const skip = (page - 1) * limit;
 
         const [total, books] = await Promise.all([
             Book.countDocuments(filter),
-            Book.find(filter).sort(sort).skip(skip).limit(limit)
+            Book.find(filter).sort(sort).skip(skip).limit(limit).lean()
         ]);
 
         res.json({
