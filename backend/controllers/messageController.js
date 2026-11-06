@@ -7,6 +7,7 @@ const Voucher = require('../models/Voucher');
 const OpenAI = require('openai');
 const Order = require('../models/Order');
 const PricingService = require('../services/pricingService');
+const mongoose = require('mongoose');
 
 // ✅ Dùng OpenRouter cho cả chat lẫn embedding 
 const getOpenAI = () => new OpenAI({
@@ -653,13 +654,32 @@ exports.getAllConversations = async (req, res) => {
 
         const conversations = await Conversation.find().sort({ updatedAt: -1 }).populate({ path: 'participants', select: 'name role avatar', match: { role: 'user' } });
 
-        const result = [];
+        const conversationsWithCustomers = [];
         for (const conv of conversations) {
             const customer = conv.participants.find((p) => p && p.role === 'user');
             if (!customer) continue;
-            const unreadCount = await Message.countDocuments({ conversationId: conv._id, sender: customer._id, readBy: { $ne: currentUserId } });
-            result.push({ ...conv.toObject(), participant: customer, unreadCount });
+            conversationsWithCustomers.push({ conversation: conv, customer });
         }
+
+        const unreadCounts = await Message.aggregate([
+            {
+                $match: {
+                    conversationId: { $in: conversationsWithCustomers.map(({ conversation }) => conversation._id) },
+                    sender: { $in: conversationsWithCustomers.map(({ customer }) => customer._id) },
+                    readBy: { $ne: new mongoose.Types.ObjectId(currentUserId) }
+                }
+            },
+            { $group: { _id: { conversationId: '$conversationId', sender: '$sender' }, count: { $sum: 1 } } }
+        ]);
+        const unreadCountByConversationAndSender = new Map(
+            unreadCounts.map(({ _id, count }) => [`${_id.conversationId}:${_id.sender}`, count])
+        );
+        const result = conversationsWithCustomers.map(({ conversation, customer }) => ({
+            ...conversation.toObject(),
+            participant: customer,
+            unreadCount: unreadCountByConversationAndSender.get(`${conversation._id}:${customer._id}`) || 0
+        }));
+
         res.status(200).json(result);
     } catch (err) { res.status(500).json({ message: 'Lỗi server', error: err.message }); }
 };

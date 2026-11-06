@@ -287,8 +287,8 @@ setInterval(() => {
 exports.getRecommendations = async (req, res) => {
     try {
         const bookId = req.params.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 6;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 6), 30);
         const MAX_CACHE = 30;
 
         let allSorted = [];

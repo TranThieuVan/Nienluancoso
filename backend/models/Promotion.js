@@ -41,4 +41,6 @@ const promotionSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+promotionSchema.index({ isActive: 1, startDate: 1, endDate: 1 });
+
 module.exports = mongoose.model('Promotion', promotionSchema);

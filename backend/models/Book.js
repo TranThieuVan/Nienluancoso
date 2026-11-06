@@ -78,11 +78,16 @@ const bookSchema = new mongoose.Schema({
 // 🔥 INDEX (TỐI ƯU HÓA TRUY VẤN)
 // ==========================================
 // Tăng tốc độ lọc theo thể loại, NXB, giá, tồn kho và thời gian tạo
-bookSchema.index({ genre: 1 });
-bookSchema.index({ publisher: 1 }); // ✅ Thêm index cho NXB
 bookSchema.index({ createdAt: -1 });
 bookSchema.index({ price: 1 });
 bookSchema.index({ stock: 1 });
+bookSchema.index({ sold: -1 });
+bookSchema.index({ title: 1 });
+bookSchema.index({ genre: 1, createdAt: -1 });
+bookSchema.index({ publisher: 1, createdAt: -1 });
+bookSchema.index({ genre: 1, publisher: 1, createdAt: -1 });
+bookSchema.index({ genre: 1, price: 1 });
+bookSchema.index({ publisher: 1, price: 1 });
 
 // Hỗ trợ tìm kiếm văn bản (Full-text search) cho tiêu đề và tác giả
 bookSchema.index({ title: 'text', author: 'text' });

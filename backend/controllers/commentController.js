@@ -6,8 +6,8 @@ const Order = require('../models/Order');
 exports.getCommentsByBook = async (req, res) => {
     try {
         const { bookId } = req.params;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 5;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 5), 100);
         const skip = (page - 1) * limit;
 
         const comments = await Comment.find({ bookId })

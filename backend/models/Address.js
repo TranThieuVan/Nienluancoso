@@ -15,4 +15,6 @@ const addressSchema = new mongoose.Schema({
     isDefault: { type: Boolean, default: false }
 }, { timestamps: true });
 
+addressSchema.index({ user: 1, isDefault: -1, createdAt: -1 });
+
 module.exports = mongoose.model('Address', addressSchema);

@@ -53,4 +53,9 @@ const orderSchema = new mongoose.Schema({
     returnReceipt: String
 }, { timestamps: true });
 
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ user: 1, status: 1, createdAt: -1 });
+orderSchema.index({ user: 1, status: 1, 'items.book': 1 });
+orderSchema.index({ user: 1, status: 1, updatedAt: -1 });
+
 module.exports = mongoose.model('Order', orderSchema);

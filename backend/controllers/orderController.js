@@ -96,8 +96,8 @@ exports.createOrder = async (req, res) => {
 exports.getMyOrders = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 5;
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 5), 100);
         const { startDate, endDate } = req.query; // Nhận tham số ngày từ frontend
 
         const skip = (page - 1) * limit;

@@ -21,4 +21,7 @@ const commentSchema = new mongoose.Schema({
     hiddenReason: { type: String, default: '' },
 }, { timestamps: true });
 
+commentSchema.index({ bookId: 1, createdAt: -1 });
+commentSchema.index({ bookId: 1, userId: 1 });
+
 module.exports = mongoose.model('Comment', commentSchema);

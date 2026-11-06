@@ -1,6 +1,7 @@
 const Rating = require('../models/Rating');
 const Book = require('../models/Book');
 const Order = require('../models/Order');
+const mongoose = require('mongoose');
 
 // POST hoặc cập nhật rating (phải có đơn hàng completed)
 exports.rateBook = async (req, res) => {
@@ -42,11 +43,15 @@ exports.getBookRating = async (req, res) => {
     try {
         const { bookId } = req.params;
 
-        const ratings = await Rating.find({ bookId });
-        const total = ratings.length;
-        const avg = total ? (ratings.reduce((sum, r) => sum + r.value, 0) / total).toFixed(1) : 0;
+        const [stats] = await Rating.aggregate([
+            { $match: { bookId: new mongoose.Types.ObjectId(bookId) } },
+            { $group: { _id: null, average: { $avg: '$value' }, total: { $sum: 1 } } }
+        ]);
 
-        res.json({ average: parseFloat(avg), total });
+        res.json({
+            average: stats ? Number(stats.average.toFixed(1)) : 0,
+            total: stats?.total || 0
+        });
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi lấy điểm đánh giá' });
     }
@@ -66,7 +71,7 @@ exports.getMyRating = async (req, res) => {
 
 exports.getTopRatedBooks = async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit) || 10;
+        const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 10), 50);
 
         const topRated = await Rating.aggregate([
             {
