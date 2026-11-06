@@ -1,6 +1,5 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
-const fs = require('fs');
 
 // [GET] /api/users/me – Lấy thông tin người dùng
 exports.getMe = async (req, res) => {
@@ -22,14 +21,7 @@ exports.updateProfile = async (req, res) => {
         if (req.body.name) user.name = req.body.name;
 
         if (req.file) {
-            // Nếu có avatar cũ (và không phải mặc định) → xoá
-            if (user.avatar && user.avatar !== 'uploads/avatars/default-user.png') {
-                fs.unlink(user.avatar, (err) => {
-                    if (err) console.error('Xoá avatar cũ thất bại:', err.message);
-                });
-            }
-
-            user.avatar = `uploads/avatars/${req.file.filename}`;
+            user.avatar = req.file.path;
         }
 
         await user.save();
@@ -77,4 +69,3 @@ exports.updateEmail = async (req, res) => {
         res.status(500).json({ msg: 'Lỗi server' })
     }
 }
-

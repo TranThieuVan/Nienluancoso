@@ -4,8 +4,6 @@ const Promotion = require('../models/Promotion');
 const Rating = require('../models/Rating'); // Bắt buộc thêm dòng này
 const PricingService = require('../services/pricingService');
 const OpenAI = require("openai");
-const fs = require("fs");
-const path = require("path");
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -90,7 +88,7 @@ exports.createBook = async (req, res) => {
             stock: Number(req.body.stock),
             genre: clean(req.body.genre),
             description: clean(req.body.description),
-            image: req.file ? `/uploads/${req.file.filename}` : undefined
+            image: req.file ? req.file.path : undefined
         };
 
         const aiResult = await generateEmbedding(bookData);
@@ -222,7 +220,7 @@ exports.updateBook = async (req, res) => {
         });
 
         if (req.file) {
-            book.image = `/uploads/${req.file.filename}`;
+            book.image = req.file.path;
         }
 
         if (needUpdateAI) {
@@ -255,11 +253,6 @@ exports.deleteBook = async (req, res) => {
     try {
         const book = await Book.findById(req.params.id);
         if (!book) return res.status(404).json({ msg: 'Không tìm thấy sách' });
-
-        if (book.image) {
-            const imgPath = path.join(__dirname, "..", "public", book.image);
-            fs.unlink(imgPath, () => { });
-        }
 
         await book.deleteOne();
         res.json({ msg: 'Đã xoá' });

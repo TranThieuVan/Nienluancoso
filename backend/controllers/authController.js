@@ -1,8 +1,6 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const path = require('path');
-const fs = require('fs');
 
 exports.register = async (req, res) => {
     try {
@@ -20,14 +18,9 @@ exports.register = async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        let avatar = req.file
-            ? `uploads/avatars/${req.file.filename}`
+        const avatar = req.file && req.file.size !== 0
+            ? req.file.path
             : 'uploads/avatars/default-user.png';
-
-        if (req.file && req.file.size === 0) {
-            fs.unlinkSync(req.file.path);
-            avatar = 'uploads/avatars/default-user.png';
-        }
 
         const newUser = new User({
             name, email, password: hashedPassword,
